@@ -10,12 +10,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.nickallport.findmevinyl.artist.ArtistSearchUiState
 import kotlinx.coroutines.launch
+import com.nickallport.findmevinyl.artist.ArtistDisplayItem
 
 @Composable
 fun ArtistSearchRoute(
     search: suspend (String) -> ArtistSearchUiState,
-    onArtistSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onArtistSelected: (ArtistDisplayItem) -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenFavourites: () -> Unit = {},
+    onOpenWantList: () -> Unit = {},
 ) {
     var uiState by remember { mutableStateOf<ArtistSearchUiState>(ArtistSearchUiState.Idle) }
     val coroutineScope = rememberCoroutineScope()
@@ -27,7 +30,9 @@ fun ArtistSearchRoute(
                 coroutineScope.launch {
                     uiState = search(query)
                 }
-            }
+            },
+            onOpenFavourites = onOpenFavourites,
+            onOpenWantList = onOpenWantList
         )
         ArtistSearchResultsScreen(state = uiState, onArtistSelected = onArtistSelected)
     }

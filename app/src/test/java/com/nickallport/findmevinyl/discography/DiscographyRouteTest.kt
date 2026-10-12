@@ -8,6 +8,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 class DiscographyRouteTest {
@@ -28,7 +30,7 @@ class DiscographyRouteTest {
         }
 
         composeTestRule.setContent {
-            DiscographyRoute(artistId = "some-artist-id", load = fakeLoad, onToggleOwned = {})
+            DiscographyRoute(artistId = "some-artist-id", artistName = "Genesis", load = fakeLoad, onToggleOwned = { _, _ -> })
         }
         composeTestRule.waitForIdle()
 
@@ -42,10 +44,94 @@ class DiscographyRouteTest {
         }
 
         composeTestRule.setContent {
-            DiscographyRoute(artistId = "some-artist-id", load = fakeLoad, onToggleOwned = {})
+            DiscographyRoute(artistId = "some-artist-id", artistName = "Genesis", load = fakeLoad, onToggleOwned = { _, _ -> })
         }
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Something went wrong").assertExists()
+    }
+
+    private val emptySuccess: suspend (String) -> DiscographyUiState = {
+        DiscographyUiState.Success(emptyMap())
+    }
+
+    @Test
+    fun `shows the artist name in the header`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "id-1",
+                artistName = "Roxy Music",
+                load = emptySuccess,
+                onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Roxy Music").assertExists()
+    }
+
+    @Test
+    fun `shows Saved when the artist is already a favourite`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "id-1",
+                artistName = "Roxy Music",
+                load = emptySuccess,
+                onToggleOwned = { _, _ -> },
+                loadIsFavourite = { true }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Saved").assertExists()
+    }
+
+    @Test
+    fun `tapping Save saves the artist and then shows Saved`() {
+        var saved = false
+        var savedWith: Pair<String, String>? = null
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "id-1",
+                artistName = "Roxy Music",
+                load = emptySuccess,
+                onToggleOwned = { _, _ -> },
+                loadIsFavourite = { saved },
+                onSaveFavourite = { id, name ->
+                    saved = true
+                    savedWith = id to name
+                }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_toggle").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("id-1" to "Roxy Music", savedWith)
+        composeTestRule.onNodeWithText("Saved").assertExists()
+    }
+
+    @Test
+    fun `tapping Saved removes the favourite and then shows Save`() {
+        var saved = true
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "id-1",
+                artistName = "Roxy Music",
+                load = emptySuccess,
+                onToggleOwned = { _, _ -> },
+                loadIsFavourite = { saved },
+                onRemoveFavourite = { saved = false }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_toggle").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Save").assertExists()
     }
 }

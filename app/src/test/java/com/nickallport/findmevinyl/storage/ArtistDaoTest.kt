@@ -2,8 +2,10 @@ package com.nickallport.findmevinyl.storage
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -31,7 +33,7 @@ class ArtistDaoTest {
     }
 
     @Test
-    fun `a favourited artist can be retrieved`() {
+    fun `a favourited artist can be retrieved`() = runBlocking {
         val artist = ArtistEntity(
             id = "1c70a3fc-fe03-4b23-ba9c-873c33dcd814",
             name = "Genesis",
@@ -47,7 +49,7 @@ class ArtistDaoTest {
     }
 
     @Test
-    fun `removing a favourite deletes it`() {
+    fun `removing a favourite deletes it`() = runBlocking {
         val artist = ArtistEntity(
             id = "1c70a3fc-fe03-4b23-ba9c-873c33dcd814",
             name = "Genesis",
@@ -59,5 +61,13 @@ class ArtistDaoTest {
         dao.deleteById(artist.id)
 
         assertTrue(dao.getAllFavourites().isEmpty())
+    }
+
+    @Test
+    fun `an artist can be looked up by id`() = runBlocking {
+        dao.insert(ArtistEntity(id = "g-1", name = "Genesis", type = "Group", country = "GB"))
+
+        assertEquals("Genesis", dao.getById("g-1")?.name)
+        assertNull(dao.getById("unknown"))
     }
 }

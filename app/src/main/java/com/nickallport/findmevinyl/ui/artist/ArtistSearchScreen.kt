@@ -13,11 +13,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.TextButton
 
 @Composable
 fun ArtistSearchScreen(
     onSearch: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenFavourites: () -> Unit = {},
+    onOpenWantList: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
 
@@ -32,6 +35,18 @@ fun ArtistSearchScreen(
             modifier = Modifier.testTag("search_button")
         ) {
             Text("Search")
+        }
+        TextButton(
+            onClick = onOpenFavourites,
+            modifier = Modifier.testTag("favourites_link")
+        ) {
+            Text("Favourite Artists")
+        }
+        TextButton(
+            onClick = onOpenWantList,
+            modifier = Modifier.testTag("want_list_link")
+        ) {
+            Text("Want List")
         }
     }
 }

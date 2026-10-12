@@ -18,7 +18,7 @@ import com.nickallport.findmevinyl.artist.ArtistSearchUiState
 @Composable
 fun ArtistSearchResultsScreen(
     state: ArtistSearchUiState,
-    onArtistSelected: (String) -> Unit,
+    onArtistSelected: (ArtistDisplayItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (state) {
@@ -34,7 +34,7 @@ fun ArtistSearchResultsScreen(
         is ArtistSearchUiState.Success -> {
             LazyColumn(modifier = modifier) {
                 items(state.results) { artist ->
-                    ArtistResultRow(artist = artist, onSelected = { onArtistSelected(artist.id) })
+                    ArtistResultRow(artist = artist, onSelected = { onArtistSelected(artist) })
                 }
             }
         }

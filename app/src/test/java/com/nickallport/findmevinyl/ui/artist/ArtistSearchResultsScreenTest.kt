@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.nickallport.findmevinyl.artist.ArtistDisplayItem
 import com.nickallport.findmevinyl.artist.ArtistSearchUiState
+import junit.framework.TestCase.assertEquals
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -50,25 +51,22 @@ class ArtistSearchResultsScreenTest {
     }
 
     @Test
-    fun `tapping a result invokes the callback with its id`() {
-        var selectedId: String? = null
+    fun `tapping a result invokes the callback with that artist`() {
+        var selected: ArtistDisplayItem? = null
         val state = ArtistSearchUiState.Success(
             listOf(
-                ArtistDisplayItem(
-                    id = "1",
-                    name = "Genesis",
-                    description = "Band from GB, active since 1967"
-                )
+                ArtistDisplayItem(id = "1", name = "Genesis", description = "Band from GB, active since 1967")
             )
         )
 
         composeTestRule.setContent {
-            ArtistSearchResultsScreen(state = state, onArtistSelected = { selectedId = it })
+            ArtistSearchResultsScreen(state = state, onArtistSelected = { selected = it })
         }
 
         composeTestRule.onNodeWithTag("artist_result_1").performClick()
 
-        Assert.assertEquals("1", selectedId)
+        assertEquals("1", selected?.id)
+        assertEquals("Genesis", selected?.name)
     }
 
     @Test

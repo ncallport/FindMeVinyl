@@ -4,11 +4,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import org.junit.Assert.assertEquals
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.junit.Assert.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 class ArtistSearchScreenTest {
@@ -27,6 +28,32 @@ class ArtistSearchScreenTest {
         composeTestRule.onNodeWithTag("search_field").performTextInput("Genesis")
         composeTestRule.onNodeWithTag("search_button").performClick()
 
-        assertEquals("Genesis", searchedFor)
+        Assert.assertEquals("Genesis", searchedFor)
+    }
+
+    @Test
+    fun `tapping Favourite Artists invokes the callback`() {
+        var opened = false
+
+        composeTestRule.setContent {
+            ArtistSearchScreen(onSearch = {}, onOpenFavourites = { opened = true })
+        }
+
+        composeTestRule.onNodeWithTag("favourites_link").performClick()
+
+        assertTrue(opened)
+    }
+
+    @Test
+    fun `tapping Want List invokes the callback`() {
+        var opened = false
+
+        composeTestRule.setContent {
+            ArtistSearchScreen(onSearch = {}, onOpenWantList = { opened = true })
+        }
+
+        composeTestRule.onNodeWithTag("want_list_link").performClick()
+
+        assertTrue(opened)
     }
 }

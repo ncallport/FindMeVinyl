@@ -21,7 +21,8 @@ private val categoryDisplayOrder = listOf(
 fun DiscographyScreen(
     groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>,
     onToggleOwned: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onToggleWanted: (String) -> Unit = {}
 ) {
     LazyColumn(modifier = modifier) {
         categoryDisplayOrder.forEach { (category, headerText) ->
@@ -36,7 +37,8 @@ fun DiscographyScreen(
                 items(albums) { album ->
                     AlbumRow(
                         album = album,
-                        onToggleOwned = { onToggleOwned(album.id) }
+                        onToggleOwned = { onToggleOwned(album.id) },
+                        onToggleWanted = { onToggleWanted(album.id) }
                     )
                 }
             }
