@@ -10,6 +10,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.assertTextContains
+import org.junit.Assert.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 class ArtistSearchScreenTest {
@@ -55,5 +57,40 @@ class ArtistSearchScreenTest {
         composeTestRule.onNodeWithTag("want_list_link").performClick()
 
         assertTrue(opened)
+    }
+
+    @Test
+    fun `tapping Find Shops invokes the callback`() {
+        var opened = false
+
+        composeTestRule.setContent {
+            ArtistSearchScreen(onSearch = {}, onOpenShops = { opened = true })
+        }
+
+        composeTestRule.onNodeWithTag("find_shops_link").performClick()
+
+        assertTrue(opened)
+    }
+
+    @Test
+    fun `starts with the query it was given`() {
+        composeTestRule.setContent {
+            ArtistSearchScreen(onSearch = {}, initialQuery = "Genesis")
+        }
+
+        composeTestRule.onNodeWithTag("search_field").assertTextContains("Genesis")
+    }
+
+    @Test
+    fun `reports each change to the query`() {
+        var latest: String? = null
+
+        composeTestRule.setContent {
+            ArtistSearchScreen(onSearch = {}, onQueryChange = { latest = it })
+        }
+
+        composeTestRule.onNodeWithTag("search_field").performTextInput("Genesis")
+
+        assertEquals("Genesis", latest)
     }
 }

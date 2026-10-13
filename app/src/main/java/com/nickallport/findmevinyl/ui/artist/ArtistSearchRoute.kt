@@ -8,9 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.nickallport.findmevinyl.artist.ArtistSearchUiState
-import kotlinx.coroutines.launch
 import com.nickallport.findmevinyl.artist.ArtistDisplayItem
+import com.nickallport.findmevinyl.artist.ArtistSearchUiState
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun ArtistSearchRoute(
@@ -19,8 +20,13 @@ fun ArtistSearchRoute(
     modifier: Modifier = Modifier,
     onOpenFavourites: () -> Unit = {},
     onOpenWantList: () -> Unit = {},
+    onOpenShops: () -> Unit = {},
+    initialQuery: String = "",
+    initialState: ArtistSearchUiState = ArtistSearchUiState.Idle,
+    onQueryChange: (String) -> Unit = {},
+    onStateChange: (ArtistSearchUiState) -> Unit = {}
 ) {
-    var uiState by remember { mutableStateOf<ArtistSearchUiState>(ArtistSearchUiState.Idle) }
+    var uiState by remember { mutableStateOf(initialState) }
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = modifier) {
@@ -28,11 +34,17 @@ fun ArtistSearchRoute(
             onSearch = { query ->
                 uiState = ArtistSearchUiState.Loading
                 coroutineScope.launch {
-                    uiState = search(query)
+                    val result = search(query)
+                    ensureActive()
+                    uiState = result
+                    onStateChange(result)
                 }
             },
             onOpenFavourites = onOpenFavourites,
-            onOpenWantList = onOpenWantList
+            onOpenWantList = onOpenWantList,
+            onOpenShops = onOpenShops,
+            initialQuery = initialQuery,
+            onQueryChange = onQueryChange
         )
         ArtistSearchResultsScreen(state = uiState, onArtistSelected = onArtistSelected)
     }

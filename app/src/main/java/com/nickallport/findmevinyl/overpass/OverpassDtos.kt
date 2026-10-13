@@ -30,7 +30,7 @@ object OverpassShopMapper {
             .mapNotNull { it.toShopOrNull() }
     }
 
-    private fun OverpassElementDto.toShopOrNull(): Shop? {
+    fun OverpassElementDto.toShopOrNull(): Shop? {
         val elementTags = tags ?: return null
         val category = categoryFor(elementTags["shop"]) ?: return null
         val resolvedLat = lat ?: center?.lat ?: return null

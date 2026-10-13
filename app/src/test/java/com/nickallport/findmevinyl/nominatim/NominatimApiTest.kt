@@ -56,4 +56,23 @@ class NominatimApiTest {
         assertEquals(1, results.size)
         assertEquals("London, UK", results[0].displayName)
     }
+
+    @Test
+    fun `sends a well-formed reverse lookup request`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{ "display_name": "Leiria, Portugal" }"""))
+
+        api.reverse(latitude = 39.7437, longitude = -8.8071)
+
+        val request = server.takeRequest()
+        assertEquals("/reverse?lat=39.7437&lon=-8.8071&format=json&zoom=10", request.path)
+    }
+
+    @Test
+    fun `parses the place name from a reverse lookup`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{ "display_name": "Leiria, Portugal" }"""))
+
+        val result = api.reverse(latitude = 39.7437, longitude = -8.8071)
+
+        assertEquals("Leiria, Portugal", result.displayName)
+    }
 }

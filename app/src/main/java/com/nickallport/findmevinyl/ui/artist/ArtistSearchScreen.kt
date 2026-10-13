@@ -20,14 +20,20 @@ fun ArtistSearchScreen(
     onSearch: (String) -> Unit,
     modifier: Modifier = Modifier,
     onOpenFavourites: () -> Unit = {},
-    onOpenWantList: () -> Unit = {}
+    onOpenWantList: () -> Unit = {},
+    onOpenShops: () -> Unit = {},
+    initialQuery: String = "",
+    onQueryChange: (String) -> Unit = {}
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf(initialQuery) }
 
     Column(modifier = modifier.padding(16.dp)) {
         TextField(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = {
+                query = it
+                onQueryChange(it)
+            },
             modifier = Modifier.testTag("search_field")
         )
         Button(
@@ -47,6 +53,12 @@ fun ArtistSearchScreen(
             modifier = Modifier.testTag("want_list_link")
         ) {
             Text("Want List")
+        }
+        TextButton(
+            onClick = onOpenShops,
+            modifier = Modifier.testTag("find_shops_link")
+        ) {
+            Text("Find Shops")
         }
     }
 }

@@ -9,6 +9,10 @@ data class NominatimResultDto(
     @SerializedName("display_name") val displayName: String?
 )
 
+data class NominatimReverseDto(
+    @SerializedName("display_name") val displayName: String?
+)
+
 data class Coordinates(
     val latitude: Double,
     val longitude: Double

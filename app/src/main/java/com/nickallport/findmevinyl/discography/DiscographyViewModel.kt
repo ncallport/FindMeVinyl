@@ -7,6 +7,7 @@ import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
 import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
+import kotlinx.coroutines.CancellationException
 
 sealed class DiscographyUiState {
     data class Success(val groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>) : DiscographyUiState()
@@ -53,6 +54,8 @@ class DiscographyViewModel(
             }
 
             DiscographyUiState.Success(uiGrouped)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             DiscographyUiState.Error(e.message ?: "Something went wrong")
         }

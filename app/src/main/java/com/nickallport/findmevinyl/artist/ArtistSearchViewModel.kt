@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.artist
 
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistMapper.toDomain
+import kotlinx.coroutines.CancellationException
 
 sealed class ArtistSearchUiState {
     object Idle : ArtistSearchUiState()
@@ -29,6 +30,8 @@ class ArtistSearchViewModel(private val api: MusicBrainzApi) {
                 )
             }
             ArtistSearchUiState.Success(results)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ArtistSearchUiState.Error(e.message ?: "Something went wrong")
         }

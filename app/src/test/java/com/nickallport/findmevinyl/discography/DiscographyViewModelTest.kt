@@ -19,6 +19,11 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.nickallport.findmevinyl.storage.ArtistEntity
 import org.junit.Assert.assertNull
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import okhttp3.mockwebserver.SocketPolicy
 
 @RunWith(RobolectricTestRunner::class)
 class DiscographyViewModelTest {
@@ -147,5 +152,19 @@ class DiscographyViewModelTest {
         assertTrue(albums[0].owned)
         assertEquals(false, albums[0].wanted)
         assertEquals(false, albums[1].wanted)
+    }
+
+    @Test
+    fun `a cancelled load does not report a result`() = runBlocking {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+
+        var state: DiscographyUiState? = null
+        val job = launch(Dispatchers.IO) {
+            state = viewModel.loadDiscography(artistId = "some-id")
+        }
+        server.takeRequest(5, TimeUnit.SECONDS)
+        job.cancelAndJoin()
+
+        assertNull(state)
     }
 }

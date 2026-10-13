@@ -11,11 +11,11 @@ object OverpassQueryBuilder {
 
     fun shopsNear(latitude: Double, longitude: Double, radiusMeters: Int): String {
         val shopFilters = shopTags.joinToString("\n") { tag ->
-            "  node[shop=$tag](around:$radiusMeters,$latitude,$longitude);"
+            "  nwr[shop=$tag](around:$radiusMeters,$latitude,$longitude);"
         }
 
         return """
-            [out:json];
+            [out:json][timeout:25];
             (
             $shopFilters
             );

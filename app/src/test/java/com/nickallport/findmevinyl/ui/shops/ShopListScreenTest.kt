@@ -9,6 +9,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 class ShopListScreenTest {
@@ -29,5 +32,28 @@ class ShopListScreenTest {
         }
 
         composeTestRule.onAllNodesWithTag("shop_row").assertCountEquals(3)
+    }
+
+    @Test
+    fun `tapping a shop invokes the callback with that shop`() {
+        var selected: Shop? = null
+        val shops = listOf(
+            Shop("1", "Sister Ray", ShopCategory.RECORD_SHOP, 51.51, -0.13, null),
+            Shop("2", "Oxfam", ShopCategory.CHARITY_SHOP, 51.52, -0.14, null),
+            Shop("3", "Reckless Records", ShopCategory.RECORD_SHOP, 51.50, -0.12, null)
+        )
+
+        composeTestRule.setContent {
+            ShopListScreen(
+                shops = shops,
+                fromLat = 51.5074,
+                fromLon = -0.1278,
+                onShopSelected = { selected = it }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Oxfam").performClick()
+
+        assertEquals("2", selected?.id)
     }
 }

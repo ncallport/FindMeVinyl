@@ -13,4 +13,13 @@ interface NominatimApi {
         @Query("limit") limit: Int = 1,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): List<NominatimResultDto>
+
+    @GET("reverse")
+    suspend fun reverse(
+        @Query("lat") latitude: Double,
+        @Query("lon") longitude: Double,
+        @Query("format") format: String = "json",
+        @Query("zoom") zoom: Int = 10,
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): NominatimReverseDto
 }

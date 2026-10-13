@@ -27,11 +27,28 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import android.content.Intent
 import com.nickallport.findmevinyl.ui.wantlist.WantListRoute
 import com.nickallport.findmevinyl.wantlist.WantListViewModel
+import com.nickallport.findmevinyl.shops.ShopApiFactory
+import com.nickallport.findmevinyl.shops.ShopSearchViewModel
+import com.nickallport.findmevinyl.ui.shops.ShopSearchRoute
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.nickallport.findmevinyl.location.DeviceLocationProvider
+import com.nickallport.findmevinyl.shops.NearbyShopSearcher
+import kotlinx.coroutines.CompletableDeferred
+import com.nickallport.findmevinyl.artist.ArtistSearchUiState
+import android.content.ActivityNotFoundException
+import android.net.Uri
+import android.widget.Toast
+import com.nickallport.findmevinyl.shops.MapLinkBuilder
+import com.nickallport.findmevinyl.shops.Shop
 
 private sealed class Screen {
     object Search : Screen()
     object Favourites : Screen()
     object WantList : Screen()
+    object Shops : Screen()
     data class Discography(
         val artistId: String,
         val artistName: String,
@@ -40,6 +57,38 @@ private sealed class Screen {
 }
 
 class MainActivity : ComponentActivity() {
+
+    private var permissionResult: CompletableDeferred<Boolean>? = null
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        permissionResult?.complete(results.values.any { it })
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        return listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ).any {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private suspend fun requestLocationPermission(): Boolean {
+        if (hasLocationPermission()) return true
+
+        val result = CompletableDeferred<Boolean>()
+        permissionResult = result
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+        return result.await()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -55,6 +104,18 @@ class MainActivity : ComponentActivity() {
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao())
         val wantListViewModel = WantListViewModel(database.albumDao())
+        val shopSearchViewModel = ShopSearchViewModel(
+            ShopApiFactory.createNominatim(),
+            ShopApiFactory.createOverpass()
+        )
+        val locationProvider = DeviceLocationProvider(applicationContext)
+        val nearbyShopSearcher = NearbyShopSearcher(
+            requestPermission = { requestLocationPermission() },
+            currentLocation = { locationProvider.currentLocation() },
+            searchAround = { latitude, longitude ->
+                shopSearchViewModel.searchAround(latitude, longitude)
+            }
+        )
 
         setContent {
             FindMeVinylTheme {
@@ -63,6 +124,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.Search) }
+                    var searchQuery by remember { mutableStateOf("") }
+                    var searchState by remember { mutableStateOf<ArtistSearchUiState>(ArtistSearchUiState.Idle) }
 
                     BackHandler(enabled = currentScreen != Screen.Search) {
                         currentScreen = when (val screen = currentScreen) {
@@ -79,7 +142,12 @@ class MainActivity : ComponentActivity() {
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
                                 },
                                 onOpenFavourites = { currentScreen = Screen.Favourites },
-                                onOpenWantList = { currentScreen = Screen.WantList }
+                                onOpenWantList = { currentScreen = Screen.WantList },
+                                onOpenShops = { currentScreen = Screen.Shops },
+                                initialQuery = searchQuery,
+                                initialState = searchState,
+                                onQueryChange = { searchQuery = it },
+                                onStateChange = { searchState = it }
                             )
                         }
                         is Screen.Favourites -> {
@@ -115,6 +183,16 @@ class MainActivity : ComponentActivity() {
                                 onShareText = { text -> shareText(text) }
                             )
                         }
+                        is Screen.Shops -> {
+                            ShopSearchRoute(
+                                search = { town -> shopSearchViewModel.searchTown(town) },
+                                searchNearby = { nearbyShopSearcher.findNearby() },
+                                onShopSelected = { shop -> openInMaps(shop) },
+                                searchPlace = { place, others ->
+                                    shopSearchViewModel.searchPlace(place, others)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -127,5 +205,14 @@ class MainActivity : ComponentActivity() {
             putExtra(Intent.EXTRA_TEXT, text)
         }
         startActivity(Intent.createChooser(sendIntent, "Share your want list"))
+    }
+
+    private fun openInMaps(shop: Shop) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(MapLinkBuilder.geoUri(shop)))
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No map app found on this device", Toast.LENGTH_SHORT).show()
+        }
     }
 }

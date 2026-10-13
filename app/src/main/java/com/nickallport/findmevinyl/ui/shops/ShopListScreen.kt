@@ -13,13 +13,18 @@ fun ShopListScreen(
     shops: List<Shop>,
     fromLat: Double,
     fromLon: Double,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onShopSelected: ((Shop) -> Unit)? = null
 ) {
     val sortedShops = ShopSorter.sortByDistance(shops, fromLat, fromLon)
 
     LazyColumn(modifier = modifier) {
         items(sortedShops) { shop ->
-            ShopRow(shop = shop, modifier = Modifier.testTag("shop_row"))
+            ShopRow(
+                shop = shop,
+                modifier = Modifier.testTag("shop_row"),
+                onClick = onShopSelected?.let { select -> { select(shop) } }
+            )
         }
     }
 }

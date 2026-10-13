@@ -11,6 +11,12 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import okhttp3.mockwebserver.SocketPolicy
+import org.junit.Assert.assertNull
 
 class ArtistSearchViewModelTest {
 
@@ -60,5 +66,19 @@ class ArtistSearchViewModelTest {
         val state = viewModel.search("Genesis")
 
         assertTrue(state is ArtistSearchUiState.Error)
+    }
+
+    @Test
+    fun `a cancelled search does not report a result`() = runBlocking {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+
+        var state: ArtistSearchUiState? = null
+        val job = launch(Dispatchers.IO) {
+            state = viewModel.search("Genesis")
+        }
+        server.takeRequest(5, TimeUnit.SECONDS)
+        job.cancelAndJoin()
+
+        assertNull(state)
     }
 }
