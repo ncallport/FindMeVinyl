@@ -16,6 +16,9 @@ class SearchResultCache {
             if (value !is ArtistSearchUiState.Loading) field = value
         }
 
+    /** The search the artist results are for, so coming back to the same search does not repeat it. */
+    var artistQuery: String? = null
+
     var shop: ShopSearchUiState? = null
 
     companion object {

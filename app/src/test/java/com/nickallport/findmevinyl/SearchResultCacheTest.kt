@@ -40,6 +40,16 @@ class SearchResultCacheTest {
     }
 
     @Test
+    fun remembersWhichQueryTheArtistResultsAreFor() {
+        val cache = SearchResultCache()
+        assertNull(cache.artistQuery)
+
+        cache.artistQuery = "Genesis"
+
+        assertEquals("Genesis", cache.artistQuery)
+    }
+
+    @Test
     fun storesShopStates() {
         val cache = SearchResultCache()
         listOf(

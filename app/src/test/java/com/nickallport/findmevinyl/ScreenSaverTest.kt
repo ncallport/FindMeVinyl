@@ -17,9 +17,34 @@ class ScreenSaverTest {
 
     @Test
     fun simpleScreensRoundTrip() {
-        listOf(Screen.Search, Screen.Favourites, Screen.WantList, Screen.Shops).forEach {
+        listOf(Screen.Search, Screen.WantList, Screen.Shops).forEach {
             assertEquals(it, roundTrip(it))
         }
+    }
+
+    @Test
+    fun theResultsPageKeepsItsQuery() {
+        assertEquals(Screen.ArtistResults("Roxy Music"), roundTrip(Screen.ArtistResults("Roxy Music")))
+    }
+
+    @Test
+    fun aQueryWithAnyCharactersSurvives() {
+        val screen = Screen.ArtistResults("AC/DC | Sigur Rós, \"live\"")
+        assertEquals(screen, roundTrip(screen))
+    }
+
+    @Test
+    fun backFromTheResultsGoesToTheArtistsPage() {
+        assertEquals(Screen.Search, Screen.ArtistResults("Genesis").backTarget())
+    }
+
+    @Test
+    fun aDiscographyOpenedFromResultsGoesBackToThoseResults() {
+        val results = Screen.ArtistResults("Genesis")
+        val screen = Screen.Discography("id", "Genesis", results)
+
+        assertEquals(results, screen.backTarget())
+        assertEquals(screen, roundTrip(screen))
     }
 
     @Test
@@ -34,7 +59,7 @@ class ScreenSaverTest {
 
     @Test
     fun backFromAnyPageGoesToTheFrontScreen() {
-        listOf(Screen.Search, Screen.Favourites, Screen.WantList, Screen.Shops).forEach {
+        listOf(Screen.Search, Screen.WantList, Screen.Shops).forEach {
             assertEquals(Screen.Home, it.backTarget())
         }
     }
@@ -42,7 +67,7 @@ class ScreenSaverTest {
     @Test
     fun backFromADiscographyGoesWhereYouCameFrom() {
         assertEquals(Screen.Search, Screen.Discography("id", "Name", Screen.Search).backTarget())
-        assertEquals(Screen.Favourites, Screen.Discography("id", "Name", Screen.Favourites).backTarget())
+        assertEquals(Screen.Shops, Screen.Discography("id", "Name", Screen.Shops).backTarget())
     }
 
     @Test
@@ -53,8 +78,8 @@ class ScreenSaverTest {
 
     @Test
     fun discographyKeepsWhereBackGoes() {
-        val screen = Screen.Discography("id-1", "Artist One", Screen.Favourites)
+        val screen = Screen.Discography("id-1", "Artist One", Screen.ArtistResults("One"))
         val restored = roundTrip(screen) as Screen.Discography
-        assertEquals(Screen.Favourites, restored.backTo)
+        assertEquals(Screen.ArtistResults("One"), restored.backTo)
     }
 }

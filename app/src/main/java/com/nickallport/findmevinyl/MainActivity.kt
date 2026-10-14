@@ -32,8 +32,8 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
 import com.nickallport.findmevinyl.storage.MIGRATION_2_3
-import com.nickallport.findmevinyl.ui.artist.ArtistSearchRoute
-import com.nickallport.findmevinyl.ui.favourites.FavouritesRoute
+import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
+import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import androidx.compose.foundation.layout.safeDrawingPadding
 import android.content.Intent
@@ -133,7 +133,6 @@ class MainActivity : ComponentActivity() {
                     var currentScreen by rememberSaveable(stateSaver = ScreenSaver) {
                         mutableStateOf<Screen>(Screen.Home)
                     }
-                    var searchQuery by rememberSaveable { mutableStateOf("") }
 
                     BackHandler(enabled = currentScreen.backTarget() != null) {
                         currentScreen.backTarget()?.let { currentScreen = it }
@@ -155,31 +154,29 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is Screen.Search -> {
-                            ArtistSearchRoute(
-                                search = { query -> searchViewModel.search(query) },
+                            ArtistsScreen(
+                                onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
+                                loadFavourites = { favouritesViewModel.loadFavourites() },
                                 loadArtistImage = { id ->
                                     artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
                                 },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
-                                },
-                                onOpenFavourites = { currentScreen = Screen.Favourites },
-                                onOpenWantList = { currentScreen = Screen.WantList },
-                                onOpenShops = { currentScreen = Screen.Shops },
-                                initialQuery = searchQuery,
-                                onQueryChange = { searchQuery = it },
-                                cache = SearchResultCache.shared
+                                }
                             )
                         }
-                        is Screen.Favourites -> {
-                            FavouritesRoute(
-                                load = { favouritesViewModel.loadFavourites() },
+                        is Screen.ArtistResults -> {
+                            ArtistResultsRoute(
+                                query = screen.query,
+                                search = { query -> searchViewModel.search(query) },
                                 loadArtistImage = { id ->
                                     artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
                                 },
                                 onArtistSelected = { artist ->
-                                    currentScreen = Screen.Discography(artist.id, artist.name, Screen.Favourites)
-                                }
+                                    currentScreen = Screen.Discography(artist.id, artist.name, screen)
+                                },
+                                onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
+                                cache = SearchResultCache.shared
                             )
                         }
                         is Screen.Discography -> {
