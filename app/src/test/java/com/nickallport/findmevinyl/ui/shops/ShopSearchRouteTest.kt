@@ -4,21 +4,24 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.runComposeUiTest
-import com.nickallport.findmevinyl.SearchResultCache
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.runComposeUiTest
+import com.nickallport.findmevinyl.SearchResultCache
+import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
+import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import com.nickallport.findmevinyl.shops.PlaceCandidate
 
 @RunWith(RobolectricTestRunner::class)
 class ShopSearchRouteTest {
@@ -52,30 +55,33 @@ class ShopSearchRouteTest {
         otherPlaces = listOf(wight, kentucky)
     )
 
-    private fun searchNewport() {
-        composeTestRule.onNodeWithTag("town_field").performTextInput("Newport")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
+    /** A cache that says the nearby search has already been tried, so a test starts from the prompt. */
+    private fun triedCache() = SearchResultCache().apply { nearbyTried = true }
+
+    private fun searchFor(town: String) {
+        composeTestRule.onNodeWithTag("search_field").performTextReplacement(town)
+        composeTestRule.onNodeWithTag("search_field").performImeAction()
         composeTestRule.waitForIdle()
     }
 
-    @Test
-    fun `shows a prompt before any search`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { oneShop })
-        }
+    private fun searchNewport() = searchFor("Newport")
 
-        composeTestRule.onNodeWithText("Enter a town to find record shops").assertExists()
+    private fun show(content: @androidx.compose.runtime.Composable () -> Unit) {
+        composeTestRule.setContent { FindMeVinylTheme { content() } }
+    }
+
+    @Test
+    fun `shows a prompt when nothing has been searched`() {
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache()) }
+
+        composeTestRule.onNodeWithText("Search for a town to find record shops").assertExists()
     }
 
     @Test
     fun `shows the shops once the search completes`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { oneShop })
-        }
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache()) }
 
-        composeTestRule.onNodeWithTag("town_field").performTextInput("London")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
-        composeTestRule.waitForIdle()
+        searchFor("London")
 
         composeTestRule.onNodeWithText("Sister Ray").assertExists()
     }
@@ -83,30 +89,18 @@ class ShopSearchRouteTest {
     @Test
     fun `passes the trimmed town to the search`() {
         var searchedFor: String? = null
+        show { ShopSearchRoute(search = { searchedFor = it; oneShop }, cache = triedCache()) }
 
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { town ->
-                searchedFor = town
-                oneShop
-            })
-        }
-
-        composeTestRule.onNodeWithTag("town_field").performTextInput("  London  ")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
-        composeTestRule.waitForIdle()
+        searchFor("  London  ")
 
         assertEquals("London", searchedFor)
     }
 
     @Test
     fun `shows a message when the town is not found`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { town -> ShopSearchUiState.TownNotFound(town) })
-        }
+        show { ShopSearchRoute(search = { ShopSearchUiState.TownNotFound(it) }, cache = triedCache()) }
 
-        composeTestRule.onNodeWithTag("town_field").performTextInput("Atlantis")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
-        composeTestRule.waitForIdle()
+        searchFor("Atlantis")
 
         composeTestRule.onNodeWithText("Couldn't find Atlantis").assertExists()
     }
@@ -114,29 +108,23 @@ class ShopSearchRouteTest {
     @Test
     fun `does not search when the town is blank`() {
         var searchCount = 0
+        show { ShopSearchRoute(search = { searchCount++; oneShop }, cache = triedCache()) }
 
-        composeTestRule.setContent {
-            ShopSearchRoute(search = {
-                searchCount++
-                oneShop
-            })
-        }
-
-        composeTestRule.onNodeWithTag("town_field").performTextInput("   ")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
-        composeTestRule.waitForIdle()
+        searchFor("   ")
 
         assertEquals(0, searchCount)
     }
 
     @Test
-    fun `tapping Use my location shows the nearby shops`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(
-                search = { oneShop },
-                searchNearby = { nearbyShops }
-            )
-        }
+    fun `has no search button, the keyboard searches`() {
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache()) }
+
+        composeTestRule.onNodeWithTag("town_search_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun `tapping Near me shows the nearby shops`() {
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { nearbyShops }, cache = triedCache()) }
 
         composeTestRule.onNodeWithTag("use_location_button").performClick()
         composeTestRule.waitForIdle()
@@ -147,27 +135,23 @@ class ShopSearchRouteTest {
 
     @Test
     fun `shows the error message when the nearby search fails`() {
-        composeTestRule.setContent {
+        show {
             ShopSearchRoute(
                 search = { oneShop },
-                searchNearby = {
-                    ShopSearchUiState.Error("Location permission is needed to find shops near you")
-                }
+                searchNearby = { ShopSearchUiState.Error("Location permission is needed to find shops near you") },
+                cache = triedCache()
             )
         }
 
         composeTestRule.onNodeWithTag("use_location_button").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Location permission is needed to find shops near you")
-            .assertExists()
+        composeTestRule.onNodeWithText("Location permission is needed to find shops near you").assertExists()
     }
 
     @Test
-    fun `does not offer Use my location when no nearby search is provided`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { oneShop })
-        }
+    fun `does not offer Near me when no nearby search is provided`() {
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache()) }
 
         composeTestRule.onNodeWithTag("use_location_button").assertDoesNotExist()
     }
@@ -175,17 +159,9 @@ class ShopSearchRouteTest {
     @Test
     fun `tapping a found shop invokes the callback with that shop`() {
         var selected: Shop? = null
+        show { ShopSearchRoute(search = { oneShop }, onShopSelected = { selected = it }, cache = triedCache()) }
 
-        composeTestRule.setContent {
-            ShopSearchRoute(
-                search = { oneShop },
-                onShopSelected = { selected = it }
-            )
-        }
-
-        composeTestRule.onNodeWithTag("town_field").performTextInput("London")
-        composeTestRule.onNodeWithTag("town_search_button").performClick()
-        composeTestRule.waitForIdle()
+        searchFor("London")
         composeTestRule.onNodeWithText("Sister Ray").performClick()
 
         assertEquals("1", selected?.id)
@@ -199,12 +175,8 @@ class ShopSearchRouteTest {
             centerLatitude = wight.latitude,
             centerLongitude = wight.longitude
         )
-
-        composeTestRule.setContent {
-            ShopSearchRoute(
-                search = { newportResult },
-                searchPlace = { _, _ -> isleResult }
-            )
+        show {
+            ShopSearchRoute(search = { newportResult }, searchPlace = { _, _ -> isleResult }, cache = triedCache())
         }
 
         searchNewport()
@@ -220,15 +192,15 @@ class ShopSearchRouteTest {
     fun `puts the old best match first among the alternatives after a pick`() {
         var passedPlace: PlaceCandidate? = null
         var passedOthers: List<PlaceCandidate>? = null
-
-        composeTestRule.setContent {
+        show {
             ShopSearchRoute(
                 search = { newportResult },
                 searchPlace = { place, others ->
                     passedPlace = place
                     passedOthers = others
                     newportResult.copy(placeName = place.name, otherPlaces = others)
-                }
+                },
+                cache = triedCache()
             )
         }
 
@@ -244,14 +216,14 @@ class ShopSearchRouteTest {
     @Test
     fun `can switch back to the original place after a pick`() {
         val searchedPlaces = mutableListOf<String>()
-
-        composeTestRule.setContent {
+        show {
             ShopSearchRoute(
                 search = { newportResult },
                 searchPlace = { place, others ->
                     searchedPlaces.add(place.name)
                     newportResult.copy(placeName = place.name, otherPlaces = others)
-                }
+                },
+                cache = triedCache()
             )
         }
 
@@ -268,9 +240,7 @@ class ShopSearchRouteTest {
 
     @Test
     fun `does not offer other places when no place search is provided`() {
-        composeTestRule.setContent {
-            ShopSearchRoute(search = { newportResult })
-        }
+        show { ShopSearchRoute(search = { newportResult }, cache = triedCache()) }
 
         searchNewport()
 
@@ -278,53 +248,144 @@ class ShopSearchRouteTest {
         composeTestRule.onNodeWithText("Not the right place?").assertDoesNotExist()
     }
 
+    // --- Searching near you when the page opens ---
+
+    @Test
+    fun `searches near you by itself the first time it opens`() {
+        var nearbySearches = 0
+        val cache = SearchResultCache()
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { nearbySearches++; nearbyShops }, cache = cache) }
+        composeTestRule.waitForIdle()
+
+        assertEquals(1, nearbySearches)
+        composeTestRule.onNodeWithText("Near Me Records").assertExists()
+        assertEquals(nearbyShops, cache.shop)
+        assertEquals(true, cache.nearbyTried)
+    }
+
+    @Test
+    fun `shows a spinner while it looks for shops near you`() {
+        val gate = CompletableDeferred<Unit>()
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { gate.await(); nearbyShops }, cache = SearchResultCache()) }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("loading_indicator").assertExists()
+
+        gate.complete(Unit)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("loading_indicator").assertDoesNotExist()
+    }
+
+    @Test
+    fun `shows the result kept from an earlier visit without searching again`() {
+        var nearbySearches = 0
+        val cache = SearchResultCache().apply { shop = oneShop }
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { nearbySearches++; nearbyShops }, cache = cache) }
+        composeTestRule.waitForIdle()
+
+        assertEquals(0, nearbySearches)
+        composeTestRule.onNodeWithText("Sister Ray").assertExists()
+    }
+
+    @Test
+    fun `does not search near you by itself again once it has tried`() {
+        var nearbySearches = 0
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { nearbySearches++; nearbyShops }, cache = triedCache()) }
+        composeTestRule.waitForIdle()
+
+        assertEquals(0, nearbySearches)
+        composeTestRule.onNodeWithText("Search for a town to find record shops").assertExists()
+    }
+
+    @Test
+    fun `shows why when searching near you by itself fails, and Near me tries again`() {
+        var attempts = 0
+        show {
+            ShopSearchRoute(
+                search = { oneShop },
+                searchNearby = {
+                    attempts++
+                    if (attempts == 1) ShopSearchUiState.Error("Location permission is needed to find shops near you")
+                    else nearbyShops
+                },
+                cache = SearchResultCache()
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Location permission is needed to find shops near you").assertExists()
+
+        composeTestRule.onNodeWithTag("use_location_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Near Me Records").assertExists()
+        assertEquals(2, attempts)
+    }
+
+    @Test
+    fun `a town search replaces the nearby result and is the one kept`() {
+        val cache = SearchResultCache()
+        show { ShopSearchRoute(search = { oneShop }, searchNearby = { nearbyShops }, cache = cache) }
+        composeTestRule.waitForIdle()
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Sister Ray").assertExists()
+        composeTestRule.onNodeWithText("Near Me Records").assertDoesNotExist()
+        assertEquals(oneShop, cache.shop)
+    }
+
+    @Test
+    fun `does not search near you by itself when there is no way to`() {
+        show { ShopSearchRoute(search = { oneShop }, cache = SearchResultCache()) }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Search for a town to find record shops").assertExists()
+    }
+
+    // --- Rotation ---
+
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun `keeps the town and results after the state is restored`() = runComposeUiTest {
-        val cache = SearchResultCache()
+        val cache = triedCache()
         var searches = 0
         val restorationTester = StateRestorationTester(this)
 
         restorationTester.setContent {
-            ShopSearchRoute(
-                search = {
-                    searches++
-                    newportResult
-                },
-                cache = cache
-            )
+            FindMeVinylTheme { ShopSearchRoute(search = { searches++; newportResult }, cache = cache) }
         }
 
-        onNodeWithTag("town_field").performTextInput("Newport")
-        onNodeWithTag("town_search_button").performClick()
+        onNodeWithTag("search_field").performTextReplacement("Newport")
+        onNodeWithTag("search_field").performImeAction()
         waitForIdle()
 
         restorationTester.emulateSaveAndRestore()
+        waitForIdle()
 
-        onNodeWithTag("town_field").assertTextContains("Newport")
+        onNodeWithTag("search_field").assertTextContains("Newport")
         onNodeWithText("Welsh Records").assertExists()
         assertEquals(1, searches)
     }
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun `shows the prompt and keeps the town when the cache is empty after a restore`() =
-        runComposeUiTest {
-            val cache = SearchResultCache()
-            val restorationTester = StateRestorationTester(this)
+    fun `restoring while searching near you does not repeat a search that finished`() = runComposeUiTest {
+        val cache = SearchResultCache()
+        var nearbySearches = 0
+        val restorationTester = StateRestorationTester(this)
 
-            restorationTester.setContent {
-                ShopSearchRoute(search = { newportResult }, cache = cache)
+        restorationTester.setContent {
+            FindMeVinylTheme {
+                ShopSearchRoute(search = { oneShop }, searchNearby = { nearbySearches++; nearbyShops }, cache = cache)
             }
-
-            onNodeWithTag("town_field").performTextInput("Newport")
-            onNodeWithTag("town_search_button").performClick()
-            waitForIdle()
-            cache.shop = null
-
-            restorationTester.emulateSaveAndRestore()
-
-            onNodeWithTag("town_field").assertTextContains("Newport")
-            onNodeWithText("Enter a town to find record shops").assertExists()
         }
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+        waitForIdle()
+
+        onNodeWithText("Near Me Records").assertExists()
+        assertEquals(1, nearbySearches)
+    }
 }

@@ -50,6 +50,16 @@ class SearchResultCacheTest {
     }
 
     @Test
+    fun remembersWhetherTheNearbySearchWasTriedAutomatically() {
+        val cache = SearchResultCache()
+        assertEquals(false, cache.nearbyTried)
+
+        cache.nearbyTried = true
+
+        assertEquals(true, cache.nearbyTried)
+    }
+
+    @Test
     fun storesShopStates() {
         val cache = SearchResultCache()
         listOf(
