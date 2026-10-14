@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,10 +29,14 @@ fun DiscographyHeader(
         Text(
             text = artistName,
             style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f)
         )
+        // Saved is the quieter style, since there is nothing left to do.
+        val colors = if (isFavourite) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors()
         Button(
             onClick = onToggleFavourite,
+            colors = colors,
             modifier = Modifier.testTag("favourite_toggle")
         ) {
             Text(if (isFavourite) "Saved" else "Save")

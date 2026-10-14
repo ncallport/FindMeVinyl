@@ -55,7 +55,9 @@ fun DiscographyScreen(
                 item(key = "header-${category.name}") {
                     Text(
                         text = headerText,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)
                     )
                 }
                 items(albums, key = { it.id }) { album ->
