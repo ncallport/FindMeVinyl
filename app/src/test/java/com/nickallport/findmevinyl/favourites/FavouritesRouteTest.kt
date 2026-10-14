@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -32,6 +33,23 @@ class FavouritesRouteTest {
 
         composeTestRule.onNodeWithText("Roxy Music").assertExists()
         composeTestRule.onNodeWithText("The Smiths").assertExists()
+    }
+
+    @Test
+    fun `shows the artist pictures that the loader gives`() {
+        val asked = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            FavouritesRoute(
+                load = { listOf(FavouriteArtistUiModel("1", "Roxy Music")) },
+                onArtistSelected = {},
+                loadArtistImage = { id -> asked.add(id); Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888) }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("artist_image", useUnmergedTree = true).assertExists()
+        assertEquals(listOf("1"), asked)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import android.graphics.Bitmap
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,7 +15,8 @@ import androidx.compose.ui.platform.testTag
 fun FavouritesRoute(
     load: suspend () -> List<FavouriteArtistUiModel>,
     onArtistSelected: (FavouriteArtistUiModel) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    loadArtistImage: suspend (String) -> Bitmap? = { null }
 ) {
     var artists by remember { mutableStateOf<List<FavouriteArtistUiModel>?>(null) }
 
@@ -29,7 +31,8 @@ fun FavouritesRoute(
         FavouritesScreen(
             artists = loaded,
             onArtistSelected = onArtistSelected,
-            modifier = modifier
+            modifier = modifier,
+            loadArtistImage = loadArtistImage
         )
     }
 }

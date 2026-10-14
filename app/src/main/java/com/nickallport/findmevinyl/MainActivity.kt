@@ -155,6 +155,9 @@ class MainActivity : ComponentActivity() {
                         is Screen.Favourites -> {
                             FavouritesRoute(
                                 load = { favouritesViewModel.loadFavourites() },
+                                loadArtistImage = { id ->
+                                    artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
+                                },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Favourites)
                                 }
