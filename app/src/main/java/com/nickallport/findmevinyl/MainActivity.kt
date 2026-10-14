@@ -14,6 +14,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.room.Room
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import com.nickallport.findmevinyl.ui.brand.Masthead
+import com.nickallport.findmevinyl.ui.home.HomeScreen
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
 import com.nickallport.findmevinyl.artist.ArtistImageViewModel
 import com.nickallport.findmevinyl.artist.ArtistSearchViewModel
@@ -118,23 +123,37 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             FindMeVinylTheme {
+                // The window colour behind the status and navigation bars follows the theme, so the
+                // clock and icons stay readable in both light and dark.
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 Surface(
                     modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var currentScreen by rememberSaveable(stateSaver = ScreenSaver) {
-                        mutableStateOf<Screen>(Screen.Search)
+                        mutableStateOf<Screen>(Screen.Home)
                     }
                     var searchQuery by rememberSaveable { mutableStateOf("") }
 
-                    BackHandler(enabled = currentScreen != Screen.Search) {
-                        currentScreen = when (val screen = currentScreen) {
-                            is Screen.Discography -> screen.backTo
-                            else -> Screen.Search
-                        }
+                    BackHandler(enabled = currentScreen.backTarget() != null) {
+                        currentScreen.backTarget()?.let { currentScreen = it }
                     }
 
+                    Column {
+                    // Every page except the front screen has the logo bar at the top.
+                    if (currentScreen != Screen.Home) {
+                        Masthead(onHome = { currentScreen = Screen.Home })
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
                     when (val screen = currentScreen) {
+                        is Screen.Home -> {
+                            HomeScreen(
+                                onArtists = { currentScreen = Screen.Search },
+                                onWants = { currentScreen = Screen.WantList },
+                                onShops = { currentScreen = Screen.Shops }
+                            )
+                        }
                         is Screen.Search -> {
                             ArtistSearchRoute(
                                 search = { query -> searchViewModel.search(query) },
@@ -203,6 +222,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                    }
+                    }
+                }
                 }
             }
         }
