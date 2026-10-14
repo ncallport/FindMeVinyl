@@ -41,6 +41,7 @@ fun DiscographyScreen(
     onToggleOwned: (String) -> Unit,
     modifier: Modifier = Modifier,
     onToggleWanted: (String) -> Unit = {},
+    onOpenAlbum: (String) -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadingMore: Boolean = false,
@@ -63,6 +64,7 @@ fun DiscographyScreen(
                 items(albums, key = { it.id }) { album ->
                     AlbumRow(
                         album = album,
+                        onOpen = { onOpenAlbum(album.id) },
                         onToggleOwned = { onToggleOwned(album.id) },
                         onToggleWanted = { onToggleWanted(album.id) },
                         loadCover = loadCover,

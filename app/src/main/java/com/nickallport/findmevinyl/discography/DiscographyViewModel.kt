@@ -86,6 +86,10 @@ class DiscographyViewModel(
         return DiscographyUiState.Success(grouped)
     }
 
+    /** One saved album as the screens show it, or null when it is not saved. */
+    suspend fun loadAlbum(albumId: String): AlbumUiModel? =
+        albumDao.getById(albumId)?.let { toUiModel(it, categoryFrom(it.category), clock()) }
+
     private fun toUiModel(album: AlbumEntity, category: DiscographyCategory, now: Long) = AlbumUiModel(
         id = album.id,
         title = album.title,

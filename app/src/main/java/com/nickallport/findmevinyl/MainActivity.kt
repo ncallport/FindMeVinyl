@@ -25,6 +25,8 @@ import com.nickallport.findmevinyl.artist.ArtistSearchViewModel
 import com.nickallport.findmevinyl.image.ImageLoader
 import com.nickallport.findmevinyl.wikidata.WikidataApiFactory
 import com.nickallport.findmevinyl.coverart.CoverArtLoader
+import com.nickallport.findmevinyl.discography.AlbumDetailRoute
+import com.nickallport.findmevinyl.discography.AlbumDetailsViewModel
 import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
 import com.nickallport.findmevinyl.favourites.FavouritesViewModel
@@ -32,6 +34,7 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
 import com.nickallport.findmevinyl.storage.MIGRATION_2_3
+import com.nickallport.findmevinyl.storage.MIGRATION_3_4
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -97,7 +100,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
@@ -106,6 +109,7 @@ class MainActivity : ComponentActivity() {
             database.artistImageDao()
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
+        val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao())
         val wantListViewModel = WantListViewModel(database.albumDao())
         val shopSearchViewModel = ShopSearchViewModel(
@@ -196,8 +200,31 @@ class MainActivity : ComponentActivity() {
                                 loadIsFavourite = { discographyViewModel.isFavourite(screen.artistId) },
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
+                                onOpenAlbum = { albumId, title ->
+                                    currentScreen = Screen.AlbumDetail(
+                                        albumId, title, screen.artistId, screen.artistName, screen
+                                    )
+                                },
                                 loadCover = { id -> CoverArtLoader.shared.load(id) },
                                 loadFormats = { id -> discographyViewModel.loadFormats(id) }
+                            )
+                        }
+                        is Screen.AlbumDetail -> {
+                            AlbumDetailRoute(
+                                albumId = screen.albumId,
+                                title = screen.title,
+                                artistName = screen.artistName,
+                                loadDetails = { id -> albumDetailsViewModel.load(id) },
+                                loadAlbum = { id -> discographyViewModel.loadAlbum(id) },
+                                onToggleOwned = { albumId, currentlyOwned ->
+                                    discographyViewModel.toggleOwned(albumId, currentlyOwned)
+                                },
+                                onToggleWanted = { albumId, currentlyWanted ->
+                                    discographyViewModel.toggleWanted(
+                                        albumId, currentlyWanted, screen.artistId, screen.artistName
+                                    )
+                                },
+                                loadCover = { id -> CoverArtLoader.shared.loadLarge(id) }
                             )
                         }
                         is Screen.WantList -> {

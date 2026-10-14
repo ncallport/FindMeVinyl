@@ -20,6 +20,22 @@ class CoverArtTest {
     }
 
     @Test
+    fun `can ask for a larger front cover`() {
+        assertEquals(
+            "https://coverartarchive.org/release-group/abc/front-500",
+            CoverArt.url("abc", size = 500)
+        )
+    }
+
+    @Test
+    fun `the large cover loader asks for the 500px cover`() {
+        assertEquals(
+            "http://localhost:1234/release-group/abc/front-500",
+            CoverArt.url("abc", baseUrl = "http://localhost:1234", size = CoverArt.LARGE)
+        )
+    }
+
+    @Test
     fun `uses the base url it is given`() {
         assertEquals(
             "http://localhost:1234/release-group/abc/front-250",

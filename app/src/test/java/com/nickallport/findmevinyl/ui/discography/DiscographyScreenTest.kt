@@ -123,7 +123,31 @@ class DiscographyScreenTest {
     }
 
     @Test
-    fun `tapping an album invokes the callback with its id`() {
+    fun `tapping an album opens it with its id`() {
+        var openedId: String? = null
+        var toggledId: String? = null
+        val grouped = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(
+                AlbumUiModel("1", "The Dark Side of the Moon", owned = false, wanted = false)
+            )
+        )
+
+        composeTestRule.setContent {
+            DiscographyScreen(
+                groupedAlbums = grouped,
+                onToggleOwned = { toggledId = it },
+                onOpenAlbum = { openedId = it }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("album_row").performClick()
+
+        assertEquals("1", openedId)
+        assertEquals(null, toggledId)
+    }
+
+    @Test
+    fun `tapping the Owned pill invokes the callback with the album id`() {
         var toggledId: String? = null
         val grouped = mapOf(
             DiscographyCategory.STUDIO_ALBUM to listOf(
@@ -135,7 +159,7 @@ class DiscographyScreenTest {
             DiscographyScreen(groupedAlbums = grouped, onToggleOwned = { toggledId = it })
         }
 
-        composeTestRule.onNodeWithTag("album_row").performClick()
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
 
         assertEquals("1", toggledId)
     }

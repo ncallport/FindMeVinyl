@@ -3,7 +3,9 @@ package com.nickallport.findmevinyl.ui.discography
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +38,7 @@ fun AlbumRow(
     album: AlbumUiModel,
     onToggleOwned: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpen: () -> Unit = {},
     onToggleWanted: () -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
@@ -49,7 +52,7 @@ fun AlbumRow(
 
     ListCard(
         modifier = modifier.testTag("album_row"),
-        onClick = onToggleOwned,
+        onClick = onOpen,
         container = backgroundColor
     ) {
         Row(
@@ -67,13 +70,6 @@ fun AlbumRow(
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats
                 )
-                if (album.owned) {
-                    Text(
-                        text = "Owned",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
                 if (album.wanted) {
                     Text(
                         text = "Want",
@@ -82,19 +78,47 @@ fun AlbumRow(
                     )
                 }
             }
-            if (!album.owned) {
-                Text(
-                    text = "+ Want",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier
-                        .testTag("wanted_toggle")
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .clickable { onToggleWanted() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (album.owned) {
+                    Pill(
+                        text = "Owned",
+                        tag = "owned_toggle",
+                        container = MaterialTheme.colorScheme.primary,
+                        content = MaterialTheme.colorScheme.onPrimary,
+                        onClick = onToggleOwned
+                    )
+                } else {
+                    Pill(
+                        text = "+ Owned",
+                        tag = "owned_toggle",
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        onClick = onToggleOwned
+                    )
+                    Pill(
+                        text = "+ Want",
+                        tag = "wanted_toggle",
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        onClick = onToggleWanted
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun Pill(text: String, tag: String, container: Color, content: Color, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = content,
+        modifier = Modifier
+            .testTag(tag)
+            .clip(RoundedCornerShape(20.dp))
+            .background(container)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }

@@ -22,6 +22,10 @@ class CoverArtLoader(
     /** The cover for a release group, or null when there is none or it could not be loaded. */
     suspend fun load(releaseGroupId: String): Bitmap? = images.load(CoverArt.url(releaseGroupId, baseUrl))
 
+    /** The 500px cover for the detail page. It is kept apart from the small one in the cache. */
+    suspend fun loadLarge(releaseGroupId: String): Bitmap? =
+        images.load(CoverArt.url(releaseGroupId, baseUrl, CoverArt.LARGE))
+
     companion object {
         /** The instance the app uses. It lives as long as the process, so its cache outlasts the activity. */
         val shared: CoverArtLoader by lazy {

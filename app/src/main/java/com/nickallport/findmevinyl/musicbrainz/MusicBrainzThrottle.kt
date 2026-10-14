@@ -39,6 +39,16 @@ class MusicBrainzThrottle(
         }
     }
 
+    /**
+     * For a request block that makes more than one request: waits until the next one may start,
+     * [minIntervalMillis] after the previous one started. Call it before every request after the
+     * first, inside [run].
+     */
+    suspend fun awaitNextSlot() {
+        waitForTurn()
+        lastStartNanos = System.nanoTime()
+    }
+
     private suspend fun waitForTurn() {
         val now = System.nanoTime()
         val afterInterval = lastStartNanos?.plus(minIntervalMillis * NANOS_PER_MILLI) ?: now

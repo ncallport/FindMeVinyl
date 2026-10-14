@@ -57,19 +57,62 @@ class AlbumRowTest {
     }
 
     @Test
-    fun `tapping the row invokes the toggle callback`() {
-        var wasClicked = false
+    fun `tapping the row opens the album and does not change owned`() {
+        var opened = false
+        var ownedToggled = false
 
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
-                onToggleOwned = { wasClicked = true }
+                onToggleOwned = { ownedToggled = true },
+                onOpen = { opened = true }
             )
         }
 
         composeTestRule.onNodeWithTag("album_row").performClick()
 
-        assertTrue(wasClicked)
+        assertTrue(opened)
+        assertFalse(ownedToggled)
+    }
+
+    @Test
+    fun `an album that is not owned has an Owned pill that toggles owned without opening the album`() {
+        var opened = false
+        var ownedToggled = false
+
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
+                onToggleOwned = { ownedToggled = true },
+                onOpen = { opened = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_toggle").assertTextEquals("+ Owned")
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
+
+        assertTrue(ownedToggled)
+        assertFalse(opened)
+    }
+
+    @Test
+    fun `an owned album shows the Owned pill, which takes the ownership off`() {
+        var ownedToggled = false
+        var opened = false
+
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = true, wanted = false),
+                onToggleOwned = { ownedToggled = true },
+                onOpen = { opened = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_toggle").assertTextEquals("Owned")
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
+
+        assertTrue(ownedToggled)
+        assertFalse(opened)
     }
 
     @Test
@@ -159,19 +202,20 @@ class AlbumRowTest {
     }
 
     @Test
-    fun `tapping the cover toggles owned like tapping the rest of the row`() {
-        var ownedToggled = false
+    fun `tapping the cover opens the album like tapping the rest of the row`() {
+        var opened = false
 
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
-                onToggleOwned = { ownedToggled = true }
+                onToggleOwned = {},
+                onOpen = { opened = true }
             )
         }
 
         composeTestRule.onNodeWithTag("cover_placeholder", useUnmergedTree = true).performClick()
 
-        assertTrue(ownedToggled)
+        assertTrue(opened)
     }
 
     @Test
