@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.musicbrainz
 
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Path
 import retrofit2.http.Query
 import com.nickallport.findmevinyl.BuildConfig
 
@@ -21,6 +22,15 @@ interface MusicBrainzApi {
         @Query("offset") offset: Int? = null,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseGroupSearchResponse
+
+    /** The web links of one artist, such as its Wikidata page and image, for finding its picture. */
+    @GET("artist/{id}")
+    suspend fun getArtistLinks(
+        @Path("id") artistId: String,
+        @Query("inc") include: String = "url-rels",
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzArtistLinksResponse
 
     /** The releases of one release group with their media, which say whether it came on vinyl, CD and so on. */
     @GET("release/")

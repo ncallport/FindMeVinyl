@@ -14,7 +14,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.room.Room
+import com.nickallport.findmevinyl.artist.ArtistImageFinder
+import com.nickallport.findmevinyl.artist.ArtistImageViewModel
 import com.nickallport.findmevinyl.artist.ArtistSearchViewModel
+import com.nickallport.findmevinyl.image.ImageLoader
+import com.nickallport.findmevinyl.wikidata.WikidataApiFactory
 import com.nickallport.findmevinyl.coverart.CoverArtLoader
 import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
@@ -22,6 +26,7 @@ import com.nickallport.findmevinyl.favourites.FavouritesViewModel
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
+import com.nickallport.findmevinyl.storage.MIGRATION_2_3
 import com.nickallport.findmevinyl.ui.artist.ArtistSearchRoute
 import com.nickallport.findmevinyl.ui.favourites.FavouritesRoute
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -87,10 +92,14 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
+        val artistImageViewModel = ArtistImageViewModel(
+            ArtistImageFinder(api, WikidataApiFactory.create()),
+            database.artistImageDao()
+        )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao())
         val wantListViewModel = WantListViewModel(database.albumDao())
@@ -129,6 +138,9 @@ class MainActivity : ComponentActivity() {
                         is Screen.Search -> {
                             ArtistSearchRoute(
                                 search = { query -> searchViewModel.search(query) },
+                                loadArtistImage = { id ->
+                                    artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
+                                },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
                                 },

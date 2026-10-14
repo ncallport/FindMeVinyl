@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.artist
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.runComposeUiTest
@@ -49,6 +50,30 @@ class ArtistSearchRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("artist_result_1").assertExists()
+    }
+
+    @Test
+    fun `shows the artist pictures that the loader gives for the results`() {
+        val asked = mutableListOf<String>()
+        val results = ArtistSearchUiState.Success(
+            listOf(ArtistDisplayItem("1", "Genesis", "Band from GB"))
+        )
+
+        composeTestRule.setContent {
+            ArtistSearchRoute(
+                search = { results },
+                onArtistSelected = {},
+                initialState = results,
+                loadArtistImage = { id ->
+                    asked.add(id)
+                    Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+                }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("artist_image", useUnmergedTree = true).assertExists()
+        assertEquals(listOf("1"), asked)
     }
 
     @Test
