@@ -1,6 +1,11 @@
 package com.nickallport.findmevinyl.ui.shops
 
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.StateRestorationTester
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.runComposeUiTest
+import com.nickallport.findmevinyl.SearchResultCache
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -272,4 +277,54 @@ class ShopSearchRouteTest {
         composeTestRule.onNodeWithText("Welsh Records").assertExists()
         composeTestRule.onNodeWithText("Not the right place?").assertDoesNotExist()
     }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `keeps the town and results after the state is restored`() = runComposeUiTest {
+        val cache = SearchResultCache()
+        var searches = 0
+        val restorationTester = StateRestorationTester(this)
+
+        restorationTester.setContent {
+            ShopSearchRoute(
+                search = {
+                    searches++
+                    newportResult
+                },
+                cache = cache
+            )
+        }
+
+        onNodeWithTag("town_field").performTextInput("Newport")
+        onNodeWithTag("town_search_button").performClick()
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+
+        onNodeWithTag("town_field").assertTextContains("Newport")
+        onNodeWithText("Welsh Records").assertExists()
+        assertEquals(1, searches)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `shows the prompt and keeps the town when the cache is empty after a restore`() =
+        runComposeUiTest {
+            val cache = SearchResultCache()
+            val restorationTester = StateRestorationTester(this)
+
+            restorationTester.setContent {
+                ShopSearchRoute(search = { newportResult }, cache = cache)
+            }
+
+            onNodeWithTag("town_field").performTextInput("Newport")
+            onNodeWithTag("town_search_button").performClick()
+            waitForIdle()
+            cache.shop = null
+
+            restorationTester.emulateSaveAndRestore()
+
+            onNodeWithTag("town_field").assertTextContains("Newport")
+            onNodeWithText("Enter a town to find record shops").assertExists()
+        }
 }

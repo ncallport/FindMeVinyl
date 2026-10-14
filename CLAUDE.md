@@ -50,6 +50,8 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 - The `Surface` in `MainActivity` uses `Modifier.fillMaxSize().safeDrawingPadding()`. Keep it when editing that file.
 - `OpeningHours` reads a subset of the OpenStreetMap hours syntax. Text it cannot read returns null and the shop row shows the raw text. `PH` rules are ignored for the weekday check, and the status line says public holidays may differ.
 - Compose tests: `assertExists()` and similar are member functions, not imports. `weight()` needs no import inside a Row or Column. `onNodeWithText` fails when two nodes match, for example a text field and a result with the same text. A `LazyColumn` needs a bounded height, so give it `weight(1f)` inside a Column.
+- Rotation: small values (current screen, typed text) use `rememberSaveable`. Result lists never go in the saved-state Bundle, because a big city's shop list can exceed its size limit. Put them in `SearchResultCache` and save only a flag. `ScreenSaver` saves `Screen` as a list of strings.
+- Restore tests use `runComposeUiTest` with `StateRestorationTester(this)` and `emulateSaveAndRestore()`, under `@OptIn(ExperimentalTestApi::class)`. It takes a `ComposeUiTest`, not a rule.
 
 ## Running the app
 
@@ -58,6 +60,6 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 
 ## Known gaps
 
-- Rotating the phone resets the app to the search screen, because the current screen and the search state live in the activity.
+- Search results are kept in memory only (`SearchResultCache.shared`). Rotation keeps them, but if Android kills the process the user gets the right screen and typed text back and has to search again. A search that is loading during a rotation is not resumed.
 - Opening hours use the phone's clock and do not know about public holidays.
 - The app has only been run on the emulator.
