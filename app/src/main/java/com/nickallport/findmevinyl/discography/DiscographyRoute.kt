@@ -37,7 +37,8 @@ fun DiscographyRoute(
     loadIsFavourite: suspend () -> Boolean = { false },
     onSaveFavourite: suspend (artistId: String, artistName: String) -> Unit = { _, _ -> },
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
-    loadCover: suspend (String) -> Bitmap? = { null }
+    loadCover: suspend (String) -> Bitmap? = { null },
+    loadFormats: suspend (String) -> List<String>? = { null }
 ) {
     var loadState by remember { mutableStateOf<LoadState>(LoadState.Loading) }
     var isFavourite by remember { mutableStateOf(false) }
@@ -94,7 +95,8 @@ fun DiscographyRoute(
                                         refresh()
                                     }
                                 },
-                                loadCover = loadCover
+                                loadCover = loadCover,
+                                loadFormats = loadFormats
                             )
                         }
                         is DiscographyUiState.Error -> {

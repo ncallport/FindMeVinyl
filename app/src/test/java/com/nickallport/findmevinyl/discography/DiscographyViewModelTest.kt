@@ -5,6 +5,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -226,6 +230,162 @@ class DiscographyViewModelTest {
         val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
 
         assertTrue("took $elapsedMillis ms", elapsedMillis < 3_000)
+    }
+
+    private val now = 1_800_000_000_000L
+    private val day = 24L * 60 * 60 * 1000
+
+    private fun withFormats(throttle: MusicBrainzThrottle = MusicBrainzThrottle(minIntervalMillis = 0)) =
+        DiscographyViewModel(
+            api, database.albumDao(), database.artistDao(),
+            pageDelayMillis = 0, throttle = throttle, clock = { now }
+        )
+
+    private fun releasesBody(vararg formats: String): MockResponse {
+        val media = formats.joinToString(",") { "{ \"format\": \"${it.replace("\"", "\\\"")}\" }" }
+        return MockResponse().setBody("{ \"releases\": [ { \"id\": \"r1\", \"media\": [ $media ] } ] }")
+    }
+
+    private fun uiAlbum(state: DiscographyUiState, id: String) =
+        (state as DiscographyUiState.Success).groupedAlbums.values.flatten().first { it.id == id }
+
+    private val singleJson =
+        """{ "release-groups": [ { "id": "s1", "title": "A Single", "primary-type": "Single", "secondary-types": [], "first-release-date": "1972-01-01" } ] }"""
+
+    @Test
+    fun `shows the formats saved for an album as labels`() = runBlocking {
+        database.albumDao().insert(
+            album("a").copy(formats = ReleaseFormats.encode(listOf("12\" Vinyl", "CD")), formatsCheckedAt = now)
+        )
+        server.enqueue(page(null, "a"))
+
+        val ui = uiAlbum(withFormats().loadDiscography("some-id"), "a")
+
+        assertEquals(listOf("LP", "CD"), ui.formats)
+        assertEquals(false, ui.formatsStale)
+    }
+
+    @Test
+    fun `has no formats to show for an album that was never looked up`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        server.enqueue(page(null, "a"))
+
+        val ui = uiAlbum(withFormats().loadDiscography("some-id"), "a")
+
+        assertNull(ui.formats)
+        assertEquals(false, ui.formatsStale)
+    }
+
+    @Test
+    fun `an album that was looked up and has no known formats shows an empty list`() = runBlocking {
+        database.albumDao().insert(album("a").copy(formats = "", formatsCheckedAt = now))
+        server.enqueue(page(null, "a"))
+
+        val ui = uiAlbum(withFormats().loadDiscography("some-id"), "a")
+
+        assertEquals(emptyList<String>(), ui.formats)
+    }
+
+    @Test
+    fun `formats checked more than 30 days ago are stale but still shown`() = runBlocking {
+        database.albumDao().insert(album("old").copy(formats = "CD", formatsCheckedAt = now - 31 * day))
+        database.albumDao().insert(album("recent").copy(formats = "CD", formatsCheckedAt = now - 29 * day))
+        server.enqueue(page(null, "old", "recent"))
+
+        val state = withFormats().loadDiscography("some-id")
+
+        assertEquals(true, uiAlbum(state, "old").formatsStale)
+        assertEquals(listOf("CD"), uiAlbum(state, "old").formats)
+        assertEquals(false, uiAlbum(state, "recent").formatsStale)
+    }
+
+    @Test
+    fun `a 12 inch vinyl is a 12 inch on a single and an LP on an album`() = runBlocking {
+        database.albumDao().insert(
+            album("s1").copy(category = "SINGLE", formats = "12\" Vinyl", formatsCheckedAt = now)
+        )
+        server.enqueue(MockResponse().setBody(singleJson))
+
+        val ui = uiAlbum(withFormats().loadDiscography("some-id"), "s1")
+
+        assertEquals(listOf("12\""), ui.formats)
+    }
+
+    @Test
+    fun `looking up formats fetches the releases, saves the formats and returns the labels`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        server.enqueue(releasesBody("12\" Vinyl", "CD"))
+
+        val labels = withFormats().loadFormats("1")
+
+        assertEquals(listOf("LP", "CD"), labels)
+        val saved = database.albumDao().getById("1")!!
+        assertEquals("12\" Vinyl|CD", saved.formats)
+        assertEquals(now, saved.formatsCheckedAt)
+        assertEquals(
+            "/release/?release-group=1&inc=media&limit=100&fmt=json",
+            server.takeRequest(2, TimeUnit.SECONDS)?.path
+        )
+    }
+
+    @Test
+    fun `looking up formats uses the category of the album for the labels`() = runBlocking {
+        database.albumDao().insert(album("1").copy(category = "EP"))
+        server.enqueue(releasesBody("12\" Vinyl"))
+
+        assertEquals(listOf("12\""), withFormats().loadFormats("1"))
+    }
+
+    @Test
+    fun `an album with no known formats is saved as looked up so it is not asked for again`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        server.enqueue(MockResponse().setBody("""{ "releases": [] }"""))
+
+        val labels = withFormats().loadFormats("1")
+
+        assertEquals(emptyList<String>(), labels)
+        val saved = database.albumDao().getById("1")!!
+        assertEquals("", saved.formats)
+        assertEquals(now, saved.formatsCheckedAt)
+    }
+
+    @Test
+    fun `a failed lookup returns null and saves nothing`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        assertNull(withFormats().loadFormats("1"))
+
+        val saved = database.albumDao().getById("1")!!
+        assertNull(saved.formats)
+        assertNull(saved.formatsCheckedAt)
+    }
+
+    @Test
+    fun `a lookup that has started is still saved when the caller is cancelled`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        server.enqueue(releasesBody("CD").setHeadersDelay(400, TimeUnit.MILLISECONDS))
+
+        val job = launch(Dispatchers.IO) { withFormats().loadFormats("1") }
+        assertTrue(server.takeRequest(2, TimeUnit.SECONDS) != null)
+        job.cancelAndJoin()
+
+        assertEquals("CD", database.albumDao().getById("1")?.formats)
+    }
+
+    @Test
+    fun `lookups go through the throttle`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        database.albumDao().insert(album("2"))
+        server.enqueue(releasesBody("CD"))
+        server.enqueue(releasesBody("CD"))
+        val viewModel = withFormats(MusicBrainzThrottle(minIntervalMillis = 300))
+
+        val startedAt = System.nanoTime()
+        coroutineScope { listOf("1", "2").map { async { viewModel.loadFormats(it) } }.awaitAll() }
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+
+        assertTrue("took $elapsedMillis ms", elapsedMillis >= 280)
     }
 
     @Test

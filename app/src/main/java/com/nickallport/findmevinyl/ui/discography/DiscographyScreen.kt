@@ -24,7 +24,8 @@ fun DiscographyScreen(
     onToggleOwned: (String) -> Unit,
     modifier: Modifier = Modifier,
     onToggleWanted: (String) -> Unit = {},
-    loadCover: suspend (String) -> Bitmap? = { null }
+    loadCover: suspend (String) -> Bitmap? = { null },
+    loadFormats: suspend (String) -> List<String>? = { null }
 ) {
     LazyColumn(modifier = modifier) {
         categoryDisplayOrder.forEach { (category, headerText) ->
@@ -41,7 +42,8 @@ fun DiscographyScreen(
                         album = album,
                         onToggleOwned = { onToggleOwned(album.id) },
                         onToggleWanted = { onToggleWanted(album.id) },
-                        loadCover = loadCover
+                        loadCover = loadCover,
+                        loadFormats = loadFormats
                     )
                 }
             }

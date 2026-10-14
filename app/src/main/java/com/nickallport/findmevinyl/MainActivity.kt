@@ -21,6 +21,7 @@ import com.nickallport.findmevinyl.discography.DiscographyViewModel
 import com.nickallport.findmevinyl.favourites.FavouritesViewModel
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
+import com.nickallport.findmevinyl.storage.MIGRATION_1_2
 import com.nickallport.findmevinyl.ui.artist.ArtistSearchRoute
 import com.nickallport.findmevinyl.ui.favourites.FavouritesRoute
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).build()
+        ).addMigrations(MIGRATION_1_2).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
@@ -163,7 +164,8 @@ class MainActivity : ComponentActivity() {
                                 loadIsFavourite = { discographyViewModel.isFavourite(screen.artistId) },
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
-                                loadCover = { id -> CoverArtLoader.shared.load(id) }
+                                loadCover = { id -> CoverArtLoader.shared.load(id) },
+                                loadFormats = { id -> discographyViewModel.loadFormats(id) }
                             )
                         }
                         is Screen.WantList -> {

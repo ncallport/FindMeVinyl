@@ -3,6 +3,7 @@ package com.nickallport.findmevinyl.discography
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
@@ -22,8 +23,37 @@ class DiscographyViewModel(
     private val artistDao: ArtistDao,
     private val pageSize: Int = 100,
     private val pageDelayMillis: Long = 1_100,
-    private val maxPages: Int = 10
+    private val maxPages: Int = 10,
+    private val throttle: MusicBrainzThrottle = MusicBrainzThrottle.shared,
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val formatRefreshAfterMillis: Long = 30L * 24 * 60 * 60 * 1000
 ) {
+    /**
+     * Looks up the formats of an album's releases on MusicBrainz, saves them, and returns the
+     * labels to show. Null means the lookup failed, and nothing is saved, so it can be tried again.
+     * The request waits its turn in the throttle. Once it has started, the save is part of it, so a
+     * caller that is cancelled meanwhile still leaves the formats stored.
+     */
+    suspend fun loadFormats(albumId: String): List<String>? {
+        return try {
+            val names = throttle.run {
+                val found = api.getReleasesForReleaseGroup(releaseGroupId = albumId).formatNames()
+                albumDao.setFormats(albumId, ReleaseFormats.encode(found), clock())
+                found
+            }
+            ReleaseFormats.labels(names, categoryOf(albumId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private suspend fun categoryOf(albumId: String): DiscographyCategory =
+        albumDao.getById(albumId)?.category
+            ?.let { runCatching { DiscographyCategory.valueOf(it) }.getOrNull() }
+            ?: DiscographyCategory.OTHER
+
     suspend fun loadDiscography(artistId: String): DiscographyUiState {
         return try {
             val domainReleaseGroups = fetchAllReleaseGroups(artistId).map { it.toDomain() }
@@ -45,14 +75,17 @@ class DiscographyViewModel(
             val savedAlbums = albumDao.getAlbumsForArtist(artistId)
             val organized = DiscographyOrganizer.organize(domainReleaseGroups)
 
-            val uiGrouped = organized.mapValues { (_, releaseGroups) ->
+            val now = clock()
+            val uiGrouped = organized.mapValues { (category, releaseGroups) ->
                 releaseGroups.map { releaseGroup ->
                     val savedAlbum = savedAlbums.find { it.id == releaseGroup.id }
                     AlbumUiModel(
                         id = releaseGroup.id,
                         title = releaseGroup.title,
                         owned = savedAlbum?.owned ?: false,
-                        wanted = savedAlbum?.wanted ?: false
+                        wanted = savedAlbum?.wanted ?: false,
+                        formats = savedAlbum?.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
+                        formatsStale = savedAlbum?.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false
                     )
                 }
             }

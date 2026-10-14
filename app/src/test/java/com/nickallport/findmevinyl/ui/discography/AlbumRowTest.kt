@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.ui.discography
 
 import android.graphics.Bitmap
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -171,6 +172,40 @@ class AlbumRowTest {
         composeTestRule.onNodeWithTag("cover_placeholder", useUnmergedTree = true).performClick()
 
         assertTrue(ownedToggled)
+    }
+
+    @Test
+    fun `shows the formats the album has stored`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(
+                    id = "1", title = "Foxtrot", owned = false, wanted = false,
+                    formats = listOf("LP", "CD")
+                ),
+                onToggleOwned = {}
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels", useUnmergedTree = true)
+            .assertTextEquals("LP · CD")
+    }
+
+    @Test
+    fun `looks up the formats of an album that has none stored`() {
+        val asked = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "abc", title = "Foxtrot", owned = false, wanted = false),
+                onToggleOwned = {},
+                loadFormats = { id -> asked.add(id); listOf("MC") }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels", useUnmergedTree = true).assertTextEquals("MC")
+        assertEquals(listOf("abc"), asked)
     }
 
     @Test

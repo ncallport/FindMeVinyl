@@ -1,0 +1,22 @@
+package com.nickallport.findmevinyl.musicbrainz
+
+/** The releases inside one release group, with their media (`inc=media`). */
+data class MusicBrainzReleaseListResponse(
+    val releases: List<MusicBrainzReleaseDto>? = null
+) {
+    /** Each format name once, in the order they first appear. Releases or media without one are skipped. */
+    fun formatNames(): List<String> =
+        releases.orEmpty()
+            .flatMap { it.media.orEmpty() }
+            .mapNotNull { it.format }
+            .distinct()
+}
+
+data class MusicBrainzReleaseDto(
+    val id: String? = null,
+    val media: List<MusicBrainzMediumDto>? = null
+)
+
+data class MusicBrainzMediumDto(
+    val format: String? = null
+)

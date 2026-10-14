@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.discography
 
 import android.graphics.Bitmap
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -66,6 +67,35 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("cover_image", useUnmergedTree = true).assertExists()
+        assertEquals(listOf("1"), asked)
+    }
+
+    @Test
+    fun `looks up the formats of albums that have none and shows them`() {
+        val asked = mutableListOf<String>()
+        val fakeLoad: suspend (String) -> DiscographyUiState = {
+            DiscographyUiState.Success(
+                mapOf(
+                    DiscographyCategory.STUDIO_ALBUM to listOf(
+                        AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false)
+                    )
+                )
+            )
+        }
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "some-artist-id",
+                artistName = "Genesis",
+                load = fakeLoad,
+                onToggleOwned = { _, _ -> },
+                loadFormats = { id -> asked.add(id); listOf("LP", "CD") }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels", useUnmergedTree = true)
+            .assertTextEquals("LP · CD")
         assertEquals(listOf("1"), asked)
     }
 
