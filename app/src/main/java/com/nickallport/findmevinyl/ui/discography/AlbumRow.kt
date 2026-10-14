@@ -21,7 +21,11 @@ data class AlbumUiModel(
     val id: String,
     val title: String,
     val owned: Boolean,
-    val wanted: Boolean
+    val wanted: Boolean,
+    /** Labels such as LP and CD. Null: not looked up yet. Empty: looked up, none known. */
+    val formats: List<String>? = null,
+    /** The stored formats are old enough to look up again. They are still shown meanwhile. */
+    val formatsStale: Boolean = false
 )
 
 @Composable
@@ -30,7 +34,8 @@ fun AlbumRow(
     onToggleOwned: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleWanted: () -> Unit = {},
-    loadCover: suspend (String) -> Bitmap? = { null }
+    loadCover: suspend (String) -> Bitmap? = { null },
+    loadFormats: suspend (String) -> List<String>? = { null }
 ) {
     val backgroundColor = if (album.owned) {
         MaterialTheme.colorScheme.primaryContainer
@@ -51,6 +56,12 @@ fun AlbumRow(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = album.title)
+            FormatLabels(
+                albumId = album.id,
+                formats = album.formats,
+                stale = album.formatsStale,
+                loadFormats = loadFormats
+            )
             if (album.owned) {
                 Text(text = "Owned")
             }

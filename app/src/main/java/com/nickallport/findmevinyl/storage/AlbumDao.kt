@@ -20,6 +20,13 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE artistId = :artistId")
     suspend fun getAlbumsForArtist(artistId: String): List<AlbumEntity>
 
+    @Query("SELECT * FROM albums WHERE id = :albumId")
+    suspend fun getById(albumId: String): AlbumEntity?
+
+    /** An empty [formats] means the album was checked and no formats are known. */
+    @Query("UPDATE albums SET formats = :formats, formatsCheckedAt = :checkedAt WHERE id = :albumId")
+    suspend fun setFormats(albumId: String, formats: String, checkedAt: Long): Int
+
     @Query("UPDATE albums SET owned = :owned WHERE id = :albumId")
     suspend fun setOwned(albumId: String, owned: Boolean): Int
 

@@ -22,6 +22,15 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseGroupSearchResponse
 
+    /** The releases of one release group with their media, which say whether it came on vinyl, CD and so on. */
+    @GET("release/")
+    suspend fun getReleasesForReleaseGroup(
+        @Query("release-group") releaseGroupId: String,
+        @Query("inc") include: String = "media",
+        @Query("limit") limit: Int = 100,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzReleaseListResponse
 }
 
 object AppUserAgent {

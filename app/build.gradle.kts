@@ -62,6 +62,12 @@ android {
     }
 }
 
+ksp {
+    // Room writes one JSON file per database version here. Keep them in git: they are the record
+    // of each old schema that a migration has to start from.
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

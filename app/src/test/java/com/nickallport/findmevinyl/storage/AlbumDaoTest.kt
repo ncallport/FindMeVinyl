@@ -102,6 +102,45 @@ class AlbumDaoTest {
     )
 
     @Test
+    fun `saved formats and their check time can be read back`() = runBlocking {
+        dao.insert(album("1"))
+
+        val changed = dao.setFormats("1", "12\" Vinyl|CD", checkedAt = 1_700_000_000_000)
+
+        assertEquals(1, changed)
+        val saved = dao.getById("1")
+        assertEquals("12\" Vinyl|CD", saved?.formats)
+        assertEquals(1_700_000_000_000, saved?.formatsCheckedAt)
+    }
+
+    @Test
+    fun `saving formats leaves the owned and wanted flags alone`() = runBlocking {
+        dao.insert(album("1", owned = true, wanted = true))
+
+        dao.setFormats("1", "CD", checkedAt = 5)
+
+        val saved = dao.getById("1")!!
+        assertTrue(saved.owned)
+        assertTrue(saved.wanted)
+    }
+
+    @Test
+    fun `saving formats for an album that is not there changes nothing`() = runBlocking {
+        assertEquals(0, dao.setFormats("missing", "CD", checkedAt = 5))
+        assertNull(dao.getById("missing"))
+    }
+
+    @Test
+    fun `an album has no formats until some are saved`() = runBlocking {
+        dao.insert(album("1"))
+
+        val saved = dao.getById("1")!!
+
+        assertNull(saved.formats)
+        assertNull(saved.formatsCheckedAt)
+    }
+
+    @Test
     fun `inserting a list of albums saves all of them`() = runBlocking {
         dao.insertAllIfNotExist(listOf(album("1"), album("2"), album("3")))
 
