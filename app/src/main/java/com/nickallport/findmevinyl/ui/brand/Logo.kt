@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -117,6 +118,8 @@ fun Masthead(onHome: (() -> Unit)?, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .testTag("masthead")
             .semantics(mergeDescendants = true) { contentDescription = description }
+            // Focus moved here after the keyboard's search key and left a grey band on the bar.
+            .focusProperties { canFocus = false }
             .then(clickable)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically

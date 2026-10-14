@@ -5,8 +5,10 @@ import androidx.compose.runtime.saveable.SaverScope
 
 internal sealed class Screen {
     object Home : Screen()
+    /** The Artists page: a search field and the favourite artists. */
     object Search : Screen()
-    object Favourites : Screen()
+    /** The results of an artist search. */
+    data class ArtistResults(val query: String) : Screen()
     object WantList : Screen()
     object Shops : Screen()
     data class Discography(
@@ -23,6 +25,7 @@ internal sealed class Screen {
 internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Home -> null
     is Screen.Discography -> backTo
+    is Screen.ArtistResults -> Screen.Search
     else -> Screen.Home
 }
 
@@ -32,7 +35,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
     override fun SaverScope.save(value: Screen): List<String> = when (value) {
         is Screen.Home -> listOf("home")
         is Screen.Search -> listOf("search")
-        is Screen.Favourites -> listOf("favourites")
+        is Screen.ArtistResults -> listOf("results", value.query)
         is Screen.WantList -> listOf("wantlist")
         is Screen.Shops -> listOf("shops")
         is Screen.Discography ->
@@ -42,7 +45,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
     override fun restore(value: List<String>): Screen? = when (value.firstOrNull()) {
         "home" -> Screen.Home
         "search" -> Screen.Search
-        "favourites" -> Screen.Favourites
+        "results" -> value.getOrNull(1)?.let { Screen.ArtistResults(it) }
         "wantlist" -> Screen.WantList
         "shops" -> Screen.Shops
         "discography" -> restore(value.drop(3))?.let {
