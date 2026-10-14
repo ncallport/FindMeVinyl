@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.discography
 
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
@@ -8,6 +9,7 @@ import com.nickallport.findmevinyl.storage.ArtistDao
 import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 sealed class DiscographyUiState {
     data class Success(val groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>) : DiscographyUiState()
@@ -17,15 +19,17 @@ sealed class DiscographyUiState {
 class DiscographyViewModel(
     private val api: MusicBrainzApi,
     private val albumDao: AlbumDao,
-    private val artistDao: ArtistDao
+    private val artistDao: ArtistDao,
+    private val pageSize: Int = 100,
+    private val pageDelayMillis: Long = 1_100,
+    private val maxPages: Int = 10
 ) {
     suspend fun loadDiscography(artistId: String): DiscographyUiState {
         return try {
-            val response = api.getReleaseGroupsForArtist(artistId = artistId)
-            val domainReleaseGroups = response.releaseGroups.map { it.toDomain() }
+            val domainReleaseGroups = fetchAllReleaseGroups(artistId).map { it.toDomain() }
 
-            domainReleaseGroups.forEach { releaseGroup ->
-                albumDao.insertIfNotExists(
+            albumDao.insertAllIfNotExist(
+                domainReleaseGroups.map { releaseGroup ->
                     AlbumEntity(
                         id = releaseGroup.id,
                         artistId = artistId,
@@ -35,8 +39,8 @@ class DiscographyViewModel(
                         owned = false,
                         wanted = false
                     )
-                )
-            }
+                }
+            )
 
             val savedAlbums = albumDao.getAlbumsForArtist(artistId)
             val organized = DiscographyOrganizer.organize(domainReleaseGroups)
@@ -58,6 +62,40 @@ class DiscographyViewModel(
             throw e
         } catch (e: Exception) {
             DiscographyUiState.Error(e.message ?: "Something went wrong")
+        }
+    }
+
+    /**
+     * MusicBrainz returns release groups a page at a time. This follows the pages until it has
+     * them all. MusicBrainz allows about one request a second, so each request starts at least
+     * [pageDelayMillis] after the one before it started. A slow response already used that time.
+     * A failure on any page throws, so a short list is never mistaken for the whole discography.
+     */
+    private suspend fun fetchAllReleaseGroups(artistId: String): List<MusicBrainzReleaseGroupDto> {
+        val all = mutableListOf<MusicBrainzReleaseGroupDto>()
+        var pages = 0
+        var lastStartNanos = 0L
+        while (true) {
+            if (pages > 0) {
+                val sinceLastStartMillis = (System.nanoTime() - lastStartNanos) / 1_000_000
+                val remaining = pageDelayMillis - sinceLastStartMillis
+                if (remaining > 0) delay(remaining)
+            }
+            lastStartNanos = System.nanoTime()
+            val response = api.getReleaseGroupsForArtist(
+                artistId = artistId,
+                limit = pageSize,
+                offset = all.size
+            )
+            all += response.releaseGroups
+            pages++
+
+            val total = response.releaseGroupCount
+            val finished = total == null ||
+                all.size >= total ||
+                response.releaseGroups.isEmpty() ||
+                pages >= maxPages
+            if (finished) return all
         }
     }
 

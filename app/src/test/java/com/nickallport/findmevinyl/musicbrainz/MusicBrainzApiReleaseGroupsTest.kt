@@ -46,6 +46,38 @@ class MusicBrainzApiReleaseGroupsTest {
     }
 
     @Test
+    fun `asks for a page of release groups with a limit and an offset`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{ "release-groups": [] }"""))
+
+        api.getReleaseGroupsForArtist(artistId = "abc", limit = 100, offset = 200)
+
+        assertEquals(
+            "/release-group/?artist=abc&fmt=json&limit=100&offset=200",
+            server.takeRequest().path
+        )
+    }
+
+    @Test
+    fun `reads the total number of release groups`() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody("""{ "release-group-count": 419, "release-group-offset": 0, "release-groups": [] }""")
+        )
+
+        val response = api.getReleaseGroupsForArtist(artistId = "abc")
+
+        assertEquals(419, response.releaseGroupCount)
+    }
+
+    @Test
+    fun `has no total when the response does not give one`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{ "release-groups": [] }"""))
+
+        val response = api.getReleaseGroupsForArtist(artistId = "abc")
+
+        assertEquals(null, response.releaseGroupCount)
+    }
+
+    @Test
     fun `parses the release groups response body`() = runBlocking {
         server.enqueue(
             MockResponse().setBody(

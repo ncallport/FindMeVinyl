@@ -13,6 +13,10 @@ interface AlbumDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfNotExists(album: AlbumEntity): Long
 
+    /** One transaction for the whole list. Albums that already exist are left as they are. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIfNotExist(albums: List<AlbumEntity>): List<Long>
+
     @Query("SELECT * FROM albums WHERE artistId = :artistId")
     suspend fun getAlbumsForArtist(artistId: String): List<AlbumEntity>
 

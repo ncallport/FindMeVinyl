@@ -5,7 +5,9 @@ import com.google.gson.annotations.SerializedName
 import com.nickallport.findmevinyl.discography.ReleaseGroupDto
 
 data class MusicBrainzReleaseGroupSearchResponse(
-    @SerializedName("release-groups") val releaseGroups: List<MusicBrainzReleaseGroupDto>
+    @SerializedName("release-groups") val releaseGroups: List<MusicBrainzReleaseGroupDto>,
+    /** How many release groups the artist has in all. A page holds at most the `limit` asked for. */
+    @SerializedName("release-group-count") val releaseGroupCount: Int? = null
 )
 
 data class MusicBrainzReleaseGroupDto(

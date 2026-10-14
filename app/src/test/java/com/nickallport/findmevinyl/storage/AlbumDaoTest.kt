@@ -91,6 +91,37 @@ class AlbumDaoTest {
         assertTrue(albums[0].owned)
     }
 
+    private fun album(id: String, owned: Boolean = false, wanted: Boolean = false) = AlbumEntity(
+        id = id,
+        artistId = "artist-1",
+        title = "Album $id",
+        category = "STUDIO_ALBUM",
+        firstReleaseDate = null,
+        owned = owned,
+        wanted = wanted
+    )
+
+    @Test
+    fun `inserting a list of albums saves all of them`() = runBlocking {
+        dao.insertAllIfNotExist(listOf(album("1"), album("2"), album("3")))
+
+        assertEquals(listOf("1", "2", "3"), dao.getAlbumsForArtist("artist-1").map { it.id }.sorted())
+    }
+
+    @Test
+    fun `inserting a list leaves the owned and wanted flags of albums that already exist`() = runBlocking {
+        dao.insert(album("1", owned = true))
+        dao.insert(album("2", wanted = true))
+
+        dao.insertAllIfNotExist(listOf(album("1"), album("2"), album("3")))
+
+        val saved = dao.getAlbumsForArtist("artist-1").sortedBy { it.id }
+        assertEquals(3, saved.size)
+        assertTrue(saved[0].owned)
+        assertTrue(saved[1].wanted)
+        assertEquals(false, saved[2].owned)
+    }
+
     @Test
     fun `marking an album as wanted persists the change`() = runBlocking {
         val album = AlbumEntity(
