@@ -9,6 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -26,6 +27,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
+import java.net.InetAddress
 import java.util.Base64
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -45,18 +47,14 @@ class CoverArtLoaderTest {
 
     private fun pngResponse() = MockResponse().setBody(Buffer().write(png))
 
+    // On a runner where localhost is both 127.0.0.1 and ::1, MockWebServer listens on only the first.
+    // After a failed request OkHttp tries the other address first, and with retries off it gives up.
+    // Resolving the host the way MockWebServer binds it keeps these tests deterministic.
     private fun newClient() = OkHttpClient.Builder()
-        // TEMP DIAGNOSTICS
-        .addInterceptor { chain ->
-            try {
-                val response = chain.proceed(chain.request())
-                println("DIAG ${chain.request().url} -> ${response.code} len=${response.body?.contentLength()}")
-                response
-            } catch (e: Throwable) {
-                println("DIAG ${chain.request().url} threw $e")
-                throw e
-            }
-        }
+        .dns(object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> =
+                listOf(InetAddress.getByName(server.hostName))
+        })
         .retryOnConnectionFailure(false)
         .callTimeout(10, TimeUnit.SECONDS)
         .build()
@@ -78,16 +76,6 @@ class CoverArtLoaderTest {
     @After
     fun tearDown() {
         server.shutdown()
-    }
-
-    @Test
-    fun `TEMP diagnostics decode`() {
-        repeat(3) {
-            val b = android.graphics.BitmapFactory.decodeByteArray(png, 0, png.size)
-            println("DIAG direct decode #$it -> ${b?.width}")
-        }
-        println("DIAG localhost -> ${java.net.InetAddress.getAllByName("localhost").joinToString()}")
-        println("DIAG server host -> ${server.hostName} ${server.url("/")}")
     }
 
     @Test
