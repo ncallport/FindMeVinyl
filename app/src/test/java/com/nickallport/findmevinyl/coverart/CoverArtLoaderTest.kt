@@ -46,6 +46,17 @@ class CoverArtLoaderTest {
     private fun pngResponse() = MockResponse().setBody(Buffer().write(png))
 
     private fun newClient() = OkHttpClient.Builder()
+        // TEMP DIAGNOSTICS
+        .addInterceptor { chain ->
+            try {
+                val response = chain.proceed(chain.request())
+                println("DIAG ${chain.request().url} -> ${response.code} len=${response.body?.contentLength()}")
+                response
+            } catch (e: Throwable) {
+                println("DIAG ${chain.request().url} threw $e")
+                throw e
+            }
+        }
         .retryOnConnectionFailure(false)
         .callTimeout(10, TimeUnit.SECONDS)
         .build()
@@ -67,6 +78,16 @@ class CoverArtLoaderTest {
     @After
     fun tearDown() {
         server.shutdown()
+    }
+
+    @Test
+    fun `TEMP diagnostics decode`() {
+        repeat(3) {
+            val b = android.graphics.BitmapFactory.decodeByteArray(png, 0, png.size)
+            println("DIAG direct decode #$it -> ${b?.width}")
+        }
+        println("DIAG localhost -> ${java.net.InetAddress.getAllByName("localhost").joinToString()}")
+        println("DIAG server host -> ${server.hostName} ${server.url("/")}")
     }
 
     @Test
