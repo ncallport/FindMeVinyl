@@ -2,18 +2,20 @@ package com.nickallport.findmevinyl.ui.shops
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -23,6 +25,8 @@ import com.nickallport.findmevinyl.SearchResultCache
 import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
+import com.nickallport.findmevinyl.ui.brand.Glyphs
+import com.nickallport.findmevinyl.ui.common.SearchField
 import kotlinx.coroutines.launch
 
 private sealed class RouteState {
@@ -31,6 +35,15 @@ private sealed class RouteState {
     data class Result(val state: ShopSearchUiState) : RouteState()
 }
 
+/**
+ * The Shops page: a search field for a town (the keyboard's search key searches), a Near me button,
+ * and the shops found.
+ *
+ * It starts from the last result kept in [cache], so coming back or rotating costs no request. The
+ * first time it opens with nothing kept, it searches near you by itself, once. That is one request
+ * to a shared public server, and [SearchResultCache.nearbyTried] stops it repeating. After that,
+ * searching again is up to the user.
+ */
 @Composable
 fun ShopSearchRoute(
     search: suspend (String) -> ShopSearchUiState,
@@ -41,18 +54,8 @@ fun ShopSearchRoute(
     cache: SearchResultCache = remember { SearchResultCache() }
 ) {
     var town by rememberSaveable { mutableStateOf("") }
-    // Only a flag goes in the Bundle. The shop list can be large, so it is read from the cache.
-    val routeStateSaver = remember(cache) {
-        Saver<RouteState, Boolean>(
-            save = { it is RouteState.Result },
-            restore = { hadResult ->
-                val cached = cache.shop
-                if (hadResult && cached != null) RouteState.Result(cached) else RouteState.Idle
-            }
-        )
-    }
-    var routeState by rememberSaveable(stateSaver = routeStateSaver) {
-        mutableStateOf<RouteState>(RouteState.Idle)
+    var routeState by remember {
+        mutableStateOf<RouteState>(cache.shop?.let { RouteState.Result(it) } ?: RouteState.Idle)
     }
     val coroutineScope = rememberCoroutineScope()
 
@@ -61,38 +64,39 @@ fun ShopSearchRoute(
         routeState = RouteState.Result(state)
     }
 
-    Column(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            TextField(
-                value = town,
-                onValueChange = { town = it },
-                modifier = Modifier.testTag("town_field")
-            )
-            Button(
+    LaunchedEffect(Unit) {
+        if (routeState is RouteState.Idle && searchNearby != null && !cache.nearbyTried) {
+            routeState = RouteState.Loading
+            val result = searchNearby()
+            // Only once it has finished, so a rotation in the middle tries again.
+            cache.nearbyTried = true
+            showResult(result)
+        }
+    }
+
+    Column(modifier = modifier.padding(top = 8.dp)) {
+        SearchField(
+            value = town,
+            onValueChange = { town = it },
+            onSearch = { trimmed ->
+                routeState = RouteState.Loading
+                coroutineScope.launch { showResult(search(trimmed)) }
+            },
+            hint = "Search for a town",
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        if (searchNearby != null) {
+            FilledTonalButton(
                 onClick = {
-                    val trimmed = town.trim()
-                    if (trimmed.isNotEmpty()) {
-                        routeState = RouteState.Loading
-                        coroutineScope.launch {
-                            showResult(search(trimmed))
-                        }
-                    }
+                    routeState = RouteState.Loading
+                    coroutineScope.launch { showResult(searchNearby()) }
                 },
-                modifier = Modifier.testTag("town_search_button")
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("use_location_button")
             ) {
-                Text("Search")
-            }
-            if (searchNearby != null) {
-                TextButton(
-                    onClick = {
-                        routeState = RouteState.Loading
-                        coroutineScope.launch {
-                            showResult(searchNearby())
-                        }
-                    },
-                    modifier = Modifier.testTag("use_location_button")
-                ) {
-                    Text("Use my location")
+                Row {
+                    Icon(Glyphs.Pin, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Near me")
                 }
             }
         }
@@ -101,12 +105,12 @@ fun ShopSearchRoute(
             when (val current = routeState) {
                 is RouteState.Idle -> {
                     Text(
-                        text = "Enter a town to find record shops",
+                        text = "Search for a town to find record shops",
                         modifier = Modifier.padding(16.dp)
                     )
                 }
                 is RouteState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.testTag("loading_indicator"))
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp).testTag("loading_indicator"))
                 }
                 is RouteState.Result -> {
                     val shown = current.state

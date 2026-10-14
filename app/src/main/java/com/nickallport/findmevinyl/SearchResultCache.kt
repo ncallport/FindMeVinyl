@@ -21,6 +21,9 @@ class SearchResultCache {
 
     var shop: ShopSearchUiState? = null
 
+    /** The Shops page searches near you by itself once. This stops it doing so again and again. */
+    var nearbyTried: Boolean = false
+
     companion object {
         /** The instance the app uses. It lives as long as the process, so it outlasts the activity. */
         val shared = SearchResultCache()
