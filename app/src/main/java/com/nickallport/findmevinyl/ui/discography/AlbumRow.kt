@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.nickallport.findmevinyl.ui.common.ListCard
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,41 +47,54 @@ fun AlbumRow(
         MaterialTheme.colorScheme.surface
     }
 
-    Row(
-        modifier = modifier
-            .testTag("album_row")
-            .fillMaxWidth()
-            .clickable { onToggleOwned() }
-            .background(backgroundColor)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    ListCard(
+        modifier = modifier.testTag("album_row"),
+        onClick = onToggleOwned,
+        container = backgroundColor
     ) {
-        CoverImage(albumId = album.id, loadCover = loadCover)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = album.title)
-            FormatLabels(
-                albumId = album.id,
-                formats = album.formats,
-                stale = album.formatsStale,
-                loadFormats = loadFormats,
-                checkingWhenUnknown = checkingFormats
-            )
-            if (album.owned) {
-                Text(text = "Owned")
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CoverImage(albumId = album.id, loadCover = loadCover)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = album.title, style = MaterialTheme.typography.titleSmall)
+                FormatLabels(
+                    albumId = album.id,
+                    formats = album.formats,
+                    stale = album.formatsStale,
+                    loadFormats = loadFormats,
+                    checkingWhenUnknown = checkingFormats
+                )
+                if (album.owned) {
+                    Text(
+                        text = "Owned",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                if (album.wanted) {
+                    Text(
+                        text = "Want",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
             }
-            if (album.wanted) {
-                Text(text = "Want")
+            if (!album.owned) {
+                Text(
+                    text = "+ Want",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier
+                        .testTag("wanted_toggle")
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .clickable { onToggleWanted() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
             }
-        }
-        if (!album.owned) {
-            Text(
-                text = "+ Want",
-                modifier = Modifier
-                    .testTag("wanted_toggle")
-                    .clickable { onToggleWanted() }
-                    .padding(8.dp)
-            )
         }
     }
 }

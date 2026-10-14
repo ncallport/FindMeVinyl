@@ -47,6 +47,15 @@ class WantListScreenTest {
     }
 
     @Test
+    fun `tells you how to add albums when the list is empty`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = emptyList(), onShare = {})
+        }
+
+        composeTestRule.onNodeWithText("Tap + Want on an album to add it here").assertExists()
+    }
+
+    @Test
     fun `shows a message and no share button when nothing is wanted`() {
         composeTestRule.setContent {
             WantListScreen(wanted = emptyList(), onShare = {})
