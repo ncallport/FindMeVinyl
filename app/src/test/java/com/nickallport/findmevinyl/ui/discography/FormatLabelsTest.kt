@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -50,6 +51,75 @@ class FormatLabelsTest {
 
         composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP${dot}MC")
         assertEquals(listOf("abc"), asked)
+    }
+
+    @Test
+    fun `says it is checking while the lookup of an unchecked album runs, when asked to`() {
+        val gate = CompletableDeferred<Unit>()
+
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = null, stale = false,
+                loadFormats = { gate.await(); listOf("LP") },
+                checkingWhenUnknown = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats").assertTextEquals("Checking formats…")
+
+        gate.complete(Unit)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP")
+    }
+
+    @Test
+    fun `does not say it is checking unless asked to`() {
+        val gate = CompletableDeferred<Unit>()
+
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = null, stale = false,
+                loadFormats = { gate.await(); listOf("LP") }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats").assertDoesNotExist()
+    }
+
+    @Test
+    fun `stops saying it is checking when the lookup fails`() {
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = null, stale = false,
+                loadFormats = { null },
+                checkingWhenUnknown = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("format_labels").assertDoesNotExist()
+    }
+
+    @Test
+    fun `does not say it is checking while stored formats are being refreshed`() {
+        val gate = CompletableDeferred<Unit>()
+
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = listOf("CD"), stale = true,
+                loadFormats = { gate.await(); listOf("LP", "CD") },
+                checkingWhenUnknown = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("format_labels").assertTextEquals("CD")
     }
 
     @Test

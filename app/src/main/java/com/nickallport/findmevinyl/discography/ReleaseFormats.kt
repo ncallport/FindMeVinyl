@@ -12,6 +12,9 @@ object ReleaseFormats {
         LP("LP"), TWELVE_INCH("12\""), TEN_INCH("10\""), SEVEN_INCH("7\""), CD("CD"), MC("MC"), DIGITAL("Digital")
     }
 
+    /** Every label there is, in the order they are shown. */
+    val displayOrder: List<String> = Label.entries.map { it.text }
+
     private val cdWord = Regex("""\bCD\b""")
 
     /** The raw names as one string for the database. A comma will not do: some names contain one. */

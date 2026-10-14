@@ -1,10 +1,13 @@
 package com.nickallport.findmevinyl.discography
 
 import android.graphics.Bitmap
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.runComposeUiTest
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
@@ -23,8 +26,13 @@ class DiscographyRouteTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun album(id: String, title: String = "Album $id", owned: Boolean = false, wanted: Boolean = false) =
-        AlbumUiModel(id = id, title = title, owned = owned, wanted = wanted)
+    private fun album(
+        id: String,
+        title: String = "Album $id",
+        owned: Boolean = false,
+        wanted: Boolean = false,
+        formats: List<String>? = null
+    ) = AlbumUiModel(id = id, title = title, owned = owned, wanted = wanted, formats = formats)
 
     private fun success(vararg albums: AlbumUiModel, loadingMore: Boolean = false) =
         DiscographyUiState.Success(mapOf(DiscographyCategory.STUDIO_ALBUM to albums.toList()), loadingMore)
@@ -418,6 +426,210 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Save").assertExists()
+    }
+
+    @Test
+    fun `shows no format filter until some formats are known`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis",
+                load = loading(success(album("A"), album("B"))), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_chip_all").assertDoesNotExist()
+    }
+
+    @Test
+    fun `shows a chip for each format found with how many albums have it`() {
+        val state = success(album("A", formats = listOf("LP", "CD")), album("B", formats = listOf("CD")))
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("All").assertExists()
+        composeTestRule.onNodeWithText("LP 1").assertExists()
+        composeTestRule.onNodeWithText("CD 2").assertExists()
+    }
+
+    @Test
+    fun `choosing a format shows the albums that have it and the ones not checked yet`() {
+        val state = success(
+            album("A", formats = listOf("LP")),
+            album("B", formats = listOf("CD")),
+            album("C", formats = null)
+        )
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Album A").assertExists()
+        composeTestRule.onNodeWithText("Album B").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Album C").assertExists()
+    }
+
+    @Test
+    fun `All brings every album back`() {
+        val state = success(album("A", formats = listOf("LP")), album("B", formats = listOf("CD")))
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Album B").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("format_chip_all").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Album A").assertExists()
+        composeTestRule.onNodeWithText("Album B").assertExists()
+    }
+
+    @Test
+    fun `says Checking formats for the albums not checked while a format is chosen`() {
+        val gate = CompletableDeferred<Unit>()
+        val state = success(album("A", formats = listOf("LP")), album("C", formats = null))
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> },
+                loadFormats = { gate.await(); null }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("checking_formats", useUnmergedTree = true).assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("checking_formats", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `says how many albums are not checked yet while a format is chosen`() {
+        val gate = CompletableDeferred<Unit>()
+        val state = success(
+            album("A", formats = listOf("LP")), album("C", formats = null), album("D", formats = null)
+        )
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> },
+                loadFormats = { gate.await(); null }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("2 not checked yet").assertExists()
+    }
+
+    @Test
+    fun `an album drops out when its lookup shows it is not on the chosen format`() {
+        val gate = CompletableDeferred<Unit>()
+        val state = success(album("A", formats = listOf("LP")), album("C", formats = null))
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> },
+                loadFormats = { id -> gate.await(); if (id == "C") listOf("CD") else null }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Album C").assertExists()
+
+        gate.complete(Unit)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Album A").assertExists()
+        composeTestRule.onNodeWithText("Album C").assertDoesNotExist()
+        composeTestRule.onNodeWithText("CD 1").assertExists()
+        composeTestRule.onNodeWithTag("unchecked_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `says no albums were found when none has the chosen format any more`() {
+        val later = CompletableDeferred<Unit>()
+        val load: (String) -> Flow<DiscographyUiState> = {
+            flow {
+                emit(success(album("A", formats = listOf("LP"))))
+                later.await()
+                emit(success(album("A", formats = listOf("CD"))))
+            }
+        }
+
+        composeTestRule.setContent {
+            DiscographyRoute(artistId = "a", artistName = "Genesis", load = load, onToggleOwned = { _, _ -> })
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+
+        later.complete(Unit)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("no_matches").assertExists()
+        composeTestRule.onNodeWithText("No albums found on LP").assertExists()
+        composeTestRule.onNodeWithText("LP 0").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `keeps the chosen format after the state is restored`() = runComposeUiTest {
+        val state = success(album("A", formats = listOf("LP")), album("B", formats = listOf("CD")))
+        val restorationTester = StateRestorationTester(this)
+
+        restorationTester.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(state), onToggleOwned = { _, _ -> }
+            )
+        }
+        waitForIdle()
+        onNodeWithTag("format_chip_LP").performClick()
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+        waitForIdle()
+
+        onNodeWithText("Album A").assertExists()
+        onNodeWithText("Album B").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a tap brings in formats that lookups saved but the screen had missed`() {
+        val load: (String) -> Flow<DiscographyUiState> = { flowOf(success(album("A", formats = null))) }
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = load, onToggleOwned = { _, _ -> },
+                loadSaved = { success(album("A", owned = true, formats = listOf("LP"))) }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("format_chip_all").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Album A").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("LP 1").assertExists()
     }
 
     @Test

@@ -45,7 +45,8 @@ fun DiscographyScreen(
     loadFormats: suspend (String) -> List<String>? = { null },
     loadingMore: Boolean = false,
     loadError: String? = null,
-    onRetry: () -> Unit = {}
+    onRetry: () -> Unit = {},
+    checkingFormats: Boolean = false
 ) {
     LazyColumn(modifier = modifier.testTag("discography_list")) {
         categoryDisplayOrder.forEach { (category, headerText) ->
@@ -63,7 +64,8 @@ fun DiscographyScreen(
                         onToggleOwned = { onToggleOwned(album.id) },
                         onToggleWanted = { onToggleWanted(album.id) },
                         loadCover = loadCover,
-                        loadFormats = loadFormats
+                        loadFormats = loadFormats,
+                        checkingFormats = checkingFormats
                     )
                 }
             }
