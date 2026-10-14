@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.artist
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,7 +27,8 @@ fun ArtistSearchRoute(
     initialState: ArtistSearchUiState = ArtistSearchUiState.Idle,
     onQueryChange: (String) -> Unit = {},
     onStateChange: (ArtistSearchUiState) -> Unit = {},
-    cache: SearchResultCache = remember { SearchResultCache() }
+    cache: SearchResultCache = remember { SearchResultCache() },
+    loadArtistImage: suspend (String) -> Bitmap? = { null }
 ) {
     var uiState by remember { mutableStateOf(cache.artist ?: initialState) }
     val coroutineScope = rememberCoroutineScope()
@@ -49,6 +51,10 @@ fun ArtistSearchRoute(
             initialQuery = initialQuery,
             onQueryChange = onQueryChange
         )
-        ArtistSearchResultsScreen(state = uiState, onArtistSelected = onArtistSelected)
+        ArtistSearchResultsScreen(
+            state = uiState,
+            onArtistSelected = onArtistSelected,
+            loadArtistImage = loadArtistImage
+        )
     }
 }
