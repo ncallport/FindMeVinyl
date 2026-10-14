@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
@@ -22,7 +23,8 @@ fun DiscographyScreen(
     groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>,
     onToggleOwned: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onToggleWanted: (String) -> Unit = {}
+    onToggleWanted: (String) -> Unit = {},
+    loadCover: suspend (String) -> Bitmap? = { null }
 ) {
     LazyColumn(modifier = modifier) {
         categoryDisplayOrder.forEach { (category, headerText) ->
@@ -38,7 +40,8 @@ fun DiscographyScreen(
                     AlbumRow(
                         album = album,
                         onToggleOwned = { onToggleOwned(album.id) },
-                        onToggleWanted = { onToggleWanted(album.id) }
+                        onToggleWanted = { onToggleWanted(album.id) },
+                        loadCover = loadCover
                     )
                 }
             }

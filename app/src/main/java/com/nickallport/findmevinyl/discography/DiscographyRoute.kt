@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,7 +36,8 @@ fun DiscographyRoute(
     onToggleWanted: suspend (albumId: String, currentlyWanted: Boolean) -> Unit = { _, _ -> },
     loadIsFavourite: suspend () -> Boolean = { false },
     onSaveFavourite: suspend (artistId: String, artistName: String) -> Unit = { _, _ -> },
-    onRemoveFavourite: suspend (artistId: String) -> Unit = {}
+    onRemoveFavourite: suspend (artistId: String) -> Unit = {},
+    loadCover: suspend (String) -> Bitmap? = { null }
 ) {
     var loadState by remember { mutableStateOf<LoadState>(LoadState.Loading) }
     var isFavourite by remember { mutableStateOf(false) }
@@ -91,7 +93,8 @@ fun DiscographyRoute(
                                         onToggleWanted(albumId, currentlyWanted)
                                         refresh()
                                     }
-                                }
+                                },
+                                loadCover = loadCover
                             )
                         }
                         is DiscographyUiState.Error -> {

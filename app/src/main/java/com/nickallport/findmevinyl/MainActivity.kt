@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.room.Room
 import com.nickallport.findmevinyl.artist.ArtistSearchViewModel
+import com.nickallport.findmevinyl.coverart.CoverArtLoader
 import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
 import com.nickallport.findmevinyl.favourites.FavouritesViewModel
@@ -161,7 +162,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 loadIsFavourite = { discographyViewModel.isFavourite(screen.artistId) },
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
-                                onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) }
+                                onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
+                                loadCover = { id -> CoverArtLoader.shared.load(id) }
                             )
                         }
                         is Screen.WantList -> {
