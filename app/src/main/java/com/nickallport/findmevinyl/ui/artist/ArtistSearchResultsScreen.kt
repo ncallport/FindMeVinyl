@@ -61,14 +61,7 @@ fun ArtistSearchResultsScreen(
                         )
                     }
                 }
-                if (picturesShown > 0) {
-                    Text(
-                        text = "Artist photos: Wikimedia Commons",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("photo_credit")
-                    )
-                }
+                if (picturesShown > 0) PhotoCredit()
             }
         }
         is ArtistSearchUiState.Error -> {
