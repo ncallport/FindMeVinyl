@@ -50,12 +50,14 @@ fun AlbumRow(
                 Text(text = "Want")
             }
         }
-        Text(
-            text = "+ Want",
-            modifier = Modifier
-                .testTag("wanted_toggle")
-                .clickable { onToggleWanted() }
-                .padding(8.dp)
-        )
+        if (!album.owned) {
+            Text(
+                text = "+ Want",
+                modifier = Modifier
+                    .testTag("wanted_toggle")
+                    .clickable { onToggleWanted() }
+                    .padding(8.dp)
+            )
+        }
     }
 }

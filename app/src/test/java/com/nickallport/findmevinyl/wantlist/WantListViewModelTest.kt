@@ -58,6 +58,18 @@ class WantListViewModelTest {
     }
 
     @Test
+    fun `leaves out owned albums even when they are still flagged as wanted`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("r", "roxy music", null, null))
+        wantedAlbum("1", "r", "Avalon", "1982-05-31")
+        database.albumDao().insert(
+            AlbumEntity("2", "r", "Roxy Music", "STUDIO_ALBUM", "1972-06-16", owned = true, wanted = true)
+        )
+
+        assertEquals(listOf("Avalon"), viewModel.loadWantList().map { it.albumTitle })
+        assertEquals(false, viewModel.exportText().contains("Roxy Music"))
+    }
+
+    @Test
     fun `returns an empty list when nothing is wanted`() = runBlocking {
         assertEquals(emptyList<Any>(), viewModel.loadWantList())
     }
