@@ -63,6 +63,9 @@ class DiscographyViewModel(
 
     suspend fun toggleOwned(albumId: String, currentlyOwned: Boolean) {
         albumDao.setOwned(albumId, !currentlyOwned)
+        if (!currentlyOwned) {
+            albumDao.setWanted(albumId, false)
+        }
     }
 
     suspend fun toggleWanted(

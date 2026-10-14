@@ -34,7 +34,7 @@ interface AlbumDao {
                albums.firstReleaseDate AS firstReleaseDate
         FROM albums
         INNER JOIN favourite_artists ON albums.artistId = favourite_artists.id
-        WHERE albums.wanted = 1
+        WHERE albums.wanted = 1 AND albums.owned = 0
         """
     )
     suspend fun getWantedAlbums(): List<WantedAlbumRow>

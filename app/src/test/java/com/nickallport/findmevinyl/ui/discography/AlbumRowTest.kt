@@ -109,4 +109,28 @@ class AlbumRowTest {
         assertTrue(wantedToggled)
         assertFalse(ownedToggled)
     }
+
+    @Test
+    fun `offers the Want toggle when the album is not owned`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("wanted_toggle").assertExists()
+    }
+
+    @Test
+    fun `does not offer the Want toggle when the album is owned`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = true, wanted = false),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
+    }
 }

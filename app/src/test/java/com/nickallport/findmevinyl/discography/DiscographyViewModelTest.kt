@@ -131,6 +131,29 @@ class DiscographyViewModelTest {
     }
 
     @Test
+    fun `marking a wanted album as owned clears its want`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+
+        viewModel.toggleOwned("1", currentlyOwned = false)
+
+        val saved = database.albumDao().getAlbumsForArtist("some-id")[0]
+        assertTrue(saved.owned)
+        assertEquals(false, saved.wanted)
+    }
+
+    @Test
+    fun `marking an album as owned leaves the wants on other albums`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+        database.albumDao().insert(album("2", wanted = true))
+
+        viewModel.toggleOwned("1", currentlyOwned = false)
+
+        val albums = database.albumDao().getAlbumsForArtist("some-id").sortedBy { it.id }
+        assertEquals(false, albums[0].wanted)
+        assertTrue(albums[1].wanted)
+    }
+
+    @Test
     fun `saving a favourite makes it show as a favourite`() = runBlocking {
         assertEquals(false, viewModel.isFavourite("some-id"))
 
