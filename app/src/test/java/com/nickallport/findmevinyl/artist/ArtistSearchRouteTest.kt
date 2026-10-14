@@ -1,6 +1,10 @@
 package com.nickallport.findmevinyl.ui.artist
 
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.StateRestorationTester
+import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.nickallport.findmevinyl.SearchResultCache
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -114,5 +118,34 @@ class ArtistSearchRouteTest {
         composeTestRule.waitForIdle()
 
         assertEquals(listOf<ArtistSearchUiState>(result), reported)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `keeps the query and results after the state is restored`() = runComposeUiTest {
+        val cache = SearchResultCache()
+        var searches = 0
+        val restorationTester = StateRestorationTester(this)
+
+        restorationTester.setContent {
+            ArtistSearchRoute(
+                search = {
+                    searches++
+                    ArtistSearchUiState.Success(listOf(ArtistDisplayItem("1", "Genesis", "Band from GB")))
+                },
+                onArtistSelected = {},
+                cache = cache
+            )
+        }
+
+        onNodeWithTag("search_field").performTextInput("Genesis")
+        onNodeWithTag("search_button").performClick()
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+
+        onNodeWithTag("search_field").assertTextContains("Genesis")
+        onNodeWithTag("artist_result_1").assertExists()
+        assertEquals(1, searches)
     }
 }

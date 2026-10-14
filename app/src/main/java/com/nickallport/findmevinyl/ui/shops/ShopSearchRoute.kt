@@ -13,10 +13,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.nickallport.findmevinyl.SearchResultCache
 import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
@@ -34,11 +37,29 @@ fun ShopSearchRoute(
     modifier: Modifier = Modifier,
     searchNearby: (suspend () -> ShopSearchUiState)? = null,
     onShopSelected: ((Shop) -> Unit)? = null,
-    searchPlace: (suspend (PlaceCandidate, List<PlaceCandidate>) -> ShopSearchUiState)? = null
+    searchPlace: (suspend (PlaceCandidate, List<PlaceCandidate>) -> ShopSearchUiState)? = null,
+    cache: SearchResultCache = remember { SearchResultCache() }
 ) {
-    var town by remember { mutableStateOf("") }
-    var routeState by remember { mutableStateOf<RouteState>(RouteState.Idle) }
+    var town by rememberSaveable { mutableStateOf("") }
+    // Only a flag goes in the Bundle. The shop list can be large, so it is read from the cache.
+    val routeStateSaver = remember(cache) {
+        Saver<RouteState, Boolean>(
+            save = { it is RouteState.Result },
+            restore = { hadResult ->
+                val cached = cache.shop
+                if (hadResult && cached != null) RouteState.Result(cached) else RouteState.Idle
+            }
+        )
+    }
+    var routeState by rememberSaveable(stateSaver = routeStateSaver) {
+        mutableStateOf<RouteState>(RouteState.Idle)
+    }
     val coroutineScope = rememberCoroutineScope()
+
+    fun showResult(state: ShopSearchUiState) {
+        cache.shop = state
+        routeState = RouteState.Result(state)
+    }
 
     Column(modifier = modifier) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -53,7 +74,7 @@ fun ShopSearchRoute(
                     if (trimmed.isNotEmpty()) {
                         routeState = RouteState.Loading
                         coroutineScope.launch {
-                            routeState = RouteState.Result(search(trimmed))
+                            showResult(search(trimmed))
                         }
                     }
                 },
@@ -66,7 +87,7 @@ fun ShopSearchRoute(
                     onClick = {
                         routeState = RouteState.Loading
                         coroutineScope.launch {
-                            routeState = RouteState.Result(searchNearby())
+                            showResult(searchNearby())
                         }
                     },
                     modifier = Modifier.testTag("use_location_button")
@@ -100,7 +121,7 @@ fun ShopSearchRoute(
                                 val others = listOf(previous) + shown.otherPlaces.filter { it != picked }
                                 routeState = RouteState.Loading
                                 coroutineScope.launch {
-                                    routeState = RouteState.Result(searchPlace(picked, others))
+                                    showResult(searchPlace(picked, others))
                                 }
                             }
                         } else {

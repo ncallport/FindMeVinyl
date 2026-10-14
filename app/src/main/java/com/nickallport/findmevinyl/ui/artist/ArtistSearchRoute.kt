@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.nickallport.findmevinyl.SearchResultCache
 import com.nickallport.findmevinyl.artist.ArtistDisplayItem
 import com.nickallport.findmevinyl.artist.ArtistSearchUiState
 import kotlinx.coroutines.ensureActive
@@ -24,9 +25,10 @@ fun ArtistSearchRoute(
     initialQuery: String = "",
     initialState: ArtistSearchUiState = ArtistSearchUiState.Idle,
     onQueryChange: (String) -> Unit = {},
-    onStateChange: (ArtistSearchUiState) -> Unit = {}
+    onStateChange: (ArtistSearchUiState) -> Unit = {},
+    cache: SearchResultCache = remember { SearchResultCache() }
 ) {
-    var uiState by remember { mutableStateOf(initialState) }
+    var uiState by remember { mutableStateOf(cache.artist ?: initialState) }
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = modifier) {
@@ -37,6 +39,7 @@ fun ArtistSearchRoute(
                     val result = search(query)
                     ensureActive()
                     uiState = result
+                    cache.artist = result
                     onStateChange(result)
                 }
             },

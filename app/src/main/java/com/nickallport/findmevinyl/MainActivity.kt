@@ -37,24 +37,12 @@ import androidx.core.content.ContextCompat
 import com.nickallport.findmevinyl.location.DeviceLocationProvider
 import com.nickallport.findmevinyl.shops.NearbyShopSearcher
 import kotlinx.coroutines.CompletableDeferred
-import com.nickallport.findmevinyl.artist.ArtistSearchUiState
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.widget.Toast
 import com.nickallport.findmevinyl.shops.MapLinkBuilder
 import com.nickallport.findmevinyl.shops.Shop
-
-private sealed class Screen {
-    object Search : Screen()
-    object Favourites : Screen()
-    object WantList : Screen()
-    object Shops : Screen()
-    data class Discography(
-        val artistId: String,
-        val artistName: String,
-        val backTo: Screen
-    ) : Screen()
-}
 
 class MainActivity : ComponentActivity() {
 
@@ -123,9 +111,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var currentScreen by remember { mutableStateOf<Screen>(Screen.Search) }
-                    var searchQuery by remember { mutableStateOf("") }
-                    var searchState by remember { mutableStateOf<ArtistSearchUiState>(ArtistSearchUiState.Idle) }
+                    var currentScreen by rememberSaveable(stateSaver = ScreenSaver) {
+                        mutableStateOf<Screen>(Screen.Search)
+                    }
+                    var searchQuery by rememberSaveable { mutableStateOf("") }
 
                     BackHandler(enabled = currentScreen != Screen.Search) {
                         currentScreen = when (val screen = currentScreen) {
@@ -145,9 +134,8 @@ class MainActivity : ComponentActivity() {
                                 onOpenWantList = { currentScreen = Screen.WantList },
                                 onOpenShops = { currentScreen = Screen.Shops },
                                 initialQuery = searchQuery,
-                                initialState = searchState,
                                 onQueryChange = { searchQuery = it },
-                                onStateChange = { searchState = it }
+                                cache = SearchResultCache.shared
                             )
                         }
                         is Screen.Favourites -> {
@@ -190,7 +178,8 @@ class MainActivity : ComponentActivity() {
                                 onShopSelected = { shop -> openInMaps(shop) },
                                 searchPlace = { place, others ->
                                     shopSearchViewModel.searchPlace(place, others)
-                                }
+                                },
+                                cache = SearchResultCache.shared
                             )
                         }
                     }
