@@ -152,7 +152,8 @@ class MainActivity : ComponentActivity() {
                             DiscographyRoute(
                                 artistId = screen.artistId,
                                 artistName = screen.artistName,
-                                load = { id -> discographyViewModel.loadDiscography(id) },
+                                load = { id -> discographyViewModel.discography(id) },
+                                loadSaved = { id -> discographyViewModel.loadSaved(id) },
                                 onToggleOwned = { albumId, currentlyOwned ->
                                     discographyViewModel.toggleOwned(albumId, currentlyOwned)
                                 },

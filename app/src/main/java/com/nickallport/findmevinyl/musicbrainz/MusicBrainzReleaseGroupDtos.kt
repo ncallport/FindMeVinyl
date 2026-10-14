@@ -32,7 +32,8 @@ object MusicBrainzReleaseGroupMapper {
             title = title,
             primaryType = primaryType,
             secondaryTypes = secondaryTypes ?: emptyList(),
-            firstReleaseDate = firstReleaseDate
+            // MusicBrainz sends "" for an undated release group. That would sort before every real date.
+            firstReleaseDate = firstReleaseDate?.takeIf { it.isNotEmpty() }
         )
     }
 }

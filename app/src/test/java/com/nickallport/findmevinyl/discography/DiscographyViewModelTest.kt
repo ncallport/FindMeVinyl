@@ -9,6 +9,8 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -186,14 +188,209 @@ class DiscographyViewModelTest {
     }
 
     @Test
-    fun `an error on a later page gives an error state and saves nothing`() = runBlocking {
+    fun `an error on a later page keeps what had loaded and says so`() = runBlocking {
         server.enqueue(page(5, "a", "b"))
         server.enqueue(MockResponse().setResponseCode(503))
 
-        val state = paged().loadDiscography("some-id")
+        val state = paged().loadDiscography("some-id") as DiscographyUiState.Success
 
-        assertTrue(state is DiscographyUiState.Error)
+        assertEquals(listOf("a", "b"), idsIn(state))
+        assertTrue("was ${state.loadError}", state.loadError!!.startsWith("HTTP 503"))
+        assertEquals(false, state.loadingMore)
+        assertEquals(
+            listOf("a", "b"),
+            database.albumDao().getAlbumsForArtist("some-id").map { it.id }.sorted()
+        )
+    }
+
+    private data class Seen(val ids: List<String>, val loadingMore: Boolean, val loadError: String?)
+
+    private fun seen(state: DiscographyUiState): Seen {
+        state as DiscographyUiState.Success
+        return Seen(idsIn(state), state.loadingMore, state.loadError)
+    }
+
+    @Test
+    fun `gives a state after every page, and only the last one says nothing more is coming`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(page(5, "c", "d"))
+        server.enqueue(page(5, "e"))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(
+            listOf(
+                Seen(listOf("a", "b"), true, null),
+                Seen(listOf("a", "b", "c", "d"), true, null),
+                Seen(listOf("a", "b", "c", "d", "e"), false, null)
+            ),
+            states
+        )
+    }
+
+    @Test
+    fun `gives one state when everything fits on the first page`() = runBlocking {
+        server.enqueue(page(2, "a", "b"))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(listOf(Seen(listOf("a", "b"), false, null)), states)
+    }
+
+    @Test
+    fun `gives the first page before the next one is asked for`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(page(5, "c", "d"))
+
+        val first = seen(paged().discography("some-id").first())
+
+        assertEquals(Seen(listOf("a", "b"), true, null), first)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `saves each page as it arrives`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(page(5, "c", "d"))
+
+        paged().discography("some-id").first()
+
+        assertEquals(
+            listOf("a", "b"),
+            database.albumDao().getAlbumsForArtist("some-id").map { it.id }.sorted()
+        )
+    }
+
+    @Test
+    fun `a failure on the first page is an error and saves nothing`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val states = paged().discography("some-id").toList()
+
+        assertEquals(1, states.size)
+        val message = (states.single() as DiscographyUiState.Error).message
+        assertTrue("was $message", message.startsWith("HTTP 503"))
         assertEquals(emptyList<AlbumEntity>(), database.albumDao().getAlbumsForArtist("some-id"))
+    }
+
+    @Test
+    fun `a failure on a later page ends with the list so far and the message`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(2, states.size)
+        assertEquals(Seen(listOf("a", "b"), true, null), states[0])
+        assertEquals(listOf("a", "b"), states[1].ids)
+        assertEquals(false, states[1].loadingMore)
+        assertTrue("was ${states[1].loadError}", states[1].loadError!!.startsWith("HTTP 503"))
+    }
+
+    @Test
+    fun `shows the albums saved on an earlier visit before asking MusicBrainz for anything`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        database.albumDao().insert(album("b"))
+        server.enqueue(page(3, "a", "b", "c"))
+
+        val first = seen(paged().discography("some-id").first())
+
+        assertEquals(Seen(listOf("a", "b"), true, null), first)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `adds the albums that are new after the saved ones`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        database.albumDao().insert(album("b"))
+        server.enqueue(page(3, "a", "b", "c"))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(
+            listOf(
+                Seen(listOf("a", "b"), true, null),
+                Seen(listOf("a", "b", "c"), false, null)
+            ),
+            states
+        )
+    }
+
+    @Test
+    fun `stops after the first page when every album MusicBrainz lists is already saved`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        database.albumDao().insert(album("b"))
+        database.albumDao().insert(album("c"))
+        server.enqueue(page(3, "a", "b"))
+        server.enqueue(page(3, "c"))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(1, server.requestCount)
+        assertEquals(
+            listOf(
+                Seen(listOf("a", "b", "c"), true, null),
+                Seen(listOf("a", "b", "c"), false, null)
+            ),
+            states
+        )
+    }
+
+    @Test
+    fun `keeps asking for pages while fewer albums are saved than MusicBrainz lists`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        server.enqueue(page(3, "a", "b"))
+        server.enqueue(page(3, "c"))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(2, server.requestCount)
+        assertEquals(Seen(listOf("a", "b", "c"), false, null), states.last())
+    }
+
+    @Test
+    fun `shows no empty list first when nothing is saved`() = runBlocking {
+        server.enqueue(page(2, "a", "b"))
+
+        val first = seen(paged().discography("some-id").first())
+
+        assertEquals(Seen(listOf("a", "b"), false, null), first)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `keeps the saved albums and says so when the first page fails`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val states = paged().discography("some-id").toList().map { seen(it) }
+
+        assertEquals(2, states.size)
+        assertEquals(Seen(listOf("a"), true, null), states[0])
+        assertEquals(listOf("a"), states[1].ids)
+        assertEquals(false, states[1].loadingMore)
+        assertTrue("was ${states[1].loadError}", states[1].loadError!!.startsWith("HTTP 503"))
+    }
+
+    @Test
+    fun `only the albums of the artist being opened are shown first`() = runBlocking {
+        database.albumDao().insert(album("mine"))
+        database.albumDao().insert(album("theirs").copy(artistId = "other-artist"))
+        server.enqueue(page(1, "mine"))
+
+        val first = seen(paged().discography("some-id").first())
+
+        assertEquals(listOf("mine"), first.ids)
+    }
+
+    @Test
+    fun `reaching the page cap says nothing more is coming`() = runBlocking {
+        repeat(5) { server.enqueue(page(1000, "x$it")) }
+
+        val states = paged(pageSize = 1, maxPages = 3).discography("some-id").toList().map { seen(it) }
+
+        assertEquals(3, states.size)
+        assertEquals(listOf(true, true, false), states.map { it.loadingMore })
     }
 
     @Test

@@ -1,7 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
-import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumDao
@@ -11,9 +10,20 @@ import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.last
 
 sealed class DiscographyUiState {
-    data class Success(val groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>) : DiscographyUiState()
+    data class Success(
+        val groupedAlbums: Map<DiscographyCategory, List<AlbumUiModel>>,
+        /** More pages are still coming, so the list may grow. */
+        val loadingMore: Boolean = false,
+        /** A later page failed. The list is what had loaded by then. */
+        val loadError: String? = null
+    ) : DiscographyUiState()
+
     data class Error(val message: String) : DiscographyUiState()
 }
 
@@ -50,62 +60,74 @@ class DiscographyViewModel(
     }
 
     private suspend fun categoryOf(albumId: String): DiscographyCategory =
-        albumDao.getById(albumId)?.category
-            ?.let { runCatching { DiscographyCategory.valueOf(it) }.getOrNull() }
-            ?: DiscographyCategory.OTHER
+        albumDao.getById(albumId)?.category?.let(::categoryFrom) ?: DiscographyCategory.OTHER
 
-    suspend fun loadDiscography(artistId: String): DiscographyUiState {
-        return try {
-            val domainReleaseGroups = fetchAllReleaseGroups(artistId).map { it.toDomain() }
-
-            albumDao.insertAllIfNotExist(
-                domainReleaseGroups.map { releaseGroup ->
-                    AlbumEntity(
-                        id = releaseGroup.id,
-                        artistId = artistId,
-                        title = releaseGroup.title,
-                        category = DiscographyCategorizer.categorize(releaseGroup).name,
-                        firstReleaseDate = releaseGroup.firstReleaseDate,
-                        owned = false,
-                        wanted = false
-                    )
-                }
-            )
-
-            val savedAlbums = albumDao.getAlbumsForArtist(artistId)
-            val organized = DiscographyOrganizer.organize(domainReleaseGroups)
-
-            val now = clock()
-            val uiGrouped = organized.mapValues { (category, releaseGroups) ->
-                releaseGroups.map { releaseGroup ->
-                    val savedAlbum = savedAlbums.find { it.id == releaseGroup.id }
-                    AlbumUiModel(
-                        id = releaseGroup.id,
-                        title = releaseGroup.title,
-                        owned = savedAlbum?.owned ?: false,
-                        wanted = savedAlbum?.wanted ?: false,
-                        formats = savedAlbum?.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
-                        formatsStale = savedAlbum?.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false
-                    )
-                }
-            }
-
-            DiscographyUiState.Success(uiGrouped)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            DiscographyUiState.Error(e.message ?: "Something went wrong")
-        }
-    }
+    private fun categoryFrom(stored: String): DiscographyCategory =
+        runCatching { DiscographyCategory.valueOf(stored) }.getOrDefault(DiscographyCategory.OTHER)
 
     /**
-     * MusicBrainz returns release groups a page at a time. This follows the pages until it has
-     * them all. MusicBrainz allows about one request a second, so each request starts at least
-     * [pageDelayMillis] after the one before it started. A slow response already used that time.
-     * A failure on any page throws, so a short list is never mistaken for the whole discography.
+     * The discography as it is saved on the phone, with no request to MusicBrainz. Taps on Owned
+     * and Want use this, so they show at once. Albums are grouped by their stored category and
+     * sorted by release date with undated last, then by title.
      */
-    private suspend fun fetchAllReleaseGroups(artistId: String): List<MusicBrainzReleaseGroupDto> {
-        val all = mutableListOf<MusicBrainzReleaseGroupDto>()
+    suspend fun loadSaved(artistId: String): DiscographyUiState.Success {
+        val now = clock()
+        val grouped = albumDao.getAlbumsForArtist(artistId)
+            .groupBy { categoryFrom(it.category) }
+            .mapValues { (category, albums) ->
+                albums
+                    // Albums saved before the mapper dropped empty dates still have "", so both mean undated.
+                    .sortedWith(
+                        compareBy<AlbumEntity, String?>(nullsLast()) { it.firstReleaseDate?.takeIf { d -> d.isNotEmpty() } }
+                            .thenBy { it.title }
+                    )
+                    .map { toUiModel(it, category, now) }
+            }
+        return DiscographyUiState.Success(grouped)
+    }
+
+    private fun toUiModel(album: AlbumEntity, category: DiscographyCategory, now: Long) = AlbumUiModel(
+        id = album.id,
+        title = album.title,
+        owned = album.owned,
+        wanted = album.wanted,
+        formats = album.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
+        formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false
+    )
+
+    /**
+     * The final state of [discography]: the whole discography once every page has loaded.
+     */
+    suspend fun loadDiscography(artistId: String): DiscographyUiState = discography(artistId).last()
+
+    /**
+     * Loads an artist's discography from MusicBrainz a page at a time. Each page is saved as it
+     * arrives, and a state is emitted after it, so the first page can be shown while the rest load.
+     * A state with [DiscographyUiState.Success.loadingMore] set is followed by another.
+     *
+     * An artist opened before starts with the saved albums, before any request. If the first page
+     * fails and nothing is saved, the only state is an error. In every other case a failure leaves
+     * the list so far as the last state, with [DiscographyUiState.Success.loadError], so the list is
+     * never silently short.
+     */
+    fun discography(artistId: String): Flow<DiscographyUiState> =
+        pages(artistId).catch { e ->
+            if (e is CancellationException) throw e
+            emit(DiscographyUiState.Error(e.message ?: "Something went wrong"))
+        }
+
+    /**
+     * MusicBrainz allows about one request a second, so each page is asked for at least
+     * [pageDelayMillis] after the one before it was asked for. A slow response already used that time.
+     */
+    private fun pages(artistId: String): Flow<DiscographyUiState> = flow {
+        // Albums saved on an earlier visit show at once, before any request. With none saved there
+        // is nothing to show yet, so no empty list is shown first.
+        val saved = loadSaved(artistId)
+        val showedSaved = saved.groupedAlbums.isNotEmpty()
+        if (showedSaved) emit(saved.copy(loadingMore = true))
+
+        var fetched = 0
         var pages = 0
         var lastStartNanos = 0L
         while (true) {
@@ -115,22 +137,49 @@ class DiscographyViewModel(
                 if (remaining > 0) delay(remaining)
             }
             lastStartNanos = System.nanoTime()
-            val response = api.getReleaseGroupsForArtist(
-                artistId = artistId,
-                limit = pageSize,
-                offset = all.size
-            )
-            all += response.releaseGroups
+            val response = try {
+                api.getReleaseGroupsForArtist(artistId = artistId, limit = pageSize, offset = fetched)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = e.message ?: "Something went wrong"
+                // With nothing to show, a failed first page is an error. Otherwise keep the list.
+                emit(
+                    if (pages == 0 && !showedSaved) DiscographyUiState.Error(message)
+                    else loadSaved(artistId).copy(loadError = message)
+                )
+                return@flow
+            }
+
+            albumDao.insertAllIfNotExist(response.releaseGroups.map { newAlbum(artistId, it.toDomain()) })
+            fetched += response.releaseGroups.size
             pages++
+
+            // Every saved album came from MusicBrainz, so once as many are saved as it lists, there
+            // is nothing new in the pages still to come. That makes reopening an artist one request.
+            val nowSaved = loadSaved(artistId)
+            val savedCount = nowSaved.groupedAlbums.values.sumOf { it.size }
 
             val total = response.releaseGroupCount
             val finished = total == null ||
-                all.size >= total ||
+                fetched >= total ||
+                savedCount >= total ||
                 response.releaseGroups.isEmpty() ||
                 pages >= maxPages
-            if (finished) return all
+            emit(nowSaved.copy(loadingMore = !finished))
+            if (finished) return@flow
         }
     }
+
+    private fun newAlbum(artistId: String, releaseGroup: ReleaseGroupDto) = AlbumEntity(
+        id = releaseGroup.id,
+        artistId = artistId,
+        title = releaseGroup.title,
+        category = DiscographyCategorizer.categorize(releaseGroup).name,
+        firstReleaseDate = releaseGroup.firstReleaseDate,
+        owned = false,
+        wanted = false
+    )
 
     suspend fun toggleOwned(albumId: String, currentlyOwned: Boolean) {
         albumDao.setOwned(albumId, !currentlyOwned)

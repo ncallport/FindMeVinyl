@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.ui.discography.DiscographyHeader
 import com.nickallport.findmevinyl.ui.discography.DiscographyScreen
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 private sealed class LoadState {
@@ -26,11 +27,16 @@ private sealed class LoadState {
     data class Loaded(val state: DiscographyUiState) : LoadState()
 }
 
+/**
+ * [load] gives the discography a page at a time, and each state it gives replaces what is shown, so
+ * the first page appears while the rest are still loading. [loadSaved] reads the saved albums
+ * only, with no request to MusicBrainz. Taps on Owned, Want and Save use it, so they show at once.
+ */
 @Composable
 fun DiscographyRoute(
     artistId: String,
     artistName: String,
-    load: suspend (String) -> DiscographyUiState,
+    load: (String) -> Flow<DiscographyUiState>,
     onToggleOwned: suspend (albumId: String, currentlyOwned: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onToggleWanted: suspend (albumId: String, currentlyWanted: Boolean) -> Unit = { _, _ -> },
@@ -38,19 +44,27 @@ fun DiscographyRoute(
     onSaveFavourite: suspend (artistId: String, artistName: String) -> Unit = { _, _ -> },
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
-    loadFormats: suspend (String) -> List<String>? = { null }
+    loadFormats: suspend (String) -> List<String>? = { null },
+    loadSaved: (suspend (String) -> DiscographyUiState)? = null
 ) {
     var loadState by remember { mutableStateOf<LoadState>(LoadState.Loading) }
     var isFavourite by remember { mutableStateOf(false) }
+    // Counts the taps on Try again. Each one starts the load again.
+    var attempt by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
 
-    suspend fun refresh() {
+    // After a tap, take the owned and wanted flags from the saved albums. They go onto what is on
+    // screen, album by album, so albums that arrived while the saved albums were being read stay.
+    suspend fun refreshSaved() {
         isFavourite = loadIsFavourite()
-        loadState = LoadState.Loaded(load(artistId))
+        val saved = loadSaved?.invoke(artistId) as? DiscographyUiState.Success ?: return
+        val current = (loadState as? LoadState.Loaded)?.state as? DiscographyUiState.Success ?: return
+        loadState = LoadState.Loaded(current.withFlagsFrom(saved))
     }
 
-    LaunchedEffect(artistId) {
-        refresh()
+    LaunchedEffect(artistId, attempt) {
+        isFavourite = loadIsFavourite()
+        load(artistId).collect { loadState = LoadState.Loaded(it) }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -64,7 +78,7 @@ fun DiscographyRoute(
                     } else {
                         onSaveFavourite(artistId, artistName)
                     }
-                    refresh()
+                    refreshSaved()
                 }
             }
         )
@@ -85,18 +99,25 @@ fun DiscographyRoute(
                                     val currentlyOwned = allAlbums.find { it.id == albumId }?.owned ?: false
                                     coroutineScope.launch {
                                         onToggleOwned(albumId, currentlyOwned)
-                                        refresh()
+                                        refreshSaved()
                                     }
                                 },
                                 onToggleWanted = { albumId ->
                                     val currentlyWanted = allAlbums.find { it.id == albumId }?.wanted ?: false
                                     coroutineScope.launch {
                                         onToggleWanted(albumId, currentlyWanted)
-                                        refresh()
+                                        refreshSaved()
                                     }
                                 },
                                 loadCover = loadCover,
-                                loadFormats = loadFormats
+                                loadFormats = loadFormats,
+                                loadingMore = uiState.loadingMore,
+                                loadError = uiState.loadError,
+                                onRetry = {
+                                    // The albums stay on screen while the pages are asked for again.
+                                    loadState = LoadState.Loaded(uiState.copy(loadError = null, loadingMore = true))
+                                    attempt++
+                                }
                             )
                         }
                         is DiscographyUiState.Error -> {
@@ -107,4 +128,15 @@ fun DiscographyRoute(
             }
         }
     }
+}
+
+private fun DiscographyUiState.Success.withFlagsFrom(saved: DiscographyUiState.Success): DiscographyUiState.Success {
+    val savedById = saved.groupedAlbums.values.flatten().associateBy { it.id }
+    return copy(
+        groupedAlbums = groupedAlbums.mapValues { (_, albums) ->
+            albums.map { album ->
+                savedById[album.id]?.let { album.copy(owned = it.owned, wanted = it.wanted) } ?: album
+            }
+        }
+    )
 }

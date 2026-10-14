@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.musicbrainz
 
 import com.nickallport.findmevinyl.discography.ReleaseGroupDto
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MusicBrainzReleaseGroupMapperTest {
@@ -56,5 +57,24 @@ class MusicBrainzReleaseGroupMapperTest {
         val result = MusicBrainzReleaseGroupMapper.parseSearchResponse(json)
 
         assertEquals(emptyList<String>(), result[0].secondaryTypes)
+    }
+
+    @Test
+    fun `an empty first release date, which MusicBrainz sends for undated albums, becomes no date`() {
+        val json = """
+            {
+              "release-groups": [
+                { "id": "a", "title": "Undated", "primary-type": "Album", "first-release-date": "" },
+                { "id": "b", "title": "Dated", "primary-type": "Album", "first-release-date": "1973-03-01" },
+                { "id": "c", "title": "Missing", "primary-type": "Album" }
+              ]
+            }
+        """.trimIndent()
+
+        val result = MusicBrainzReleaseGroupMapper.parseSearchResponse(json)
+
+        assertNull(result[0].firstReleaseDate)
+        assertEquals("1973-03-01", result[1].firstReleaseDate)
+        assertNull(result[2].firstReleaseDate)
     }
 }
