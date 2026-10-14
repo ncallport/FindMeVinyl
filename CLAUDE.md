@@ -20,6 +20,7 @@ The package root is `com.nickallport.findmevinyl`.
 - `artist`, `discography`, `favourites`, `wantlist`, `shops`, `export`: logic and view models for each feature.
 - `storage`: the Room database, entities and DAOs.
 - `location`: the device location lookup.
+- `coverart`: the Cover Art Archive URL and `CoverArtLoader`, which downloads album covers.
 - `ui.*`: composables only (`ui.artist`, `ui.discography`, `ui.favourites`, `ui.shops`, `ui.wantlist`, `ui.theme`).
 
 Conventions:
@@ -50,8 +51,10 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 - The `Surface` in `MainActivity` uses `Modifier.fillMaxSize().safeDrawingPadding()`. Keep it when editing that file.
 - `OpeningHours` reads a subset of the OpenStreetMap hours syntax. Text it cannot read returns null and the shop row shows the raw text. `PH` rules are ignored for the weekday check, and the status line says public holidays may differ.
 - An owned album is never wanted. `toggleOwned` clears the wanted flag when it marks an album owned, `AlbumRow` hides `+ Want` on owned albums, and the `getWantedAlbums` query excludes owned albums so older rows with both flags do not show up.
-- Compose tests: `assertExists()` and similar are member functions, not imports. `weight()` needs no import inside a Row or Column. `onNodeWithText` fails when two nodes match, for example a text field and a result with the same text. A `LazyColumn` needs a bounded height, so give it `weight(1f)` inside a Column.
+- Compose tests: `assertExists()` and similar are member functions, not imports. `weight()` needs no import inside a Row or Column. `onNodeWithText` fails when two nodes match, for example a text field and a result with the same text. A `LazyColumn` needs a bounded height, so give it `weight(1f)` inside a Column. A `clickable` row merges the nodes inside it, so finders for things inside it (the cover, for example) need `useUnmergedTree = true`.
 - Rotation: small values (current screen, typed text) use `rememberSaveable`. Result lists never go in the saved-state Bundle, because a big city's shop list can exceed its size limit. Put them in `SearchResultCache` and save only a flag. `ScreenSaver` saves `Screen` as a list of strings.
+- Album covers come from the Cover Art Archive at `coverartarchive.org/release-group/{id}/front-250`, using the MusicBrainz release group id the discography already has. A 404 means no art. `CoverArtLoader.shared` keeps images and 404s in memory, allows four downloads at once, sends `AppUserAgent.VALUE`, and returns null on any failure. `CoverImage` shows `ic_cover_placeholder` until a cover arrives and when there is none. The placeholder copies the art in `ic_launcher_foreground.xml`, so change both together.
+- `CoverArtLoaderTest` uses `@GraphicsMode(GraphicsMode.Mode.NATIVE)`. In the default mode Robolectric returns a fake bitmap for bytes that are not an image, where a device returns null. Give `MockWebServer.takeRequest` a timeout, because it waits forever when no request is made.
 - Restore tests use `runComposeUiTest` with `StateRestorationTester(this)` and `emulateSaveAndRestore()`, under `@OptIn(ExperimentalTestApi::class)`. It takes a `ComposeUiTest`, not a rule.
 
 ## Running the app
@@ -62,5 +65,6 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 ## Known gaps
 
 - Search results are kept in memory only (`SearchResultCache.shared`). Rotation keeps them, but if Android kills the process the user gets the right screen and typed text back and has to search again. A search that is loading during a rotation is not resumed.
+- Covers are cached in memory only. archive.org sends no cache headers, and every album costs a redirect request per run of the app. The cover is the release group's usual front cover, not the cover of a vinyl pressing.
 - Opening hours use the phone's clock and do not know about public holidays.
 - The app has only been run on the emulator.

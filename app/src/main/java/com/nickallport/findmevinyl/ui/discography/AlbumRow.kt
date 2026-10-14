@@ -1,14 +1,18 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -25,7 +29,8 @@ fun AlbumRow(
     album: AlbumUiModel,
     onToggleOwned: () -> Unit,
     modifier: Modifier = Modifier,
-    onToggleWanted: () -> Unit = {}
+    onToggleWanted: () -> Unit = {},
+    loadCover: suspend (String) -> Bitmap? = { null }
 ) {
     val backgroundColor = if (album.owned) {
         MaterialTheme.colorScheme.primaryContainer
@@ -39,8 +44,11 @@ fun AlbumRow(
             .fillMaxWidth()
             .clickable { onToggleOwned() }
             .background(backgroundColor)
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        CoverImage(albumId = album.id, loadCover = loadCover)
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = album.title)
             if (album.owned) {

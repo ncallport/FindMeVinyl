@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -35,6 +36,37 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Foxtrot").assertExists()
+    }
+
+    @Test
+    fun `asks for the cover of each album and shows it`() {
+        val asked = mutableListOf<String>()
+        val fakeLoad: suspend (String) -> DiscographyUiState = {
+            DiscographyUiState.Success(
+                mapOf(
+                    DiscographyCategory.STUDIO_ALBUM to listOf(
+                        AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false)
+                    )
+                )
+            )
+        }
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "some-artist-id",
+                artistName = "Genesis",
+                load = fakeLoad,
+                onToggleOwned = { _, _ -> },
+                loadCover = { id ->
+                    asked.add(id)
+                    Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+                }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("cover_image", useUnmergedTree = true).assertExists()
+        assertEquals(listOf("1"), asked)
     }
 
     @Test
