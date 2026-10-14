@@ -17,6 +17,8 @@ interface MusicBrainzApi {
     suspend fun getReleaseGroupsForArtist(
         @Query("artist") artistId: String,
         @Query("fmt") format: String = "json",
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseGroupSearchResponse
 

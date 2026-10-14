@@ -31,6 +31,7 @@ class DiscographyViewModelTest {
     private lateinit var server: MockWebServer
     private lateinit var database: AppDatabase
     private lateinit var viewModel: DiscographyViewModel
+    private lateinit var api: MusicBrainzApi
 
     @Before
     fun setUp() {
@@ -42,7 +43,7 @@ class DiscographyViewModelTest {
             AppDatabase::class.java
         ).allowMainThreadQueries().build()
 
-        val api = Retrofit.Builder()
+        api = Retrofit.Builder()
             .baseUrl(server.url("/"))
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -92,6 +93,139 @@ class DiscographyViewModelTest {
 
         val album = (state as DiscographyUiState.Success).groupedAlbums[DiscographyCategory.STUDIO_ALBUM]?.get(0)
         assertTrue(album?.owned == true)
+    }
+
+    private fun page(total: Int?, vararg ids: String): MockResponse {
+        val groups = ids.joinToString(",") {
+            """{ "id": "$it", "title": "Album $it", "primary-type": "Album", "secondary-types": [], "first-release-date": "1972-10-06" }"""
+        }
+        val count = if (total != null) "\"release-group-count\": $total," else ""
+        return MockResponse().setBody("{ $count \"release-groups\": [ $groups ] }")
+    }
+
+    private fun paged(pageSize: Int = 2, pageDelayMillis: Long = 0, maxPages: Int = 10) =
+        DiscographyViewModel(
+            api, database.albumDao(), database.artistDao(),
+            pageSize = pageSize, pageDelayMillis = pageDelayMillis, maxPages = maxPages
+        )
+
+    private fun idsIn(state: DiscographyUiState) =
+        (state as DiscographyUiState.Success).groupedAlbums.values.flatten().map { it.id }.sorted()
+
+    @Test
+    fun `loads every page of release groups`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(page(5, "c", "d"))
+        server.enqueue(page(5, "e"))
+
+        val state = paged().loadDiscography("some-id")
+
+        assertEquals(listOf("a", "b", "c", "d", "e"), idsIn(state))
+    }
+
+    @Test
+    fun `asks for each page with the page size and the next offset`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(page(5, "c", "d"))
+        server.enqueue(page(5, "e"))
+
+        paged().loadDiscography("some-id")
+
+        assertEquals(
+            listOf(
+                "/release-group/?artist=some-id&fmt=json&limit=2&offset=0",
+                "/release-group/?artist=some-id&fmt=json&limit=2&offset=2",
+                "/release-group/?artist=some-id&fmt=json&limit=2&offset=4"
+            ),
+            (1..3).map { server.takeRequest(2, TimeUnit.SECONDS)?.path }
+        )
+    }
+
+    @Test
+    fun `stops after the page that completes the total`() = runBlocking {
+        server.enqueue(page(3, "a", "b"))
+        server.enqueue(page(3, "c"))
+
+        paged().loadDiscography("some-id")
+
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `treats a response without a total as the only page`() = runBlocking {
+        server.enqueue(page(null, "a", "b"))
+
+        val state = paged().loadDiscography("some-id")
+
+        assertEquals(1, server.requestCount)
+        assertEquals(listOf("a", "b"), idsIn(state))
+    }
+
+    @Test
+    fun `stops when a page comes back empty even though the total is higher`() = runBlocking {
+        server.enqueue(page(10, "a", "b"))
+        server.enqueue(page(10))
+
+        val state = paged().loadDiscography("some-id")
+
+        assertEquals(2, server.requestCount)
+        assertEquals(listOf("a", "b"), idsIn(state))
+    }
+
+    @Test
+    fun `stops at the page cap`() = runBlocking {
+        repeat(5) { server.enqueue(page(1000, "x$it")) }
+
+        paged(pageSize = 1, maxPages = 3).loadDiscography("some-id")
+
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test
+    fun `an error on a later page gives an error state and saves nothing`() = runBlocking {
+        server.enqueue(page(5, "a", "b"))
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val state = paged().loadDiscography("some-id")
+
+        assertTrue(state is DiscographyUiState.Error)
+        assertEquals(emptyList<AlbumEntity>(), database.albumDao().getAlbumsForArtist("some-id"))
+    }
+
+    @Test
+    fun `waits between pages`() = runBlocking {
+        server.enqueue(page(3, "a", "b"))
+        server.enqueue(page(3, "c"))
+
+        val startedAt = System.nanoTime()
+        paged(pageDelayMillis = 300).loadDiscography("some-id")
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+
+        assertTrue("took $elapsedMillis ms", elapsedMillis >= 280)
+    }
+
+    @Test
+    fun `spaces requests by their start times, so a slow page needs no extra wait`() = runBlocking {
+        server.enqueue(page(3, "a", "b").setHeadersDelay(700, TimeUnit.MILLISECONDS))
+        server.enqueue(page(3, "c").setHeadersDelay(700, TimeUnit.MILLISECONDS))
+
+        val startedAt = System.nanoTime()
+        paged(pageDelayMillis = 600).loadDiscography("some-id")
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+
+        // Two 700 ms responses back to back. Waiting 600 ms after the first would make it 2000 ms.
+        assertTrue("took $elapsedMillis ms", elapsedMillis in 1_300..1_800)
+    }
+
+    @Test
+    fun `does not wait before the first page`() = runBlocking {
+        server.enqueue(page(2, "a", "b"))
+
+        val startedAt = System.nanoTime()
+        paged(pageDelayMillis = 5_000).loadDiscography("some-id")
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+
+        assertTrue("took $elapsedMillis ms", elapsedMillis < 3_000)
     }
 
     @Test

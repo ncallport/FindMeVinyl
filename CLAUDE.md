@@ -43,7 +43,8 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 ## Rules learned the hard way
 
 - DAO methods are `suspend`. Room refuses main-thread queries in the real app, and tests use `allowMainThreadQueries()`. DAO methods return `Long` or `Int` instead of `Unit`.
-- When syncing albums from MusicBrainz, use `insertIfNotExists` (IGNORE) and never `insert` (REPLACE), so a user's owned and wanted flags are not overwritten.
+- When syncing albums from MusicBrainz, use `insertIfNotExists` or `insertAllIfNotExist` (IGNORE) and never `insert` (REPLACE), so a user's owned and wanted flags are not overwritten. Save a whole discography with `insertAllIfNotExist`, which is one transaction. 419 single inserts took 7 seconds on the emulator.
+- MusicBrainz returns 25 results unless asked for more, and at most 100 a page. `DiscographyViewModel` asks for 100 at a time, follows the pages to the `release-group-count`, starts each request at least 1.1 seconds after the previous one started, and stops after 10 pages. A failure on any page is an error, and nothing is saved from a partial list. Give `MockWebServer.takeRequest` a timeout in these tests.
 - Anything that catches `Exception` around a suspend call must rethrow `CancellationException` first.
 - Never hardcode the contact email in the User-Agent. `AppUserAgent.VALUE` is built from `BuildConfig.MUSICBRAINZ_CONTACT_EMAIL`, which comes from `musicbrainz.contact.email` in `local.properties`.
 - Nominatim and Overpass are shared public servers. Always send the User-Agent, keep requests few, and keep the Overpass retry (up to 3 attempts on 429, 502, 503 and 504) and the `[timeout:25]` setting in the query. The query uses `nwr` so shops mapped as buildings are found.
@@ -66,5 +67,6 @@ Kotlin 2.2.10, Android Gradle Plugin 9 with built-in Kotlin, KSP 2.2.10-2.0.2, R
 
 - Search results are kept in memory only (`SearchResultCache.shared`). Rotation keeps them, but if Android kills the process the user gets the right screen and typed text back and has to search again. A search that is loading during a rotation is not resumed.
 - Covers are cached in memory only. archive.org sends no cache headers, and every album costs a redirect request per run of the app. The cover is the release group's usual front cover, not the cover of a vinyl pressing.
+- A large discography shows the spinner until every page has loaded (Genesis, 419 release groups, about 7 seconds on the emulator). The first page could be shown sooner.
 - Opening hours use the phone's clock and do not know about public holidays.
 - The app has only been run on the emulator.
