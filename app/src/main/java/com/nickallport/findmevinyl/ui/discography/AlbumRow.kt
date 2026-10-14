@@ -35,7 +35,8 @@ fun AlbumRow(
     modifier: Modifier = Modifier,
     onToggleWanted: () -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
-    loadFormats: suspend (String) -> List<String>? = { null }
+    loadFormats: suspend (String) -> List<String>? = { null },
+    checkingFormats: Boolean = false
 ) {
     val backgroundColor = if (album.owned) {
         MaterialTheme.colorScheme.primaryContainer
@@ -60,7 +61,8 @@ fun AlbumRow(
                 albumId = album.id,
                 formats = album.formats,
                 stale = album.formatsStale,
-                loadFormats = loadFormats
+                loadFormats = loadFormats,
+                checkingWhenUnknown = checkingFormats
             )
             if (album.owned) {
                 Text(text = "Owned")
