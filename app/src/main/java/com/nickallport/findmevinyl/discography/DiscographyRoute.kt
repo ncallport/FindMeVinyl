@@ -70,6 +70,10 @@ fun DiscographyRoute(
     onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
     onOpenArtists: (() -> Unit)? = null,
     settings: Settings = Settings.ShowEverything,
+    /** Owned first was on the last time this artist was open. */
+    startWithOwnedFirst: Boolean = false,
+    /** Told each time Owned first is switched, so it can be kept for the artist. */
+    onOwnedFirstChange: ((Boolean) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onChoosePhoto: (suspend (artistId: String) -> Boolean)? = null,
@@ -85,7 +89,7 @@ fun DiscographyRoute(
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
-    var ownedFirst by rememberSaveable { mutableStateOf(false) }
+    var ownedFirst by rememberSaveable(artistId) { mutableStateOf(startWithOwnedFirst) }
     // Counts the changes to the artist's photo. Each one loads the picture again.
     var photoVersion by remember { mutableStateOf(0) }
     var userPhoto by remember { mutableStateOf(false) }
@@ -210,7 +214,10 @@ fun DiscographyRoute(
                                 // the top, for showing a friend. It is not kept when you leave the artist.
                                 FormatFilterBar(
                                     ownedFirst = ownedFirst,
-                                    onToggleOwnedFirst = { ownedFirst = !ownedFirst },
+                                    onToggleOwnedFirst = {
+                                        ownedFirst = !ownedFirst
+                                        onOwnedFirstChange?.invoke(ownedFirst)
+                                    },
                                     options = FormatFilter.options(visibleAlbums),
                                     selected = chosenFormat,
                                     unchecked = FormatFilter.unchecked(visibleAlbums),

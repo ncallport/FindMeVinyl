@@ -722,6 +722,36 @@ class DiscographyRouteTest {
     }
 
     @Test
+    fun `starts with Owned first on when it was chosen before for this artist`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                startWithOwnedFirst = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("owned_section_header").assertExists()
+    }
+
+    @Test
+    fun `tells the caller each time Owned first is switched`() {
+        val changes = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                onOwnedFirstChange = { changes.add(it) }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+
+        assertEquals(listOf(true, false), changes)
+    }
+
+    @Test
     fun `a chosen format also narrows the owned section`() {
         composeTestRule.setContent {
             DiscographyRoute(

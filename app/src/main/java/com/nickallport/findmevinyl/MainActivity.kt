@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
+import com.nickallport.findmevinyl.discography.OwnedFirstStore
 import com.nickallport.findmevinyl.settings.AppSettings
 import com.nickallport.findmevinyl.settings.SettingsStore
 import com.nickallport.findmevinyl.ui.settings.SettingsScreen
@@ -148,6 +149,7 @@ class MainActivity : ComponentActivity() {
             "find-me-vinyl-db"
         ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
 
+        val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
         val api = MusicBrainzApiFactory.create()
@@ -259,6 +261,8 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
+                                startWithOwnedFirst = ownedFirstStore.isOn(screen.artistId),
+                                onOwnedFirstChange = { ownedFirstStore.set(screen.artistId, it) },
                                 settings = settings,
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 loadArtistImage = { id -> artistPictures.load(id) },
