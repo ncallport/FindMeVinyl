@@ -228,4 +228,23 @@ class WantListViewModelTest {
 
         assertEquals(listOf("Three", "One"), titles())
     }
+
+    @Test
+    fun `albums not yet put in order fall back to release date, a month before a bare year`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "Year only", "1972")
+        wanted("2", "r", "Month", "1972-06")
+        wanted("3", "r", "Later", "1973-01")
+
+        assertEquals(listOf("Month", "Year only", "Later"), titles())
+    }
+
+    @Test
+    fun `an empty release date counts as undated, so it comes last`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "Empty", "")
+        wanted("2", "r", "Dated", "1972")
+
+        assertEquals(listOf("Dated", "Empty"), titles())
+    }
 }

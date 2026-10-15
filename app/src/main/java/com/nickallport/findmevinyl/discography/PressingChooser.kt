@@ -6,7 +6,8 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseDto
  * An album can have dozens of releases. The detail page lists the pressings that matter for a vinyl
  * collector, the [candidates]: the official vinyl releases, earliest first. Without any vinyl, the
  * official releases of any format. Unofficial releases (bootlegs, promos) are only used when there is
- * nothing official. Releases with no date come last, and ties keep the order MusicBrainz listed them in.
+ * nothing official. Releases with no date come last, a date to the month before a bare year of the same
+ * year (see [ReleaseDates]), and ties keep the order MusicBrainz listed them in.
  * The page opens on the first one, which is the one [choose] gives.
  */
 object PressingChooser {
@@ -21,6 +22,6 @@ object PressingChooser {
 
         return vinyl.ifEmpty { pool }
             // sortedWith is stable, so equal dates stay in the listed order.
-            .sortedWith(compareBy<MusicBrainzReleaseDto>({ it.date.isNullOrEmpty() }, { it.date.orEmpty() }))
+            .sortedWith(compareBy<MusicBrainzReleaseDto, String?>(nullsLast()) { ReleaseDates.sortKey(it.date) })
     }
 }

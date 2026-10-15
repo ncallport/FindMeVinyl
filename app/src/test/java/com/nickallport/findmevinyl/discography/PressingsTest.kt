@@ -214,4 +214,16 @@ class PressingsTest {
         assertTrue(none.copy(rating = Rating(4.0, 2)).hasContent)
         assertTrue(none.copy(pressings = listOf(Pressing("r", null, null, null, null, null))).hasContent)
     }
+
+    @Test
+    fun `a pressing dated to the month comes before one dated only to the year`() {
+        val releases = listOf(
+            release("de-1970", "1970", formats = arrayOf("12\" Vinyl")),
+            release("uk-1970-10", "1970-10", formats = arrayOf("12\" Vinyl")),
+            release("us-1971-02", "1971-02", formats = arrayOf("12\" Vinyl"))
+        )
+
+        assertEquals(listOf("uk-1970-10", "de-1970", "us-1971-02"), ids(PressingChooser.candidates(releases)))
+        assertEquals("uk-1970-10", PressingChooser.choose(releases)?.id)
+    }
 }

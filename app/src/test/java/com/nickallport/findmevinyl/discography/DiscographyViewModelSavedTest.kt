@@ -203,4 +203,18 @@ class DiscographyViewModelSavedTest {
 
         assertEquals(0, server.requestCount)
     }
+
+    @Test
+    fun `an album dated to the month comes before one dated only to the year`() = runBlocking {
+        save(
+            saved("year-only", date = "1970"),
+            saved("month", date = "1970-10"),
+            saved("next-year", date = "1971-02")
+        )
+
+        assertEquals(
+            listOf("month", "year-only", "next-year"),
+            grouped().getValue(DiscographyCategory.STUDIO_ALBUM).map { it.id }
+        )
+    }
 }

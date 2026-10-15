@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.wantlist
 
+import com.nickallport.findmevinyl.discography.ReleaseDates
 import com.nickallport.findmevinyl.export.WantListFormatter
 import com.nickallport.findmevinyl.export.WantedAlbumExportItem
 import com.nickallport.findmevinyl.ordering.Reorder
@@ -40,7 +41,7 @@ class WantListViewModel(private val albumDao: AlbumDao) {
                     .thenBy { it.artistName.lowercase() }
                     .thenBy { it.artistId }
                     .thenBy { it.wantPosition }
-                    .thenBy(nullsLast<String>()) { it.firstReleaseDate }
+                    .thenBy(nullsLast<String>()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                     .thenBy { it.albumTitle }
             )
     }
