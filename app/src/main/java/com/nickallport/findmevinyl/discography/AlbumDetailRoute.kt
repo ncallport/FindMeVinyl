@@ -18,6 +18,9 @@ import kotlinx.coroutines.launch
  * [loadDetails] gives the details of the album's pressing, or null when they could not be had. Try
  * again asks for them again. [loadAlbum] reads the saved owned and want flags, and is asked again
  * after each tap, so the buttons show what is stored. A tap does not reload the details.
+ *
+ * Choosing another pressing asks [loadPressing] for the album's details with that pressing shown. The
+ * page stays as it is meanwhile, one choice at a time, and a pressing that cannot be loaded says so.
  */
 @Composable
 fun AlbumDetailRoute(
@@ -29,15 +32,20 @@ fun AlbumDetailRoute(
     onToggleOwned: suspend (albumId: String, currentlyOwned: Boolean) -> Unit,
     onToggleWanted: suspend (albumId: String, currentlyWanted: Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    loadCover: suspend (String) -> Bitmap? = { null }
+    loadCover: suspend (String) -> Bitmap? = { null },
+    loadPressing: suspend (albumId: String, releaseId: String) -> AlbumDetails? = { _, _ -> null }
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember(albumId) { mutableStateOf(0) }
+    var switchingTo by remember(albumId) { mutableStateOf<String?>(null) }
+    var switchFailed by remember(albumId) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(albumId, attempt) {
+        switchingTo = null
+        switchFailed = false
         state = AlbumDetailState.Loading
         state = loadDetails(albumId)?.let { AlbumDetailState.Loaded(it) } ?: AlbumDetailState.Failed
     }
@@ -51,8 +59,19 @@ fun AlbumDetailRoute(
         title = title,
         artistName = artistName,
         album = album,
-        state = state,
+        state = (state as? AlbumDetailState.Loaded)?.copy(switchingTo = switchingTo, switchFailed = switchFailed) ?: state,
         onRetry = { attempt++ },
+        onSelectPressing = { releaseId ->
+            if (switchingTo == null) {
+                switchFailed = false
+                switchingTo = releaseId
+                coroutineScope.launch {
+                    val chosen = loadPressing(albumId, releaseId)
+                    if (chosen != null) state = AlbumDetailState.Loaded(chosen) else switchFailed = true
+                    switchingTo = null
+                }
+            }
+        },
         onToggleOwned = {
             val current = album ?: return@AlbumDetailScreen
             coroutineScope.launch {

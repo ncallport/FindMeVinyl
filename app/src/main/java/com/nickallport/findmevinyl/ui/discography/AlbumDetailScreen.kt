@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.discography.AlbumDetails
 import com.nickallport.findmevinyl.discography.CountryNames
+import com.nickallport.findmevinyl.discography.Pressing
 import com.nickallport.findmevinyl.discography.TrackSection
 import com.nickallport.findmevinyl.discography.TrackSections
 import com.nickallport.findmevinyl.ui.common.SquareImage
@@ -36,13 +39,22 @@ import com.nickallport.findmevinyl.ui.common.SquareImage
 sealed class AlbumDetailState {
     object Loading : AlbumDetailState()
     object Failed : AlbumDetailState()
-    data class Loaded(val details: AlbumDetails) : AlbumDetailState()
+    /**
+     * [switchingTo] is the release being loaded after the user chose another pressing, and
+     * [switchFailed] says the last such choice could not be loaded. The details stay as they were.
+     */
+    data class Loaded(
+        val details: AlbumDetails,
+        val switchingTo: String? = null,
+        val switchFailed: Boolean = false
+    ) : AlbumDetailState()
 }
 
 /**
  * The page for one album: cover, title, artist, owned and want buttons, then what MusicBrainz knows
- * about the album's earliest vinyl pressing. The title and artist come from the caller so they show
- * while the details load.
+ * about one pressing of it (the earliest vinyl one to start with), the album's rating and a list of
+ * its other pressings. Tapping one of them shows that pressing instead. The title and artist come
+ * from the caller so they show while the details load.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -56,7 +68,8 @@ fun AlbumDetailScreen(
     onToggleOwned: () -> Unit,
     onToggleWanted: () -> Unit,
     loadCover: suspend (String) -> Bitmap?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSelectPressing: (String) -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -113,14 +126,15 @@ fun AlbumDetailScreen(
                     Text("Try again")
                 }
             }
-            is AlbumDetailState.Loaded -> LoadedDetails(state.details)
+            is AlbumDetailState.Loaded -> LoadedDetails(state, onSelectPressing)
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LoadedDetails(details: AlbumDetails) {
+private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (String) -> Unit) {
+    val details = state.details
     if (!details.hasContent) {
         Text(
             text = "MusicBrainz has no details for this album yet",
@@ -136,6 +150,15 @@ private fun LoadedDetails(details: AlbumDetails) {
                 text = "First released $it",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        details.rating?.let {
+            Text(
+                text = "Rating ${it.text()}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("detail_rating")
             )
             Spacer(Modifier.height(8.dp))
         }
@@ -201,6 +224,95 @@ private fun LoadedDetails(details: AlbumDetails) {
                     }
                 }
             }
+        }
+
+        // With one pressing there is nothing to choose between.
+        if (details.pressings.size > 1) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Pressings",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Tap one to see its tracks",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (state.switchFailed) {
+                Text(
+                    text = "Couldn't load that pressing",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp).testTag("pressing_failed")
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            details.pressings.forEach { pressing ->
+                PressingRow(
+                    pressing = pressing,
+                    shown = pressing.releaseId == details.pressingId,
+                    loading = pressing.releaseId == state.switchingTo,
+                    canChoose = state.switchingTo == null,
+                    onChoose = { onSelectPressing(pressing.releaseId) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PressingRow(pressing: Pressing, shown: Boolean, loading: Boolean, canChoose: Boolean, onChoose: () -> Unit) {
+    val container = if (shown) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val content = if (shown) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val id = pressing.releaseId
+
+    val title = listOfNotNull(pressing.date, pressing.country?.let { CountryNames.of(it) })
+        .joinToString(", ").ifEmpty { "Date unknown" }
+    val detail = listOfNotNull(
+        listOfNotNull(pressing.label, pressing.catalogNumber).joinToString(", ").ifEmpty { null },
+        pressing.format
+    ).joinToString(", ").ifEmpty { null }
+
+    Row(
+        modifier = Modifier
+            .testTag("pressing_row_$id")
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(container)
+            .clickable(enabled = !shown && canChoose, onClick = onChoose)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).testTag("pressing_row")) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = content,
+                modifier = Modifier.testTag("pressing_title_$id")
+            )
+            detail?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = content,
+                    modifier = Modifier.testTag("pressing_detail_$id")
+                )
+            }
+        }
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp).testTag("pressing_loading_$id"),
+                strokeWidth = 2.dp
+            )
+        } else if (shown) {
+            Text(
+                text = "Showing",
+                style = MaterialTheme.typography.labelLarge,
+                color = content,
+                modifier = Modifier.testTag("pressing_shown_$id")
+            )
         }
     }
 }

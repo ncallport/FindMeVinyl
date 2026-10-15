@@ -227,7 +227,10 @@ class MainActivity : ComponentActivity() {
                                         albumId, currentlyWanted, screen.artistId, screen.artistName
                                     )
                                 },
-                                loadCover = { id -> CoverArtLoader.shared.loadLarge(id) }
+                                loadCover = { id -> CoverArtLoader.shared.loadLarge(id) },
+                                loadPressing = { albumId, releaseId ->
+                                    albumDetailsViewModel.selectPressing(albumId, releaseId)
+                                }
                             )
                         }
                         is Screen.WantList -> {
