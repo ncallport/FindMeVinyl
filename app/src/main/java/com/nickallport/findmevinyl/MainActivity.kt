@@ -259,6 +259,8 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
+                                settings = settings,
+                                onOpenSettings = { currentScreen = Screen.Settings },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onChoosePhoto = { id ->
                                     when (val picked = pickPhoto()) {

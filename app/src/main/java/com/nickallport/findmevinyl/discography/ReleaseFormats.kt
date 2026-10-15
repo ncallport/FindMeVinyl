@@ -7,9 +7,17 @@ package com.nickallport.findmevinyl.discography
 object ReleaseFormats {
     private const val SEPARATOR = "|"
 
+    /** The labels shown on a row, and the ones the settings can hide. */
+    const val LP = "LP"
+    const val TWELVE_INCH = "12\""
+    const val SEVEN_INCH = "7\""
+    const val CD = "CD"
+    const val DIGITAL = "Digital"
+
     // The order the labels are shown in.
     private enum class Label(val text: String) {
-        LP("LP"), TWELVE_INCH("12\""), TEN_INCH("10\""), SEVEN_INCH("7\""), CD("CD"), MC("MC"), DIGITAL("Digital")
+        LP(ReleaseFormats.LP), TWELVE_INCH(ReleaseFormats.TWELVE_INCH), TEN_INCH("10\""),
+        SEVEN_INCH(ReleaseFormats.SEVEN_INCH), CD(ReleaseFormats.CD), MC("MC"), DIGITAL(ReleaseFormats.DIGITAL)
     }
 
     /** Every label there is, in the order they are shown. */

@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import com.nickallport.findmevinyl.settings.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +42,10 @@ private sealed class LoadState {
  * the first page appears while the rest are still loading. [loadSaved] reads the saved albums
  * only, with no request to MusicBrainz. Taps on Owned, Want and Save use it, so they show at once.
  *
+ * The [settings] say what to leave out ([DiscographyVisibility]), which is done on what is shown, so
+ * changing a setting needs no new load. A note says how many albums were left out, and goes to the
+ * settings. The format chips and their counts are for the albums that are shown.
+ *
  * With [checkAllFormats], the formats of all the albums are checked once, by itself, when the whole
  * discography has loaded and some albums have no formats stored or old ones. A line under the chips
  * says how far it has got. Meanwhile the rows wait instead of looking up their own album, and what the
@@ -62,6 +69,8 @@ fun DiscographyRoute(
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
     onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
     onOpenArtists: (() -> Unit)? = null,
+    settings: Settings = Settings.ShowEverything,
+    onOpenSettings: (() -> Unit)? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onChoosePhoto: (suspend (artistId: String) -> Boolean)? = null,
     hasUserPhoto: suspend (artistId: String) -> Boolean = { false },
@@ -112,12 +121,12 @@ fun DiscographyRoute(
             ?.takeIf { it.formats != null && !it.formatsStale }
         if (checked != null) {
             // The check found them.
-            checked.formats
+            checked.formats?.let { DiscographyVisibility.displayFormats(it, settings) }
         } else {
             loadFormats(albumId)?.also { labels ->
                 val current = (loadState as? LoadState.Loaded)?.state as? DiscographyUiState.Success
                 if (current != null) loadState = LoadState.Loaded(current.withFormats(albumId, labels))
-            }
+            }?.let { DiscographyVisibility.displayFormats(it, settings) }
         }
     }
 
@@ -189,9 +198,12 @@ fun DiscographyRoute(
                 is LoadState.Loaded -> {
                     when (val uiState = currentState.state) {
                         is DiscographyUiState.Success -> {
+                            // Every album, for what a tap or a lookup is about, and what the settings leave.
                             val allAlbums = uiState.groupedAlbums.values.flatten()
+                            val visibility = DiscographyVisibility.apply(uiState.groupedAlbums, settings)
+                            val visibleAlbums = visibility.shown.values.flatten()
                             val chosenFormat = selectedFormat
-                            val shownAlbums = FormatFilter.apply(uiState.groupedAlbums, chosenFormat)
+                            val shownAlbums = FormatFilter.apply(visibility.shown, chosenFormat)
 
                             Column(modifier = Modifier.fillMaxSize()) {
                                 // Owned first is a way to look at the collection: the owned albums together at
@@ -199,12 +211,24 @@ fun DiscographyRoute(
                                 FormatFilterBar(
                                     ownedFirst = ownedFirst,
                                     onToggleOwnedFirst = { ownedFirst = !ownedFirst },
-                                    options = FormatFilter.options(allAlbums),
+                                    options = FormatFilter.options(visibleAlbums),
                                     selected = chosenFormat,
-                                    unchecked = FormatFilter.unchecked(allAlbums),
+                                    unchecked = FormatFilter.unchecked(visibleAlbums),
                                     onSelect = { selectedFormat = it }
                                 )
                                 FormatCheckNote(state = formatCheck, onRetry = { formatCheckAttempt++ })
+                                if (visibility.hiddenCount > 0) {
+                                    val noun = if (visibility.hiddenCount == 1) "album" else "albums"
+                                    Text(
+                                        text = "${visibility.hiddenCount} $noun hidden by your settings",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .testTag("hidden_albums_note")
+                                            .then(if (onOpenSettings != null) Modifier.clickable { onOpenSettings() } else Modifier)
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    )
+                                }
                                 if (chosenFormat != null && shownAlbums.isEmpty()) {
                                     Text(
                                         text = "No albums found on $chosenFormat",

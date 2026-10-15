@@ -6,6 +6,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.layout.positionInRoot
 import com.nickallport.findmevinyl.settings.Settings
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import androidx.compose.runtime.getValue
@@ -97,5 +99,84 @@ class SettingsScreenTest {
         show(darkTheme = true)
 
         composeTestRule.onNodeWithText("Hide Charity shops").assertExists()
+    }
+
+    // The discography settings.
+
+    private data class Row(val label: String, val key: String, val flip: (Settings) -> Settings, val isOn: (Settings) -> Boolean)
+
+    private val discographyRows = listOf(
+        Row("Hide Live Albums", "hideLiveAlbums", { it.copy(hideLiveAlbums = !it.hideLiveAlbums) }, { it.hideLiveAlbums }),
+        Row("Hide Compilation Albums", "hideCompilations", { it.copy(hideCompilations = !it.hideCompilations) }, { it.hideCompilations }),
+        Row("Hide Singles", "hideSingles", { it.copy(hideSingles = !it.hideSingles) }, { it.hideSingles }),
+        Row("Hide Other Releases", "hideOtherReleases", { it.copy(hideOtherReleases = !it.hideOtherReleases) }, { it.hideOtherReleases }),
+        Row("Hide LPs", "hideLps", { it.copy(hideLps = !it.hideLps) }, { it.hideLps }),
+        Row("Hide CDs", "hideCds", { it.copy(hideCds = !it.hideCds) }, { it.hideCds }),
+        Row("Hide 12\"s", "hideTwelveInches", { it.copy(hideTwelveInches = !it.hideTwelveInches) }, { it.hideTwelveInches }),
+        Row("Hide 7\"s", "hideSevenInches", { it.copy(hideSevenInches = !it.hideSevenInches) }, { it.hideSevenInches }),
+        Row("Hide Digital", "hideDigital", { it.copy(hideDigital = !it.hideDigital) }, { it.hideDigital })
+    )
+
+    @Test
+    fun `has a discography settings section with a switch for each kind and format`() {
+        show()
+
+        composeTestRule.onNodeWithText("Discography Settings").assertExists()
+        discographyRows.forEach { composeTestRule.onNodeWithText(it.label).assertExists() }
+    }
+
+    @Test
+    fun `the discography settings come before the location settings`() {
+        show()
+
+        val discography = composeTestRule.onNodeWithText("Discography Settings").fetchSemanticsNode().positionInRoot.y
+        val location = composeTestRule.onNodeWithText("Location Settings").fetchSemanticsNode().positionInRoot.y
+
+        assertEquals(true, discography < location)
+    }
+
+    @Test
+    fun `the rows come in the order the user listed them`() {
+        show()
+
+        val tops = discographyRows.map { composeTestRule.onNodeWithText(it.label).fetchSemanticsNode().positionInRoot.y }
+
+        assertEquals(tops.sorted(), tops)
+    }
+
+    @Test
+    fun `each switch shows what is set`() {
+        val settings = Settings()
+        show(settings)
+
+        discographyRows.forEach { row ->
+            val node = composeTestRule.onNodeWithTag("setting_${row.key}")
+            if (row.isOn(settings)) node.assertIsOn() else node.assertIsOff()
+        }
+    }
+
+    @Test
+    fun `tapping each row changes that setting and nothing else`() {
+        var settings by androidx.compose.runtime.mutableStateOf(Settings())
+        composeTestRule.setContent {
+            FindMeVinylTheme { SettingsScreen(settings = settings, onChange = { settings = it }) }
+        }
+
+        discographyRows.forEach { row ->
+            val before = settings
+
+            composeTestRule.onNodeWithTag("setting_${row.key}").performScrollTo().performClick()
+
+            assertEquals(row.label, row.flip(before), settings)
+        }
+    }
+
+    @Test
+    fun `says that what you own or want is always shown, and how formats are hidden`() {
+        show()
+
+        composeTestRule.onNodeWithTag("settings_discography_hint").assertExists()
+        composeTestRule.onNodeWithText("Albums you own or want are always shown.", substring = true).assertExists()
+        composeTestRule.onNodeWithText("every format it came out on", substring = true).assertExists()
     }
 }

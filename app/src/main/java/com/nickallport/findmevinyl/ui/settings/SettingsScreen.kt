@@ -42,6 +42,39 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
+        Section("Discography Settings") {
+            Text(
+                text = "Albums you own or want are always shown. An album is hidden by a format only when " +
+                    "every format it came out on is hidden.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp).testTag("settings_discography_hint")
+            )
+            SettingRow("Hide Live Albums", "hideLiveAlbums", settings.hideLiveAlbums) {
+                onChange(settings.copy(hideLiveAlbums = it))
+            }
+            SettingRow("Hide Compilation Albums", "hideCompilations", settings.hideCompilations) {
+                onChange(settings.copy(hideCompilations = it))
+            }
+            SettingRow("Hide Singles", "hideSingles", settings.hideSingles) {
+                onChange(settings.copy(hideSingles = it))
+            }
+            SettingRow("Hide Other Releases", "hideOtherReleases", settings.hideOtherReleases) {
+                onChange(settings.copy(hideOtherReleases = it))
+            }
+            SettingRow("Hide LPs", "hideLps", settings.hideLps) { onChange(settings.copy(hideLps = it)) }
+            SettingRow("Hide CDs", "hideCds", settings.hideCds) { onChange(settings.copy(hideCds = it)) }
+            SettingRow("Hide 12\"s", "hideTwelveInches", settings.hideTwelveInches) {
+                onChange(settings.copy(hideTwelveInches = it))
+            }
+            SettingRow("Hide 7\"s", "hideSevenInches", settings.hideSevenInches) {
+                onChange(settings.copy(hideSevenInches = it))
+            }
+            SettingRow("Hide Digital", "hideDigital", settings.hideDigital) {
+                onChange(settings.copy(hideDigital = it))
+            }
+        }
+
         Section("Location Settings") {
             SettingRow("Hide Charity shops", "hideCharityShops", settings.hideCharityShops) {
                 onChange(settings.copy(hideCharityShops = it))
