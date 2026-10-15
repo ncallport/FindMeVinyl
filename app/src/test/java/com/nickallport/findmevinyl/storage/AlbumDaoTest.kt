@@ -102,6 +102,30 @@ class AlbumDaoTest {
     )
 
     @Test
+    fun `formats and statuses are saved together and leave the flags alone`() = runBlocking {
+        dao.insert(album("1", owned = true, wanted = false))
+        assertNull(dao.getById("1")?.statuses)
+
+        assertEquals(1, dao.setChecked("1", "CD", "Bootleg", checkedAt = 7))
+
+        val saved = dao.getById("1")!!
+        assertEquals("CD", saved.formats)
+        assertEquals("Bootleg", saved.statuses)
+        assertEquals(7L, saved.formatsCheckedAt)
+        assertTrue(saved.owned)
+    }
+
+    @Test
+    fun `saving only formats leaves the statuses as they were`() = runBlocking {
+        dao.insert(album("1"))
+        dao.setChecked("1", "CD", "Official", checkedAt = 7)
+
+        dao.setFormats("1", "LP", checkedAt = 8)
+
+        assertEquals("Official", dao.getById("1")?.statuses)
+    }
+
+    @Test
     fun `saved formats and their check time can be read back`() = runBlocking {
         dao.insert(album("1"))
 

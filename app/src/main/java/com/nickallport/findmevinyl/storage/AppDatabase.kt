@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
         AlbumEntity::class, ArtistEntity::class, ArtistImageEntity::class, AlbumDetailsEntity::class,
         PublicHolidaysEntity::class, ArtistUserPhotoEntity::class
     ],
-    version = 7
+    version = 8
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao

@@ -30,7 +30,9 @@ data class AlbumUiModel(
     /** Labels such as LP and CD. Null: not looked up yet. Empty: looked up, none known. */
     val formats: List<String>? = null,
     /** The stored formats are old enough to look up again. They are still shown meanwhile. */
-    val formatsStale: Boolean = false
+    val formatsStale: Boolean = false,
+    /** The statuses of the album's releases (see `ReleaseStatuses`). Null: not looked up yet. Empty: none listed. */
+    val statuses: List<String>? = null
 )
 
 @Composable

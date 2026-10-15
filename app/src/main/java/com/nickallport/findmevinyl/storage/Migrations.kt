@@ -62,3 +62,10 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
     }
 }
+
+/** Adds the release statuses of an album. Existing rows keep every value and get NULL here, meaning not looked up yet. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `statuses` TEXT")
+    }
+}

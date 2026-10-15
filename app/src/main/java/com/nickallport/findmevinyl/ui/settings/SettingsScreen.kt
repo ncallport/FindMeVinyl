@@ -45,7 +45,8 @@ fun SettingsScreen(
         Section("Discography Settings") {
             Text(
                 text = "Albums you own or want are always shown. An album is hidden by a format only when " +
-                    "every format it came out on is hidden.",
+                    "every format it came out on is hidden. Bootlegs, promos and unknown status hide an album " +
+                    "only when it has no official release.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp).testTag("settings_discography_hint")
@@ -72,6 +73,15 @@ fun SettingsScreen(
             }
             SettingRow("Hide Digital", "hideDigital", settings.hideDigital) {
                 onChange(settings.copy(hideDigital = it))
+            }
+            SettingRow("Hide Bootlegs", "hideBootlegs", settings.hideBootlegs) {
+                onChange(settings.copy(hideBootlegs = it))
+            }
+            SettingRow("Hide Promos", "hidePromos", settings.hidePromos) {
+                onChange(settings.copy(hidePromos = it))
+            }
+            SettingRow("Hide Unknown Status releases", "hideUnknownStatus", settings.hideUnknownStatus) {
+                onChange(settings.copy(hideUnknownStatus = it))
             }
         }
 

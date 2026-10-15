@@ -126,6 +126,8 @@ fun DiscographyRoute(
             loadFormats(albumId)?.also { labels ->
                 val current = (loadState as? LoadState.Loaded)?.state as? DiscographyUiState.Success
                 if (current != null) loadState = LoadState.Loaded(current.withFormats(albumId, labels))
+                // The lookup saved the album's release statuses too, which only the saved album has.
+                refreshSaved()
             }?.let { DiscographyVisibility.displayFormats(it, settings) }
         }
     }
@@ -143,7 +145,7 @@ fun DiscographyRoute(
     LaunchedEffect(artistId, discographySettled, formatCheckAttempt) {
         val check = checkAllFormats ?: return@LaunchedEffect
         if (!discographySettled || formatCheckFinished) return@LaunchedEffect
-        if (loadedAlbums.none { it.formats == null || it.formatsStale }) return@LaunchedEffect
+        if (loadedAlbums.none { it.formats == null || it.formatsStale || it.statuses == null }) return@LaunchedEffect
 
         formatCheck = FormatCheckState.Running(0, 0)
         when (check(artistId) { done, total -> formatCheck = FormatCheckState.Running(done, total) }) {
@@ -295,7 +297,8 @@ private fun DiscographyUiState.Success.withSavedValuesFrom(saved: DiscographyUiS
                 owned = savedAlbum.owned,
                 wanted = savedAlbum.wanted,
                 formats = savedAlbum.formats ?: album.formats,
-                formatsStale = if (savedAlbum.formats != null) savedAlbum.formatsStale else album.formatsStale
+                formatsStale = if (savedAlbum.formats != null) savedAlbum.formatsStale else album.formatsStale,
+                statuses = savedAlbum.statuses ?: album.statuses
             )
         } ?: album
     }
