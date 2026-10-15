@@ -168,6 +168,23 @@ class DiscographyViewModelSavedTest {
     }
 
     @Test
+    fun `reads one saved album with its flags and formats for its category`() = runBlocking {
+        save(saved("single", category = "SINGLE", owned = true, wanted = false, formats = "12\" Vinyl", checkedAt = now))
+
+        val album = viewModel.loadAlbum("single")
+
+        assertEquals("single", album?.id)
+        assertEquals("Album single", album?.title)
+        assertEquals(true, album?.owned)
+        assertEquals(listOf("12\""), album?.formats)
+    }
+
+    @Test
+    fun `reading an album that is not saved gives nothing`() = runBlocking {
+        assertEquals(null, viewModel.loadAlbum("missing"))
+    }
+
+    @Test
     fun `sends no request to MusicBrainz`() = runBlocking {
         save(saved("a"))
 

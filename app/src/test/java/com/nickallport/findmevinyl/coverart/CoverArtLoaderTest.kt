@@ -98,6 +98,29 @@ class CoverArtLoaderTest {
     }
 
     @Test
+    fun `loads the large cover from the 500px address`() = runBlocking {
+        server.enqueue(pngResponse())
+
+        val bitmap = loader.loadLarge("abc")
+
+        assertNotNull(bitmap)
+        assertEquals("/release-group/abc/front-500", server.takeRequest(2, TimeUnit.SECONDS)?.path)
+    }
+
+    @Test
+    fun `the large and small covers of an album are kept apart`() = runBlocking {
+        server.enqueue(pngResponse())
+        server.enqueue(pngResponse())
+
+        assertNotNull(loader.load("abc"))
+        assertNotNull(loader.loadLarge("abc"))
+        assertNotNull(loader.load("abc"))
+        assertNotNull(loader.loadLarge("abc"))
+
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
     fun `sends the user agent`() = runBlocking {
         server.enqueue(pngResponse())
 

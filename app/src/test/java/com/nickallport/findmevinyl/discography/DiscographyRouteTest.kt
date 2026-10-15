@@ -5,6 +5,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
@@ -242,7 +243,7 @@ class DiscographyRouteTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Foxtrot").performClick()
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Owned").assertExists()
@@ -274,7 +275,26 @@ class DiscographyRouteTest {
     }
 
     @Test
-    fun `tapping an album updates it from the saved albums without loading the discography again`() {
+    fun `tapping an album opens it with its id and title`() {
+        var opened: Pair<String, String>? = null
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis",
+                load = { flowOf(success(album("1", "Foxtrot"))) },
+                onToggleOwned = { _, _ -> },
+                onOpenAlbum = { id, title -> opened = id to title }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("album_row").performClick()
+
+        assertEquals("1" to "Foxtrot", opened)
+    }
+
+    @Test
+    fun `tapping Owned updates the album from the saved albums without loading the discography again`() {
         var loads = 0
         var owned = false
         val load: (String) -> Flow<DiscographyUiState> = { loads++; flowOf(success(album("1", "Foxtrot"))) }
@@ -288,7 +308,7 @@ class DiscographyRouteTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("album_row").performClick()
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Owned").assertExists()
@@ -341,7 +361,7 @@ class DiscographyRouteTest {
         rest.complete(Unit)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Foxtrot").performClick()
+        composeTestRule.onAllNodesWithTag("owned_toggle")[0].performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Owned").assertExists()
@@ -626,7 +646,7 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("format_chip_all").assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Album A").performClick()
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("LP 1").assertExists()

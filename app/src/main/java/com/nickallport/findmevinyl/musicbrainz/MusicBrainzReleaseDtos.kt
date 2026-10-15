@@ -14,7 +14,9 @@ data class MusicBrainzReleaseListResponse(
 
 data class MusicBrainzReleaseDto(
     val id: String? = null,
-    val media: List<MusicBrainzMediumDto>? = null
+    val media: List<MusicBrainzMediumDto>? = null,
+    val date: String? = null,
+    val status: String? = null
 )
 
 data class MusicBrainzMediumDto(

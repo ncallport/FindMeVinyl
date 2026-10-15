@@ -23,6 +23,18 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseGroupSearchResponse
 
+    /**
+     * One release (one pressing) with its tracks, label and catalogue number, and the genres of its
+     * release group. The `inc` list is sent as it is, because MusicBrainz reads the plus signs as spaces.
+     */
+    @GET("release/{id}")
+    suspend fun getReleaseDetail(
+        @Path("id") releaseId: String,
+        @Query("inc", encoded = true) include: String = "recordings+labels+release-groups+genres",
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzReleaseDetailResponse
+
     /** The web links of one artist, such as its Wikidata page and image, for finding its picture. */
     @GET("artist/{id}")
     suspend fun getArtistLinks(

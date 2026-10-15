@@ -144,6 +144,50 @@ class MusicBrainzThrottleTest {
     }
 
     @Test
+    fun `a turn that makes several requests waits for its next slot between them`() = runBlocking {
+        val throttle = MusicBrainzThrottle(minIntervalMillis = 200)
+        val starts = Collections.synchronizedList(mutableListOf<Long>())
+
+        throttle.run {
+            starts.add(nowMillis())
+            throttle.awaitNextSlot()
+            starts.add(nowMillis())
+            throttle.awaitNextSlot()
+            starts.add(nowMillis())
+        }
+
+        val gaps = starts.zipWithNext { a, b -> b - a }
+        assertTrue("gaps were $gaps", gaps.all { it >= 180 })
+    }
+
+    @Test
+    fun `the next turn starts after the last request of a turn that made several`() = runBlocking {
+        val throttle = MusicBrainzThrottle(minIntervalMillis = 200)
+        var lastInsideStart = 0L
+
+        throttle.run {
+            throttle.awaitNextSlot()
+            lastInsideStart = nowMillis()
+        }
+        var nextStart = 0L
+        throttle.run { nextStart = nowMillis() }
+
+        assertTrue("next turn started ${nextStart - lastInsideStart} ms after the last request", nextStart - lastInsideStart >= 180)
+    }
+
+    @Test
+    fun `waiting for the next slot is not needed when enough time has passed`() = runBlocking {
+        val throttle = MusicBrainzThrottle(minIntervalMillis = 100)
+
+        throttle.run {
+            delay(150)
+            val before = nowMillis()
+            throttle.awaitNextSlot()
+            assertTrue(nowMillis() - before < 60)
+        }
+    }
+
+    @Test
     fun `does not pause after other errors`() = runBlocking {
         val throttle = MusicBrainzThrottle(minIntervalMillis = 0, busyPauseMillis = 2_000)
 

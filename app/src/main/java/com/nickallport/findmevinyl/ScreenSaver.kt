@@ -16,15 +16,25 @@ internal sealed class Screen {
         val artistName: String,
         val backTo: Screen
     ) : Screen()
+    /** One album: its tracklist and details. [backTo] is the discography it was opened from. */
+    data class AlbumDetail(
+        val albumId: String,
+        val title: String,
+        val artistId: String,
+        val artistName: String,
+        val backTo: Screen
+    ) : Screen()
 }
 
 /**
  * Where the Back button goes. From the front screen it leaves the app (null). From a discography it
- * goes where the user came from, and from every other page it goes to the front screen.
+ * goes where the user came from, and an album page goes to its discography. Every other page goes
+ * to the front screen.
  */
 internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Home -> null
     is Screen.Discography -> backTo
+    is Screen.AlbumDetail -> backTo
     is Screen.ArtistResults -> Screen.Search
     else -> Screen.Home
 }
@@ -40,6 +50,8 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.Shops -> listOf("shops")
         is Screen.Discography ->
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
+        is Screen.AlbumDetail ->
+            listOf("album", value.albumId, value.title, value.artistId, value.artistName) + save(value.backTo)
     }
 
     override fun restore(value: List<String>): Screen? = when (value.firstOrNull()) {
@@ -50,6 +62,9 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         "shops" -> Screen.Shops
         "discography" -> restore(value.drop(3))?.let {
             Screen.Discography(value[1], value[2], it)
+        }
+        "album" -> restore(value.drop(5))?.let {
+            Screen.AlbumDetail(value[1], value[2], value[3], value[4], it)
         }
         else -> null
     }

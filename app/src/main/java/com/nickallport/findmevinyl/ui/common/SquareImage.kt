@@ -18,11 +18,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.R
 
 /**
- * A 56dp rounded square showing the picture for [key], or the record placeholder until it has
+ * A rounded square ([size], 56dp by default) showing the picture for [key], or the record placeholder until it has
  * loaded and when there is none. Used for album covers and artist pictures. It is decorative,
  * because the name is shown next to it.
  *
@@ -37,6 +38,7 @@ fun SquareImage(
     imageTag: String,
     placeholderTag: String,
     modifier: Modifier = Modifier,
+    size: Dp = 56.dp,
     onShownChange: (Boolean) -> Unit = {}
 ) {
     val currentLoad by rememberUpdatedState(load)
@@ -47,7 +49,7 @@ fun SquareImage(
     }
 
     val shaped = modifier
-        .size(56.dp)
+        .size(size)
         .clip(RoundedCornerShape(4.dp))
 
     val loaded = picture

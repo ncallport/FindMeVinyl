@@ -50,6 +50,7 @@ fun DiscographyRoute(
     loadIsFavourite: suspend () -> Boolean = { false },
     onSaveFavourite: suspend (artistId: String, artistName: String) -> Unit = { _, _ -> },
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
+    onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadSaved: (suspend (String) -> DiscographyUiState)? = null
@@ -139,6 +140,9 @@ fun DiscographyRoute(
                                             onToggleWanted(albumId, currentlyWanted)
                                             refreshSaved()
                                         }
+                                    },
+                                    onOpenAlbum = { albumId ->
+                                        allAlbums.find { it.id == albumId }?.let { onOpenAlbum(it.id, it.title) }
                                     },
                                     modifier = Modifier.weight(1f),
                                     loadCover = loadCover,

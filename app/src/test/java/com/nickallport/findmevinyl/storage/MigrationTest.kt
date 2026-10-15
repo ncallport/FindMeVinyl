@@ -94,9 +94,42 @@ class MigrationTest {
         helper.close()
     }
 
+    // Version 3, from schemas/.../3.json: albums with formats, favourites, and the artist_images table.
+    private fun createVersion3Database() {
+        val helper = object : SQLiteOpenHelper(context, dbName, null, 3) {
+            override fun onCreate(db: SQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `albums` (`id` TEXT NOT NULL, `artistId` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, `category` TEXT NOT NULL, `firstReleaseDate` TEXT, " +
+                        "`owned` INTEGER NOT NULL, `wanted` INTEGER NOT NULL, `formats` TEXT, " +
+                        "`formatsCheckedAt` INTEGER, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favourite_artists` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                        "`type` TEXT, `country` TEXT, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `artist_images` (`artistId` TEXT NOT NULL, `imageUrl` TEXT, " +
+                        "`checkedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+                )
+            }
+
+            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        helper.writableDatabase.use { db ->
+            db.execSQL(
+                "INSERT INTO albums VALUES ('1', 'artist-1', 'Foxtrot', 'STUDIO_ALBUM', '1972-10-06', 1, 0, 'CD', 1700000000000)"
+            )
+            db.execSQL("INSERT INTO albums VALUES ('2', 'artist-1', 'Trespass', 'STUDIO_ALBUM', NULL, 0, 1, NULL, NULL)")
+            db.execSQL("INSERT INTO favourite_artists VALUES ('artist-1', 'Genesis', 'Group', 'GB')")
+            db.execSQL("INSERT INTO artist_images VALUES ('artist-1', 'https://commons.test/a.jpg', 99)")
+        }
+        helper.close()
+    }
+
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
 
@@ -153,6 +186,34 @@ class MigrationTest {
         database.artistImageDao().save(ArtistImageEntity("artist-1", "https://commons.test/a.jpg", 7))
 
         assertEquals("https://commons.test/a.jpg", database.artistImageDao().get("artist-1")?.imageUrl)
+        database.close()
+    }
+
+    @Test
+    fun `a version 3 database keeps everything when it gets the album details table`() = runBlocking {
+        createVersion3Database()
+        val database = openMigrated()
+
+        val albums = database.albumDao().getAlbumsForArtist("artist-1").sortedBy { it.id }
+
+        assertEquals(listOf("Foxtrot", "Trespass"), albums.map { it.title })
+        assertTrue(albums[0].owned)
+        assertTrue(albums[1].wanted)
+        assertEquals("CD", albums[0].formats)
+        assertEquals("Genesis", database.artistDao().getById("artist-1")?.name)
+        assertEquals("https://commons.test/a.jpg", database.artistImageDao().get("artist-1")?.imageUrl)
+        database.close()
+    }
+
+    @Test
+    fun `a version 3 database can store album details after the upgrade`() = runBlocking {
+        createVersion3Database()
+        val database = openMigrated()
+
+        assertNull(database.albumDetailsDao().get("1"))
+        database.albumDetailsDao().save(AlbumDetailsEntity("1", "{}", 7))
+
+        assertEquals("{}", database.albumDetailsDao().get("1")?.json)
         database.close()
     }
 
