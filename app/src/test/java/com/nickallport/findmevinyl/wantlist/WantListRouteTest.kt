@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -41,6 +43,57 @@ class WantListRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Your want list is empty").assertExists()
+    }
+
+    private val twoAlbums = listOf(
+        WantedAlbumUiModel("1", "Roxy Music", "Avalon"),
+        WantedAlbumUiModel("2", "Roxy Music", "Siren")
+    )
+
+    @Test
+    fun `moving an album up tells the caller and shows the list again from the load`() {
+        var order = twoAlbums
+        val moved = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            WantListRoute(
+                load = { order },
+                exportText = { "" },
+                onShareText = {},
+                onMoveUp = { id -> moved.add(id); order = order.reversed() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("want_up_2").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("2"), moved)
+        // Siren is now first, so it cannot move up any more.
+        composeTestRule.onNodeWithTag("want_up_2").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("want_up_1").assertIsEnabled()
+    }
+
+    @Test
+    fun `moving an album down tells the caller`() {
+        var order = twoAlbums
+        val moved = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            WantListRoute(
+                load = { order },
+                exportText = { "" },
+                onShareText = {},
+                onMoveDown = { id -> moved.add(id); order = order.reversed() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("want_down_1").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("1"), moved)
+        composeTestRule.onNodeWithTag("want_down_1").assertIsNotEnabled()
     }
 
     @Test

@@ -5,5 +5,7 @@ data class WantedAlbumRow(
     val artistId: String,
     val artistName: String,
     val albumTitle: String,
-    val firstReleaseDate: String?
+    val firstReleaseDate: String?,
+    val artistPosition: Int,
+    val wantPosition: Int
 )

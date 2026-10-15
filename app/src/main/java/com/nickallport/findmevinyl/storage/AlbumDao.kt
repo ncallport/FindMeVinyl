@@ -33,6 +33,22 @@ interface AlbumDao {
     @Query("UPDATE albums SET wanted = :wanted WHERE id = :albumId")
     suspend fun setWanted(albumId: String, wanted: Boolean): Int
 
+    @Query("UPDATE albums SET wantPosition = :position WHERE id = :albumId")
+    suspend fun setWantPosition(albumId: String, position: Int): Int
+
+    /** Wants the album and puts it last in its artist's want list. An album already wanted keeps its place. */
+    @Query(
+        """
+        UPDATE albums SET wanted = 1,
+            wantPosition = CASE WHEN wanted = 1 THEN wantPosition ELSE
+                (SELECT COALESCE(MAX(other.wantPosition), -1) + 1 FROM albums AS other
+                 WHERE other.artistId = albums.artistId AND other.wanted = 1 AND other.owned = 0
+                   AND other.id != albums.id) END
+        WHERE id = :albumId
+        """
+    )
+    suspend fun markWanted(albumId: String): Int
+
     @Query("UPDATE albums SET wanted = 0 WHERE artistId = :artistId")
     suspend fun clearWantedForArtist(artistId: String): Int
 
@@ -42,7 +58,9 @@ interface AlbumDao {
                albums.artistId AS artistId,
                favourite_artists.name AS artistName,
                albums.title AS albumTitle,
-               albums.firstReleaseDate AS firstReleaseDate
+               albums.firstReleaseDate AS firstReleaseDate,
+               favourite_artists.position AS artistPosition,
+               albums.wantPosition AS wantPosition
         FROM albums
         INNER JOIN favourite_artists ON albums.artistId = favourite_artists.id
         WHERE albums.wanted = 1 AND albums.owned = 0

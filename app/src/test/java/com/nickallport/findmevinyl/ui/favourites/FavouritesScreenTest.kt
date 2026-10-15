@@ -9,6 +9,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -112,5 +115,76 @@ class FavouritesScreenTest {
 
         assertEquals("1", selected?.id)
         assertEquals("Roxy Music", selected?.name)
+    }
+
+    private val threeArtists = listOf(
+        FavouriteArtistUiModel("1", "Roxy Music"),
+        FavouriteArtistUiModel("2", "The Smiths"),
+        FavouriteArtistUiModel("3", "Ramones")
+    )
+
+    @Test
+    fun `each artist has buttons to move it up and down`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = threeArtists, onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_2").assertIsEnabled()
+        composeTestRule.onNodeWithTag("favourite_down_2").assertIsEnabled()
+    }
+
+    @Test
+    fun `the first artist cannot move up and the last cannot move down`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = threeArtists, onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_1").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertIsEnabled()
+        composeTestRule.onNodeWithTag("favourite_up_3").assertIsEnabled()
+        composeTestRule.onNodeWithTag("favourite_down_3").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a single favourite has nothing to move past, so no move buttons`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = listOf(FavouriteArtistUiModel("1", "Roxy Music")), onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the move buttons report the artist and do not open it`() {
+        val up = mutableListOf<String>()
+        val down = mutableListOf<String>()
+        val opened = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            FavouritesScreen(
+                artists = threeArtists,
+                onArtistSelected = { opened.add(it.id) },
+                onMoveUp = { up.add(it) },
+                onMoveDown = { down.add(it) }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_2").performClick()
+        composeTestRule.onNodeWithTag("favourite_down_2").performClick()
+
+        assertEquals(listOf("2"), up)
+        assertEquals(listOf("2"), down)
+        assertEquals(emptyList<String>(), opened)
+    }
+
+    @Test
+    fun `the move buttons say which artist they move`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = threeArtists, onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithContentDescription("Move The Smiths up").assertExists()
+        composeTestRule.onNodeWithContentDescription("Move The Smiths down").assertExists()
     }
 }

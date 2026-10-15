@@ -90,6 +90,17 @@ class DiscographyViewModelSavedTest {
     }
 
     @Test
+    fun `the want list order never changes the discography, which stays in release order`() = runBlocking {
+        database.albumDao().insert(saved("1", date = "1982-05-31", wanted = true).copy(wantPosition = 0))
+        database.albumDao().insert(saved("2", date = "1972-06-16", wanted = true).copy(wantPosition = 2))
+        database.albumDao().insert(saved("3", date = "1975-10-24", wanted = true).copy(wantPosition = 1))
+
+        val titles = grouped().getValue(DiscographyCategory.STUDIO_ALBUM).map { it.id }
+
+        assertEquals(listOf("2", "3", "1"), titles)
+    }
+
+    @Test
     fun `sorts each category by release date, undated last, and then by title`() = runBlocking {
         save(
             saved("1", date = "1982-05-31", title = "Avalon"),

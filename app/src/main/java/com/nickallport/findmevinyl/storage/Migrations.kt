@@ -21,6 +21,18 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/**
+ * Adds the user's own order: a position for each favourite artist and a want position for each album.
+ * Every row gets 0, which means "no order chosen yet", and the lists keep their old order (artists by
+ * name, albums by release date) until the user moves something.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `favourite_artists` ADD COLUMN `position` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `wantPosition` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 /** Adds a table for the pictures of artists. Nothing that was stored changes. */
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
