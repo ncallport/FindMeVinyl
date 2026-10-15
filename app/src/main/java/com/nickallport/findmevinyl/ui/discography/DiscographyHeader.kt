@@ -13,7 +13,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,8 +32,7 @@ import com.nickallport.findmevinyl.ui.artist.ArtistImage
  *
  * With [onChoosePhoto], the artist's picture is shown beside the name, with a caption under it that
  * says Add photo or Change photo, and tapping either asks for a photo from the user. [photoVersion]
- * changes when the photo has, so the picture is loaded again. When the user has chosen a photo
- * ([hasUserPhoto]), a button brings the original picture back.
+ * changes when the photo has, so the picture is loaded again.
  */
 @Composable
 fun DiscographyHeader(
@@ -46,9 +44,7 @@ fun DiscographyHeader(
     artistId: String? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     photoVersion: Int = 0,
-    onChoosePhoto: (() -> Unit)? = null,
-    hasUserPhoto: Boolean = false,
-    onUseOriginalPhoto: (() -> Unit)? = null
+    onChoosePhoto: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -82,11 +78,6 @@ fun DiscographyHeader(
                     modifier = Modifier.testTag("favourite_toggle")
                 ) {
                     Text(if (isFavourite) "Saved" else "Save")
-                }
-            }
-            if (hasUserPhoto && onUseOriginalPhoto != null) {
-                TextButton(onClick = onUseOriginalPhoto, modifier = Modifier.testTag("use_original_photo")) {
-                    Text("Use original photo")
                 }
             }
         }

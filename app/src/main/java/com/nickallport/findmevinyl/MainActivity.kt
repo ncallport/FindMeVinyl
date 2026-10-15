@@ -280,8 +280,6 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                hasUserPhoto = { id -> artistPhotoViewModel.hasPhoto(id) },
-                                onUseOriginalPhoto = { id -> artistPhotoViewModel.removePhoto(id) },
                                 onOpenAlbum = { albumId, title ->
                                     currentScreen = Screen.AlbumDetail(
                                         albumId, title, screen.artistId, screen.artistName, screen

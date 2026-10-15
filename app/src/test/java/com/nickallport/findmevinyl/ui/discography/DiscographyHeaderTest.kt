@@ -204,37 +204,6 @@ class DiscographyHeaderTest {
     }
 
     @Test
-    fun `offers to use the original photo only when the user has chosen one`() {
-        var reset = 0
-        composeTestRule.setContent {
-            DiscographyHeader(
-                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {},
-                artistId = "a", loadArtistImage = { picture() }, onChoosePhoto = {},
-                hasUserPhoto = true, onUseOriginalPhoto = { reset++ }
-            )
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("use_original_photo").performClick()
-
-        assertEquals(1, reset)
-    }
-
-    @Test
-    fun `does not offer the original photo when the user has not chosen one`() {
-        composeTestRule.setContent {
-            DiscographyHeader(
-                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {},
-                artistId = "a", loadArtistImage = { picture() }, onChoosePhoto = {},
-                hasUserPhoto = false, onUseOriginalPhoto = {}
-            )
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("use_original_photo").assertDoesNotExist()
-    }
-
-    @Test
     fun `loads the picture again when the photo changes`() {
         var version by androidx.compose.runtime.mutableStateOf(0)
         val asked = mutableListOf<String>()

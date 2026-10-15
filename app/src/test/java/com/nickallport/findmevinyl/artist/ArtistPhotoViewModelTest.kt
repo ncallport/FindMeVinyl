@@ -113,31 +113,6 @@ class ArtistPhotoViewModelTest {
     }
 
     @Test
-    fun `removing a photo takes away the file and the record`() = runBlocking {
-        val viewModel = viewModel()
-        viewModel.savePhoto("artist-1", jpeg(200, 100))
-        viewModel.savePhoto("artist-2", jpeg(200, 100))
-
-        viewModel.removePhoto("artist-1")
-
-        assertEquals(listOf("artist-2-1000.jpg"), files())
-        assertNull(database.artistUserPhotoDao().get("artist-1"))
-        assertNull(viewModel.loadPhoto("artist-1"))
-        assertNotNull(viewModel.loadPhoto("artist-2"))
-    }
-
-    @Test
-    fun `removing a photo that is not there changes nothing`() = runBlocking {
-        val viewModel = viewModel()
-        viewModel.savePhoto("artist-1", jpeg(200, 100))
-
-        viewModel.removePhoto("artist-9")
-
-        assertEquals(1, files().size)
-        assertNotNull(viewModel.loadPhoto("artist-1"))
-    }
-
-    @Test
     fun `bytes that are not a picture are refused, and an earlier photo is kept`() = runBlocking {
         val viewModel = viewModel()
         viewModel.savePhoto("artist-1", jpeg(200, 100))
@@ -151,16 +126,12 @@ class ArtistPhotoViewModelTest {
     }
 
     @Test
-    fun `an artist can have a photo or not, and saying so needs the file as well as the record`() = runBlocking {
+    fun `a photo whose file has gone missing shows nothing`() = runBlocking {
         val viewModel = viewModel()
-        assertFalse(viewModel.hasPhoto("artist-1"))
-
         viewModel.savePhoto("artist-1", jpeg(200, 100))
-        assertTrue(viewModel.hasPhoto("artist-1"))
 
         // The file goes missing, for example when the phone clears it.
         File(photos, "artist-1-1000.jpg").delete()
-        assertFalse(viewModel.hasPhoto("artist-1"))
         assertNull(viewModel.loadPhoto("artist-1"))
     }
 

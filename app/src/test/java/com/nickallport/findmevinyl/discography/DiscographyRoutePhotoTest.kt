@@ -29,17 +29,13 @@ class DiscographyRoutePhotoTest {
 
     private fun show(
         loadArtistImage: suspend (String) -> Bitmap? = { null },
-        onChoosePhoto: (suspend (String) -> Boolean)? = { false },
-        hasUserPhoto: suspend (String) -> Boolean = { false },
-        onUseOriginalPhoto: suspend (String) -> Unit = {}
+        onChoosePhoto: (suspend (String) -> Boolean)? = { false }
     ) {
         composeTestRule.setContent {
             DiscographyRoute(
                 artistId = "a", artistName = "Genesis", load = { flowOf(state) }, onToggleOwned = { _, _ -> },
                 loadArtistImage = loadArtistImage,
-                onChoosePhoto = onChoosePhoto,
-                hasUserPhoto = hasUserPhoto,
-                onUseOriginalPhoto = onUseOriginalPhoto
+                onChoosePhoto = onChoosePhoto
             )
         }
         composeTestRule.waitForIdle()
@@ -91,40 +87,6 @@ class DiscographyRoutePhotoTest {
 
         composeTestRule.onNodeWithTag("artist_placeholder", useUnmergedTree = true).assertExists()
         assertEquals(1, asked.size)
-    }
-
-    @Test
-    fun `offers the original photo once the user has a photo, and not before`() {
-        var userPhoto = false
-        show(
-            onChoosePhoto = { userPhoto = true; true },
-            hasUserPhoto = { userPhoto }
-        )
-        composeTestRule.onNodeWithTag("use_original_photo").assertDoesNotExist()
-
-        composeTestRule.onNodeWithTag("change_photo").performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("use_original_photo").assertExists()
-    }
-
-    @Test
-    fun `using the original photo takes the user's photo away and loads the picture again`() {
-        var userPhoto = true
-        val reset = mutableListOf<String>()
-        val asked = mutableListOf<String>()
-        show(
-            loadArtistImage = { id -> asked.add(id); picture() },
-            hasUserPhoto = { userPhoto },
-            onUseOriginalPhoto = { id -> reset.add(id); userPhoto = false }
-        )
-
-        composeTestRule.onNodeWithTag("use_original_photo").performClick()
-        composeTestRule.waitForIdle()
-
-        assertEquals(listOf("a"), reset)
-        composeTestRule.onNodeWithTag("use_original_photo").assertDoesNotExist()
-        assertEquals(2, asked.size)
     }
 
     @Test

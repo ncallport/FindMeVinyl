@@ -41,24 +41,11 @@ class ArtistPhotoViewModel(
         }
     }
 
-    /** Takes the artist's photo away, the file and the record. Nothing happens when there is none. */
-    suspend fun removePhoto(artistId: String) = withContext(Dispatchers.IO) {
-        val stored = photoDao.get(artistId) ?: return@withContext
-        photoDao.delete(artistId)
-        store.delete(stored.fileName)
-    }
-
     /** The artist's photo, or null when there is none or its file is missing or damaged. */
     suspend fun loadPhoto(artistId: String): Bitmap? = withContext(Dispatchers.IO) {
         val stored = photoDao.get(artistId) ?: return@withContext null
         val bytes = store.read(stored.fileName) ?: return@withContext null
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-    }
-
-    /** True when the artist has a photo that can be shown. */
-    suspend fun hasPhoto(artistId: String): Boolean = withContext(Dispatchers.IO) {
-        val stored = photoDao.get(artistId) ?: return@withContext false
-        store.read(stored.fileName) != null
     }
 
     // An artist id is a UUID, but a file name must stay inside the photo folder whatever it is given.
