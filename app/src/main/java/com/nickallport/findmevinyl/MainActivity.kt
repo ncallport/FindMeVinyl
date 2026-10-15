@@ -245,6 +245,7 @@ class MainActivity : ComponentActivity() {
                                 exportText = { wantListViewModel.exportText() },
                                 onMoveUp = { id -> wantListViewModel.moveUp(id) },
                                 onMoveDown = { id -> wantListViewModel.moveDown(id) },
+                                onRemove = { id -> wantListViewModel.remove(id) },
                                 onShareText = { text -> shareText(text) }
                             )
                         }

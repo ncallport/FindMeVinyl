@@ -116,25 +116,25 @@ class AlbumRowTest {
     }
 
     @Test
-    fun `shows a Want label when the album is wanted`() {
+    fun `shows a Wanted label when the album is wanted`() {
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = true),
                 onToggleOwned = {}
             )
         }
-        composeTestRule.onNodeWithText("Want").assertExists()
+        composeTestRule.onNodeWithText("Wanted").assertExists()
     }
 
     @Test
-    fun `does not show a Want label when the album is not wanted`() {
+    fun `does not show a Wanted label when the album is not wanted`() {
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
                 onToggleOwned = {}
             )
         }
-        composeTestRule.onNodeWithText("Want").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Wanted").assertDoesNotExist()
     }
 
     @Test
@@ -262,5 +262,61 @@ class AlbumRowTest {
         }
 
         composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a wanted album has no Want pill, because there is nothing more to want`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = true),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithText("+ Want").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a wanted album can still be marked as owned from its row`() {
+        var ownedToggled = false
+
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = true),
+                onToggleOwned = { ownedToggled = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_toggle").assertTextEquals("+ Owned")
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
+
+        assertTrue(ownedToggled)
+    }
+
+    @Test
+    fun `an album that is neither owned nor wanted still offers both pills`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = false, wanted = false),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_toggle").assertExists()
+        composeTestRule.onNodeWithTag("wanted_toggle").assertExists()
+    }
+
+    @Test
+    fun `an album that is owned never says Wanted, even if an older row still has both flags`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = true, wanted = true),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Wanted").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Owned").assertExists()
     }
 }
