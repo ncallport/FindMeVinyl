@@ -388,4 +388,131 @@ class ShopSearchRouteTest {
         onNodeWithText("Near Me Records").assertExists()
         assertEquals(1, nearbySearches)
     }
+
+    // Public holidays for the opening hours.
+
+    private val england = com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-ENG")
+    private val scotland = com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-SCT")
+
+    private fun resultIn(region: com.nickallport.findmevinyl.holidays.HolidayRegion?) = oneShop.copy(
+        shops = listOf(
+            Shop("1", "Sister Ray", ShopCategory.RECORD_SHOP, 51.51, -0.13, "Mo-Su 00:00-24:00; PH off")
+        ),
+        region = region
+    )
+
+    @Test
+    fun `looks up the holidays of the region the shops are in`() {
+        val asked = mutableListOf<com.nickallport.findmevinyl.holidays.HolidayRegion>()
+
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england) },
+                cache = triedCache(),
+                loadPublicHolidays = { region -> asked.add(region); emptySet() }
+            )
+        }
+        searchFor("London")
+
+        assertEquals(listOf(england), asked)
+    }
+
+    @Test
+    fun `follows the public holiday hours on a public holiday`() {
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england) },
+                cache = triedCache(),
+                loadPublicHolidays = { setOf(java.time.LocalDate.now()) }
+            )
+        }
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("(public holiday today)", substring = true).assertExists()
+    }
+
+    @Test
+    fun `drops the note about holidays once the holidays are known`() {
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england) },
+                cache = triedCache(),
+                loadPublicHolidays = { emptySet() }
+            )
+        }
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Open now").assertExists()
+    }
+
+    @Test
+    fun `keeps the note when the holidays could not be found`() {
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england) },
+                cache = triedCache(),
+                loadPublicHolidays = { null }
+            )
+        }
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Open now (public holidays may differ)").assertExists()
+    }
+
+    @Test
+    fun `keeps the note when the region of the shops is not known, and asks nobody`() {
+        var asked = 0
+
+        show {
+            ShopSearchRoute(
+                search = { resultIn(null) },
+                cache = triedCache(),
+                loadPublicHolidays = { asked++; emptySet() }
+            )
+        }
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Open now (public holidays may differ)").assertExists()
+        assertEquals(0, asked)
+    }
+
+    @Test
+    fun `asks again when another place with another region is chosen`() {
+        val asked = mutableListOf<com.nickallport.findmevinyl.holidays.HolidayRegion>()
+        val edinburgh = PlaceCandidate("Edinburgh, Scotland", 55.95, -3.19, scotland)
+
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england).copy(otherPlaces = listOf(edinburgh)) },
+                searchPlace = { _, _ -> resultIn(scotland) },
+                cache = triedCache(),
+                loadPublicHolidays = { region -> asked.add(region); emptySet() }
+            )
+        }
+        searchFor("London")
+        composeTestRule.onNodeWithTag("other_places_toggle").performClick()
+        composeTestRule.onNodeWithText("Edinburgh, Scotland").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf(england, scotland), asked)
+    }
+
+    @Test
+    fun `the place shown before is kept with its region among the other places`() {
+        val others = mutableListOf<List<PlaceCandidate>>()
+
+        show {
+            ShopSearchRoute(
+                search = { resultIn(england).copy(otherPlaces = listOf(wales)) },
+                searchPlace = { _, rest -> others.add(rest); resultIn(england) },
+                cache = triedCache()
+            )
+        }
+        searchFor("London")
+        composeTestRule.onNodeWithTag("other_places_toggle").performClick()
+        composeTestRule.onNodeWithText(wales.name).performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(PlaceCandidate("London, UK", 51.5074, -0.1278, england), others.single().first())
+    }
 }

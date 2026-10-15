@@ -21,6 +21,16 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/** Adds a table for the public holidays of countries. It starts empty and nothing that was stored changes. */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `public_holidays` (`country` TEXT NOT NULL, `year` INTEGER NOT NULL, " +
+                "`json` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`country`, `year`))"
+        )
+    }
+}
+
 /**
  * Adds the user's own order: a position for each favourite artist and a want position for each album.
  * Every row gets 0, which means "no order chosen yet", and the lists keep their old order (artists by

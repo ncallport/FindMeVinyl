@@ -93,7 +93,7 @@ class ShopSearchViewModelTest {
 
         val geocodeRequest = server.takeRequest()
         val overpassRequest = server.takeRequest()
-        assertEquals("/search?q=London&format=json&limit=5", geocodeRequest.path)
+        assertEquals("/search?q=London&format=json&limit=5&addressdetails=1", geocodeRequest.path)
         assertEquals("POST", overpassRequest.method)
         val body = overpassRequest.body.readUtf8()
         assertTrue(body.contains("51.5074"))
@@ -229,7 +229,7 @@ class ShopSearchViewModelTest {
         assertEquals("Leiria, Leiria, Portugal", (state as ShopSearchUiState.Success).placeName)
         assertEquals("POST", server.takeRequest().method)
         assertEquals(
-            "/reverse?lat=51.5074&lon=-0.1278&format=json&zoom=10",
+            "/reverse?lat=51.5074&lon=-0.1278&format=json&zoom=10&addressdetails=1",
             server.takeRequest().path
         )
     }
@@ -484,5 +484,119 @@ class ShopSearchViewModelTest {
             listOf(PlaceCandidate("Beta, England, United Kingdom", 51.1, -2.0)),
             (state as ShopSearchUiState.Success).otherPlaces
         )
+    }
+
+    // Where the shops are, for public holidays.
+
+    private fun address(country: String?, subdivision: String?) =
+        """ "address": { ${listOfNotNull(
+            subdivision?.let { "\"ISO3166-2-lvl4\": \"$it\"" },
+            country?.let { "\"country_code\": \"$it\"" }
+        ).joinToString(", ")} } """
+
+    private fun enqueueSearchAndShops(search: String) {
+        server.enqueue(MockResponse().setBody(search))
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+    }
+
+    @Test
+    fun `a town search says which country and region the shops are in`() = runBlocking {
+        enqueueSearchAndShops(
+            """[ { "lat": "55.95", "lon": "-3.19", "display_name": "Edinburgh, Scotland", ${address("gb", "GB-SCT")} } ]"""
+        )
+
+        val state = viewModel.searchTown("Edinburgh") as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-SCT"), state.region)
+    }
+
+    @Test
+    fun `a country with no region is still a region of its own`() = runBlocking {
+        enqueueSearchAndShops(
+            """[ { "lat": "48.8", "lon": "2.35", "display_name": "Paris", ${address("fr", null)} } ]"""
+        )
+
+        val state = viewModel.searchTown("Paris") as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("FR", null), state.region)
+    }
+
+    @Test
+    fun `a town search with no address in the answer has no region`() = runBlocking {
+        enqueueSearchAndShops(londonResponse)
+
+        assertNull((viewModel.searchTown("London") as ShopSearchUiState.Success).region)
+    }
+
+    @Test
+    fun `the region is the first match, which is the place whose shops are shown`() = runBlocking {
+        enqueueSearchAndShops(
+            """[
+                { "lat": "51.5842", "lon": "-2.9977", "display_name": "Newport, Wales, United Kingdom", ${address("gb", "GB-WLS")} },
+                { "lat": "39.1", "lon": "-84.45", "display_name": "Newport, Kentucky, United States", ${address("us", "US-KY")} }
+            ]"""
+        )
+
+        val state = viewModel.searchTown("Newport") as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-WLS"), state.region)
+    }
+
+    @Test
+    fun `other places carry their own region, so choosing one searches with the right holidays`() = runBlocking {
+        enqueueSearchAndShops(
+            """[
+                { "lat": "51.5842", "lon": "-2.9977", "display_name": "Newport, Wales, United Kingdom", ${address("gb", "GB-WLS")} },
+                { "lat": "39.1", "lon": "-84.45", "display_name": "Newport, Kentucky, United States", ${address("us", "US-KY")} }
+            ]"""
+        )
+
+        val state = viewModel.searchTown("Newport") as ShopSearchUiState.Success
+
+        assertEquals(
+            listOf(
+                PlaceCandidate(
+                    "Newport, Kentucky, United States", 39.1, -84.45,
+                    com.nickallport.findmevinyl.holidays.HolidayRegion("US", "US-KY")
+                )
+            ),
+            state.otherPlaces
+        )
+    }
+
+    @Test
+    fun `searching a chosen place says its region`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        val place = PlaceCandidate(
+            "Newport, Kentucky, United States", 39.1, -84.45,
+            com.nickallport.findmevinyl.holidays.HolidayRegion("US", "US-KY")
+        )
+
+        val state = viewModel.searchPlace(place) as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("US", "US-KY"), state.region)
+    }
+
+    @Test
+    fun `a search around a position says the region of that position`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        server.enqueue(
+            MockResponse().setBody("""{ "display_name": "Westminster", ${address("gb", "GB-ENG")} }""")
+        )
+
+        val state = viewModel.searchAround(latitude = 51.5074, longitude = -0.1278) as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-ENG"), state.region)
+    }
+
+    @Test
+    fun `a search around a position has no region when the place lookup fails, and still finds shops`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val state = viewModel.searchAround(latitude = 51.5074, longitude = -0.1278) as ShopSearchUiState.Success
+
+        assertNull(state.region)
+        assertEquals(2, state.shops.size)
     }
 }

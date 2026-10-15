@@ -155,4 +155,41 @@ class ShopRowTest {
         assertFalse(clicked)
         composeTestRule.onNodeWithText("Mo-Sa 10:00-18:00").assertExists()
     }
+
+    // Public holidays.
+
+    @Test
+    fun `says the shop is closed on a public holiday when its hours say so`() {
+        composeTestRule.setContent {
+            ShopRow(
+                shopWithHours("Mo-Fr 09:00-17:00; PH off"),
+                now = at("12:00"),
+                isPublicHoliday = { it == monday }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Closed, opens Tue 09:00 (public holiday today)").assertExists()
+    }
+
+    @Test
+    fun `leaves out the note about holidays when the holidays are known and it is not one`() {
+        composeTestRule.setContent {
+            ShopRow(
+                shopWithHours("Mo-Fr 09:00-17:00; PH off"),
+                now = at("12:00"),
+                isPublicHoliday = { false }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Open now, closes 17:00").assertExists()
+    }
+
+    @Test
+    fun `keeps the note that holidays may differ when the holidays are not known`() {
+        composeTestRule.setContent {
+            ShopRow(shopWithHours("Mo-Fr 09:00-17:00; PH off"), now = at("12:00"))
+        }
+
+        composeTestRule.onNodeWithText("Open now, closes 17:00 (public holidays may differ)").assertExists()
+    }
 }

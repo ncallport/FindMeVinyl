@@ -22,11 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.SearchResultCache
+import com.nickallport.findmevinyl.holidays.HolidayRegion
 import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
 import com.nickallport.findmevinyl.ui.brand.Glyphs
 import com.nickallport.findmevinyl.ui.common.SearchField
+import java.time.LocalDate
 import kotlinx.coroutines.launch
 
 private sealed class RouteState {
@@ -43,6 +45,10 @@ private sealed class RouteState {
  * first time it opens with nothing kept, it searches near you by itself, once. That is one request
  * to a shared public server, and [SearchResultCache.nearbyTried] stops it repeating. After that,
  * searching again is up to the user.
+ *
+ * With [loadPublicHolidays], the public holidays of the region the shown shops are in are looked up,
+ * so opening hours can follow their public holiday rules. Until they are known, and when they cannot be
+ * found or the region is not known, hours that mention holidays say that holidays may differ.
  */
 @Composable
 fun ShopSearchRoute(
@@ -51,13 +57,21 @@ fun ShopSearchRoute(
     searchNearby: (suspend () -> ShopSearchUiState)? = null,
     onShopSelected: ((Shop) -> Unit)? = null,
     searchPlace: (suspend (PlaceCandidate, List<PlaceCandidate>) -> ShopSearchUiState)? = null,
-    cache: SearchResultCache = remember { SearchResultCache() }
+    cache: SearchResultCache = remember { SearchResultCache() },
+    loadPublicHolidays: (suspend (HolidayRegion) -> Set<LocalDate>?)? = null
 ) {
     var town by rememberSaveable { mutableStateOf("") }
     var routeState by remember {
         mutableStateOf<RouteState>(cache.shop?.let { RouteState.Result(it) } ?: RouteState.Idle)
     }
     val coroutineScope = rememberCoroutineScope()
+
+    val shownRegion = ((routeState as? RouteState.Result)?.state as? ShopSearchUiState.Success)?.region
+    var holidayDates by remember(shownRegion) { mutableStateOf<Set<LocalDate>?>(null) }
+    LaunchedEffect(shownRegion) {
+        holidayDates = if (shownRegion != null && loadPublicHolidays != null) loadPublicHolidays(shownRegion) else null
+    }
+    val isPublicHoliday: ((LocalDate) -> Boolean)? = holidayDates?.let { dates -> { date -> date in dates } }
 
     fun showResult(state: ShopSearchUiState) {
         cache.shop = state
@@ -120,7 +134,8 @@ fun ShopSearchRoute(
                                 val previous = PlaceCandidate(
                                     shown.placeName,
                                     shown.centerLatitude,
-                                    shown.centerLongitude
+                                    shown.centerLongitude,
+                                    shown.region
                                 )
                                 val others = listOf(previous) + shown.otherPlaces.filter { it != picked }
                                 routeState = RouteState.Loading
@@ -135,7 +150,8 @@ fun ShopSearchRoute(
                     ShopSearchResultsScreen(
                         state = shown,
                         onShopSelected = onShopSelected,
-                        onPlaceSelected = onPlaceSelected
+                        onPlaceSelected = onPlaceSelected,
+                        isPublicHoliday = isPublicHoliday
                     )
                 }
             }

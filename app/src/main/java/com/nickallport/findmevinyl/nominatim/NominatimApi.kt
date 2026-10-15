@@ -11,6 +11,7 @@ interface NominatimApi {
         @Query("q") query: String,
         @Query("format") format: String = "json",
         @Query("limit") limit: Int = 1,
+        @Query("addressdetails") addressDetails: Int = 1,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): List<NominatimResultDto>
 
@@ -20,6 +21,7 @@ interface NominatimApi {
         @Query("lon") longitude: Double,
         @Query("format") format: String = "json",
         @Query("zoom") zoom: Int = 10,
+        @Query("addressdetails") addressDetails: Int = 1,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): NominatimReverseDto
 }

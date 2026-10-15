@@ -314,4 +314,126 @@ class OpeningHoursTest {
             OpeningHours.parse("Mo-Sa 10:00-18:00")!!.mentionsPublicHolidays
         )
     }
+
+    // Public holidays. A moment is on a public holiday when the caller says so.
+
+    private fun statusOnHoliday(hours: String, moment: LocalDateTime): OpeningStatus =
+        OpeningHours.parse(hours)!!.statusAt(moment, isPublicHoliday = true)
+
+    @Test
+    fun `a PH off rule closes the shop on a public holiday and not on other days`() {
+        val hours = "Mo-Fr 09:00-17:00; PH off"
+
+        assertEquals(OpeningStatus.Closed, statusOnHoliday(hours, at(monday, "12:00")))
+        assertEquals(OpeningStatus.Open(LocalTime.of(17, 0)), status(hours, at(monday, "12:00")))
+    }
+
+    @Test
+    fun `a PH rule with hours replaces the usual hours on a public holiday`() {
+        val hours = "Mo-Sa 10:00-18:00; PH 11:00-16:00"
+
+        assertEquals(OpeningStatus.Closed, statusOnHoliday(hours, at(monday, "10:30")))
+        assertEquals(OpeningStatus.Open(LocalTime.of(16, 0)), statusOnHoliday(hours, at(monday, "12:00")))
+        assertEquals(OpeningStatus.Open(LocalTime.of(18, 0)), status(hours, at(monday, "10:30")))
+    }
+
+    @Test
+    fun `a PH rule applies on a public holiday that falls on a day the shop is normally shut`() {
+        val hours = "Mo-Sa 10:00-18:00; PH 11:00-16:00"
+
+        assertEquals(OpeningStatus.Open(LocalTime.of(16, 0)), statusOnHoliday(hours, at(sunday, "12:00")))
+        assertEquals(OpeningStatus.Closed, status(hours, at(sunday, "12:00")))
+    }
+
+    @Test
+    fun `PH as a day in the list opens the shop on public holidays with those hours`() {
+        val hours = "Mo-Sa,PH 10:00-18:00"
+
+        assertEquals(OpeningStatus.Open(LocalTime.of(18, 0)), statusOnHoliday(hours, at(sunday, "12:00")))
+        assertEquals(OpeningStatus.Closed, status(hours, at(sunday, "12:00")))
+    }
+
+    @Test
+    fun `an additional PH rule adds its hours to the usual ones`() {
+        val hours = "Mo-Sa 11:00-19:30, Su,PH 15:00-19:30"
+
+        // A public holiday on a Monday: the usual 11:00 start still applies, and 15:00 adds nothing new.
+        assertEquals(OpeningStatus.Open(LocalTime.of(19, 30)), statusOnHoliday(hours, at(monday, "12:00")))
+        // A public holiday on a Sunday: only the PH hours exist.
+        assertEquals(OpeningStatus.Closed, statusOnHoliday(hours, at(sunday, "12:00")))
+        assertEquals(OpeningStatus.Open(LocalTime.of(19, 30)), statusOnHoliday(hours, at(sunday, "16:00")))
+    }
+
+    @Test
+    fun `a rule that comes later wins on a public holiday that falls on a day it names`() {
+        val hours = "PH off; Mo-Fr 09:00-17:00"
+
+        assertEquals(OpeningStatus.Open(LocalTime.of(17, 0)), statusOnHoliday(hours, at(monday, "12:00")))
+    }
+
+    @Test
+    fun `a PH off that comes after other rules wins on every public holiday`() {
+        val hours = "Mo-Su 10:00-18:00; Mo 09:00-12:00; PH off"
+
+        assertEquals(OpeningStatus.Closed, statusOnHoliday(hours, at(monday, "10:00")))
+        assertEquals(OpeningStatus.Closed, statusOnHoliday(hours, at(tuesday, "10:00")))
+    }
+
+    @Test
+    fun `a PH rule on its own opens the shop only on public holidays`() {
+        val hours = "PH 10:00-14:00"
+
+        assertEquals(OpeningStatus.Open(LocalTime.of(14, 0)), statusOnHoliday(hours, at(wednesday, "11:00")))
+        assertEquals(OpeningStatus.Closed, status(hours, at(wednesday, "11:00")))
+    }
+
+    @Test
+    fun `hours that do not mention public holidays are the same on a public holiday`() {
+        assertEquals(
+            OpeningStatus.Open(LocalTime.of(18, 0)),
+            statusOnHoliday("Mo-Sa 10:00-18:00", at(monday, "12:00"))
+        )
+        assertEquals(OpeningStatus.Open(null), statusOnHoliday("24/7", at(monday, "12:00")))
+    }
+
+    @Test
+    fun `the next opening skips a day that is a public holiday with the shop off`() {
+        val hours = "Mo-Fr 09:00-17:00; PH off"
+        val holidays = setOf(monday.plusDays(7))
+
+        // Friday evening, and the Monday after is a public holiday.
+        val friday = monday.plusDays(4)
+        assertEquals(
+            at(tuesday.plusDays(7), "09:00"),
+            OpeningHours.parse(hours)!!.nextOpening(at(friday, "18:00")) { it in holidays }
+        )
+    }
+
+    @Test
+    fun `the next opening on a public holiday uses the public holiday hours`() {
+        val hours = "Mo-Sa 10:00-18:00; PH 11:00-16:00"
+
+        assertEquals(
+            at(monday, "11:00"),
+            OpeningHours.parse(hours)!!.nextOpening(at(monday, "08:00")) { it == monday }
+        )
+    }
+
+    @Test
+    fun `the next opening is the same as before when there are no public holidays`() {
+        assertEquals(
+            at(tuesday, "09:00"),
+            OpeningHours.parse("Mo-Fr 09:00-17:00; PH off")!!.nextOpening(at(monday, "18:00"))
+        )
+    }
+
+    @Test
+    fun `the next opening finds nothing when every day is a public holiday with the shop off`() {
+        assertNull(OpeningHours.parse("Mo-Fr 09:00-17:00; PH off")!!.nextOpening(at(monday, "18:00")) { true })
+    }
+
+    @Test
+    fun `a PH off rule that is added to other hours is not allowed`() {
+        assertNull(OpeningHours.parse("Mo-Fr 09:00-17:00, PH off"))
+    }
 }

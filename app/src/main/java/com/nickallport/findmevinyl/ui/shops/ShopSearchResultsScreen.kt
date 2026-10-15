@@ -18,13 +18,15 @@ import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
+import java.time.LocalDate
 
 @Composable
 fun ShopSearchResultsScreen(
     state: ShopSearchUiState,
     modifier: Modifier = Modifier,
     onShopSelected: ((Shop) -> Unit)? = null,
-    onPlaceSelected: ((PlaceCandidate) -> Unit)? = null
+    onPlaceSelected: ((PlaceCandidate) -> Unit)? = null,
+    isPublicHoliday: ((LocalDate) -> Boolean)? = null
 ) {
     var othersExpanded by remember(state) { mutableStateOf(false) }
 
@@ -71,7 +73,8 @@ fun ShopSearchResultsScreen(
                         fromLat = state.centerLatitude,
                         fromLon = state.centerLongitude,
                         modifier = Modifier.weight(1f),
-                        onShopSelected = onShopSelected
+                        onShopSelected = onShopSelected,
+                        isPublicHoliday = isPublicHoliday
                     )
                 }
             }

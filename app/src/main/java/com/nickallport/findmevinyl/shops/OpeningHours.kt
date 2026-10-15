@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.shops
 
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -9,14 +10,27 @@ sealed class OpeningStatus {
     object Closed : OpeningStatus()
 }
 
+/**
+ * A reading of the OpenStreetMap opening hours syntax (a subset, see [parse]).
+ *
+ * [schedule] is the usual hours of each weekday. [holidayHours] is what applies when a public holiday
+ * falls on that weekday, where the rules name PH. A weekday with no entry has no public holiday rule
+ * that is still in force, so its usual hours apply. An empty list means shut. Rules are read in order,
+ * and a later rule overrides an earlier one on the days it matches, public holidays included.
+ */
 class OpeningHours private constructor(
     private val schedule: Map<DayOfWeek, List<MinuteRange>>,
+    private val holidayHours: Map<DayOfWeek, List<MinuteRange>>,
     val mentionsPublicHolidays: Boolean
 ) {
     private data class MinuteRange(val start: Int, val end: Int)
 
-    fun statusAt(moment: LocalDateTime): OpeningStatus {
-        val ranges = schedule[moment.dayOfWeek] ?: return OpeningStatus.Closed
+    private fun rangesOn(day: DayOfWeek, isPublicHoliday: Boolean): List<MinuteRange>? =
+        (if (isPublicHoliday) holidayHours[day] else null) ?: schedule[day]
+
+    /** [isPublicHoliday]: the moment is on a public holiday. Hours that do not name PH are the same on one. */
+    fun statusAt(moment: LocalDateTime, isPublicHoliday: Boolean = false): OpeningStatus {
+        val ranges = rangesOn(moment.dayOfWeek, isPublicHoliday) ?: return OpeningStatus.Closed
 
         val minutes = moment.hour * 60 + moment.minute
         val openRange = ranges.firstOrNull { minutes >= it.start && minutes < it.end }
@@ -30,12 +44,13 @@ class OpeningHours private constructor(
         return OpeningStatus.Open(closesAt)
     }
 
-    fun nextOpening(moment: LocalDateTime): LocalDateTime? {
+    /** [isPublicHoliday] says whether a date is a public holiday. With none given, none are. */
+    fun nextOpening(moment: LocalDateTime, isPublicHoliday: (LocalDate) -> Boolean = { false }): LocalDateTime? {
         val minutesNow = moment.hour * 60 + moment.minute
 
         for (offset in 0..7) {
             val date = moment.toLocalDate().plusDays(offset.toLong())
-            val ranges = schedule[date.dayOfWeek] ?: continue
+            val ranges = rangesOn(date.dayOfWeek, isPublicHoliday(date)) ?: continue
 
             val start = ranges
                 .map { it.start }
@@ -59,53 +74,79 @@ class OpeningHours private constructor(
             if (rules.isEmpty()) return null
 
             val schedule = mutableMapOf<DayOfWeek, List<MinuteRange>>()
+            val holidayHours = mutableMapOf<DayOfWeek, List<MinuteRange>>()
             for (rule in rules) {
                 val parts = rule.split(ADDITIONAL_RULE_SPLIT)
-                if (!applyRule(parts.first(), schedule, additive = false)) return null
+                if (!applyRule(parts.first(), schedule, holidayHours, additive = false)) return null
                 for (extra in parts.drop(1)) {
-                    if (!applyRule(extra, schedule, additive = true)) return null
+                    if (!applyRule(extra, schedule, holidayHours, additive = true)) return null
                 }
             }
-            return OpeningHours(schedule, PUBLIC_HOLIDAY.containsMatchIn(text))
+            return OpeningHours(schedule, holidayHours, PUBLIC_HOLIDAY.containsMatchIn(text))
         }
+
+        // The days a rule names, and whether it also names public holidays (PH).
+        private data class Selector(val days: Set<DayOfWeek>, val publicHolidays: Boolean)
 
         private fun applyRule(
             rule: String,
             schedule: MutableMap<DayOfWeek, List<MinuteRange>>,
+            holidayHours: MutableMap<DayOfWeek, List<MinuteRange>>,
             additive: Boolean
         ): Boolean {
-            val (days, rest) = if (rule == "24/7") {
-                DayOfWeek.values().toSet() to "00:00-24:00"
+            val (selector, rest) = if (rule == "24/7") {
+                Selector(DayOfWeek.values().toSet(), publicHolidays = false) to "00:00-24:00"
             } else {
                 splitDaysAndRest(rule) ?: return false
             }
 
-            if (rest == "off") {
+            val ranges: List<MinuteRange> = if (rest == "off") {
                 if (additive) return false
-                days.forEach { schedule.remove(it) }
-                return true
+                emptyList()
+            } else {
+                parseRanges(rest) ?: return false
             }
 
-            val ranges = parseRanges(rest) ?: return false
-            days.forEach { day ->
-                schedule[day] = if (additive) (schedule[day] ?: emptyList()) + ranges else ranges
+            // What a public holiday gets from this rule is worked out from the hours before the rule.
+            val before = DayOfWeek.values().associateWith { holidayHours[it] ?: schedule[it] ?: emptyList() }
+
+            selector.days.forEach { day ->
+                if (additive) {
+                    schedule[day] = (schedule[day] ?: emptyList()) + ranges
+                    // A public holiday on this weekday is a day the rule names too.
+                    holidayHours[day]?.let { holidayHours[day] = it + ranges }
+                } else {
+                    if (ranges.isEmpty()) schedule.remove(day) else schedule[day] = ranges
+                    // A rule that names the weekday overrides an earlier rule for its public holidays.
+                    holidayHours.remove(day)
+                }
+            }
+
+            if (selector.publicHolidays) {
+                DayOfWeek.values().forEach { day ->
+                    holidayHours[day] = if (additive) before.getValue(day) + ranges else ranges
+                }
             }
             return true
         }
 
-        private fun splitDaysAndRest(rule: String): Pair<Set<DayOfWeek>, String>? {
+        private fun splitDaysAndRest(rule: String): Pair<Selector, String>? {
             val parts = rule.split(" ", limit = 2)
             val hasDays = parts.size == 2 && parts[0].first().isLetter()
-            if (!hasDays) return DayOfWeek.values().toSet() to rule
+            if (!hasDays) return Selector(DayOfWeek.values().toSet(), publicHolidays = false) to rule
 
-            val days = parseDays(parts[0]) ?: return null
-            return days to parts[1].trim()
+            val selector = parseDays(parts[0]) ?: return null
+            return selector to parts[1].trim()
         }
 
-        private fun parseDays(text: String): Set<DayOfWeek>? {
+        private fun parseDays(text: String): Selector? {
             val result = mutableSetOf<DayOfWeek>()
+            var publicHolidays = false
             for (part in text.split(",")) {
-                if (part == "PH") continue
+                if (part == "PH") {
+                    publicHolidays = true
+                    continue
+                }
 
                 val bounds = part.split("-")
                 when (bounds.size) {
@@ -126,7 +167,7 @@ class OpeningHours private constructor(
                     else -> return null
                 }
             }
-            return result
+            return Selector(result, publicHolidays)
         }
 
         private fun dayIndex(code: String): Int? {

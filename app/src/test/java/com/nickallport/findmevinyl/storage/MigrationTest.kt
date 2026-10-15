@@ -166,9 +166,45 @@ class MigrationTest {
         helper.close()
     }
 
+    // Version 5, from schemas/.../5.json: everything of version 4 plus the priority columns.
+    private fun createVersion5Database() {
+        val helper = object : SQLiteOpenHelper(context, dbName, null, 5) {
+            override fun onCreate(db: SQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `albums` (`id` TEXT NOT NULL, `artistId` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, `category` TEXT NOT NULL, `firstReleaseDate` TEXT, " +
+                        "`owned` INTEGER NOT NULL, `wanted` INTEGER NOT NULL, `formats` TEXT, " +
+                        "`formatsCheckedAt` INTEGER, `wantPosition` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favourite_artists` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                        "`type` TEXT, `country` TEXT, `position` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `artist_images` (`artistId` TEXT NOT NULL, `imageUrl` TEXT, " +
+                        "`checkedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `album_details` (`albumId` TEXT NOT NULL, `json` TEXT NOT NULL, " +
+                        "`fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`albumId`))"
+                )
+            }
+
+            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        helper.writableDatabase.use { db ->
+            db.execSQL("INSERT INTO albums VALUES ('1', 'artist-1', 'Foxtrot', 'STUDIO_ALBUM', '1972-10-06', 1, 0, 'CD', 1700000000000, 3)")
+            db.execSQL("INSERT INTO albums VALUES ('2', 'artist-1', 'Trespass', 'STUDIO_ALBUM', NULL, 0, 1, NULL, NULL, 1)")
+            db.execSQL("INSERT INTO favourite_artists VALUES ('artist-1', 'Genesis', 'Group', 'GB', 2)")
+            db.execSQL("INSERT INTO artist_images VALUES ('artist-1', 'https://commons.test/a.jpg', 99)")
+            db.execSQL("INSERT INTO album_details VALUES ('1', '{}', 5)")
+        }
+        helper.close()
+    }
+
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .allowMainThreadQueries()
             .build()
 
@@ -303,6 +339,38 @@ class MigrationTest {
 
         assertEquals(3, database.artistDao().getById("artist-2")?.position)
         assertEquals(5, database.albumDao().getById("2")?.wantPosition)
+        database.close()
+    }
+
+    @Test
+    fun `a version 5 database keeps everything when it gets the public holidays table`() = runBlocking {
+        createVersion5Database()
+        val database = openMigrated()
+
+        val albums = database.albumDao().getAlbumsForArtist("artist-1").sortedBy { it.id }
+
+        assertEquals(listOf("Foxtrot", "Trespass"), albums.map { it.title })
+        assertTrue(albums[0].owned)
+        assertTrue(albums[1].wanted)
+        assertEquals(listOf(3, 1), albums.map { it.wantPosition })
+        assertEquals(2, database.artistDao().getById("artist-1")?.position)
+        assertEquals("https://commons.test/a.jpg", database.artistImageDao().get("artist-1")?.imageUrl)
+        assertEquals("{}", database.albumDetailsDao().get("1")?.json)
+        database.close()
+    }
+
+    @Test
+    fun `a version 5 database can store public holidays after the upgrade`() = runBlocking {
+        createVersion5Database()
+        val database = openMigrated()
+
+        assertNull(database.publicHolidaysDao().get("GB", 2026))
+        database.publicHolidaysDao().save(PublicHolidaysEntity("GB", 2026, "[]", 7))
+        database.publicHolidaysDao().save(PublicHolidaysEntity("GB", 2027, "[1]", 8))
+
+        assertEquals("[]", database.publicHolidaysDao().get("GB", 2026)?.json)
+        assertEquals("[1]", database.publicHolidaysDao().get("GB", 2027)?.json)
+        assertNull(database.publicHolidaysDao().get("DE", 2026))
         database.close()
     }
 }
