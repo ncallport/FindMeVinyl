@@ -67,9 +67,9 @@ class PressingChooserTest {
     }
 
     @Test
-    fun `a release with only a year comes before one from later that year`() {
+    fun `a release dated to the month comes before one with only the year`() {
         assertEquals(
-            "year",
+            "month",
             choose(release("month", "1970-10", formats = arrayOf("12\" Vinyl")), release("year", "1970", formats = arrayOf("12\" Vinyl")))
         )
     }

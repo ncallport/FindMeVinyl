@@ -4,12 +4,14 @@ import com.google.gson.Gson
 
 /**
  * The stored form of [AlbumDetails]. Reading is forgiving about fields (missing ones are empty, unknown
- * ones are ignored), but a row carries the version of its layout. Rows written before pressings and
- * ratings were kept have none, and a row from a newer version of the app is not understood, so both read
- * as missing and the page fetches the details again. Text that is not details at all gives null too.
+ * ones are ignored), but a row carries the version of its layout. A row with no version (written before
+ * pressings and ratings were kept) or an older one (2: pressings sorted with a bare year before a month
+ * of the same year) is out of date, and a row from a newer version of the app is not understood, so all
+ * of them read as missing and the page fetches the details again. Raise the version when what is stored
+ * changes in a way old rows cannot be read as. Text that is not details at all gives null too.
  */
 object AlbumDetailsJson {
-    private const val VERSION = 2
+    private const val VERSION = 3
     private val gson = Gson()
 
     // Everything nullable, because Gson puts null in a field the JSON does not have, whatever its Kotlin type.

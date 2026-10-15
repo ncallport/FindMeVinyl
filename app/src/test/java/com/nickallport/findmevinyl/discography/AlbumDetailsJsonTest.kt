@@ -38,7 +38,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `reads a stored row that has no genres or discs as empty lists`() {
-        val old = """{ "version": 2, "releaseDate": "1970", "label": "Charisma" }"""
+        val old = """{ "version": 3, "releaseDate": "1970", "label": "Charisma" }"""
 
         val read = AlbumDetailsJson.decode(old)!!
 
@@ -58,13 +58,18 @@ class AlbumDetailsJsonTest {
     }
 
     @Test
+    fun `a row stored with pressings in the old date order reads as missing, so they are sorted again`() {
+        assertNull(AlbumDetailsJson.decode("""{ "version": 2, "pressings": [ { "releaseId": "r1" } ] }"""))
+    }
+
+    @Test
     fun `a row from a newer version of the app also reads as missing`() {
-        assertNull(AlbumDetailsJson.decode("""{ "version": 3, "label": "Charisma" }"""))
+        assertNull(AlbumDetailsJson.decode("""{ "version": 4, "label": "Charisma" }"""))
     }
 
     @Test
     fun `leaves out a stored pressing that has no release id and a rating that makes no sense`() {
-        val odd = """{ "version": 2, "pressings": [ { "country": "GB" }, null, { "releaseId": "r1" } ],
+        val odd = """{ "version": 3, "pressings": [ { "country": "GB" }, null, { "releaseId": "r1" } ],
                        "rating": { "value": 0, "votes": 0 } }"""
 
         val read = AlbumDetailsJson.decode(odd)!!
@@ -75,7 +80,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `reads a disc that has no tracks and a track that has no title`() {
-        val odd = """{ "version": 2, "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
+        val odd = """{ "version": 3, "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
 
         val read = AlbumDetailsJson.decode(odd)!!
 
@@ -85,7 +90,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `ignores fields it does not know about`() {
-        val newer = """{ "version": 2, "label": "Charisma", "somethingNew": [1, 2, 3] }"""
+        val newer = """{ "version": 3, "label": "Charisma", "somethingNew": [1, 2, 3] }"""
 
         assertEquals("Charisma", AlbumDetailsJson.decode(newer)?.label)
     }

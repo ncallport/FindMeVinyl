@@ -78,7 +78,7 @@ class DiscographyViewModel(
                 albums
                     // Albums saved before the mapper dropped empty dates still have "", so both mean undated.
                     .sortedWith(
-                        compareBy<AlbumEntity, String?>(nullsLast()) { it.firstReleaseDate?.takeIf { d -> d.isNotEmpty() } }
+                        compareBy<AlbumEntity, String?>(nullsLast()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                             .thenBy { it.title }
                     )
                     .map { toUiModel(it, category, now) }
