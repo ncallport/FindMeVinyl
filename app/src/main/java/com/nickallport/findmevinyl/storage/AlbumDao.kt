@@ -27,6 +27,10 @@ interface AlbumDao {
     @Query("UPDATE albums SET formats = :formats, formatsCheckedAt = :checkedAt WHERE id = :albumId")
     suspend fun setFormats(albumId: String, formats: String, checkedAt: Long): Int
 
+    /** Saves what a look at the album's releases found: its formats and its statuses, together. */
+    @Query("UPDATE albums SET formats = :formats, statuses = :statuses, formatsCheckedAt = :checkedAt WHERE id = :albumId")
+    suspend fun setChecked(albumId: String, formats: String, statuses: String, checkedAt: Long): Int
+
     @Query("UPDATE albums SET owned = :owned WHERE id = :albumId")
     suspend fun setOwned(albumId: String, owned: Boolean): Int
 

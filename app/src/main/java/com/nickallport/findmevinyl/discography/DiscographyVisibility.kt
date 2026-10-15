@@ -12,6 +12,10 @@ import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
  * 10" cannot. A hidden format is also taken out of the album's formats, so the row and the
  * format chips do not show it. An album whose formats are not known yet is shown, because nothing can
  * be said about it until it is looked up.
+ *
+ * Bootlegs, promos and unknown status work on the statuses of an album's releases. An album is hidden
+ * only when it has no official release and every one of its statuses is a hidden kind. Statuses that
+ * are not known yet, or not listed, leave it shown.
  */
 object DiscographyVisibility {
 
@@ -31,7 +35,7 @@ object DiscographyVisibility {
             for (album in albums) {
                 when {
                     album.owned || album.wanted -> kept.add(withDisplayFormats(album, settings))
-                    kindHidden(category, settings) || formatsHidden(album, settings) -> hidden++
+                    kindHidden(category, settings) || formatsHidden(album, settings) || statusHidden(album, settings) -> hidden++
                     else -> kept.add(withDisplayFormats(album, settings))
                 }
             }
@@ -58,6 +62,18 @@ object DiscographyVisibility {
         val formats = album.formats?.takeIf { it.isNotEmpty() } ?: return false
         val hidden = hiddenFormats(settings)
         return formats.all { it in hidden }
+    }
+
+    private fun statusHidden(album: AlbumUiModel, settings: Settings): Boolean {
+        val statuses = album.statuses?.takeIf { it.isNotEmpty() } ?: return false
+        if (ReleaseStatuses.OFFICIAL in statuses) return false
+        return statuses.all {
+            when (it) {
+                ReleaseStatuses.BOOTLEG -> settings.hideBootlegs
+                ReleaseStatuses.PROMOTION -> settings.hidePromos
+                else -> settings.hideUnknownStatus
+            }
+        }
     }
 
     private fun kindHidden(category: DiscographyCategory, settings: Settings): Boolean = when (category) {

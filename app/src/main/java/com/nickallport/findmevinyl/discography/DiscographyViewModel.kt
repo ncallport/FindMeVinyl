@@ -51,12 +51,14 @@ class DiscographyViewModel(
     private class FormatCheckProgress(val total: Int) {
         var nextOffset = 0
         val formatsByAlbum = mutableMapOf<String, MutableSet<String>>()
+        val statusesByAlbum = mutableMapOf<String, MutableSet<String>>()
 
         fun add(page: MusicBrainzArtistReleasesResponse, pageSize: Int) {
             for (release in page.releases.orEmpty()) {
                 val album = release.releaseGroup?.id ?: continue
                 val formats = formatsByAlbum.getOrPut(album) { mutableSetOf() }
                 release.media.orEmpty().mapNotNullTo(formats) { it.format }
+                statusesByAlbum.getOrPut(album) { mutableSetOf() }.add(ReleaseStatuses.token(release.status))
             }
             nextOffset += pageSize
         }
@@ -136,7 +138,8 @@ class DiscographyViewModel(
         var updated = 0
         for (album in albumDao.getAlbumsForArtist(artistId)) {
             val names = progress.formatsByAlbum[album.id] ?: continue
-            albumDao.setFormats(album.id, ReleaseFormats.encode(names), checkedAt)
+            val statuses = progress.statusesByAlbum[album.id].orEmpty()
+            albumDao.setChecked(album.id, ReleaseFormats.encode(names), ReleaseStatuses.encode(statuses), checkedAt)
             updated++
         }
         return updated
@@ -151,8 +154,9 @@ class DiscographyViewModel(
     suspend fun loadFormats(albumId: String): List<String>? {
         return try {
             val names = throttle.run {
-                val found = api.getReleasesForReleaseGroup(releaseGroupId = albumId).formatNames()
-                albumDao.setFormats(albumId, ReleaseFormats.encode(found), clock())
+                val releases = api.getReleasesForReleaseGroup(releaseGroupId = albumId)
+                val found = releases.formatNames()
+                albumDao.setChecked(albumId, ReleaseFormats.encode(found), ReleaseStatuses.encode(releases.statusTokens()), clock())
                 found
             }
             ReleaseFormats.labels(names, categoryOf(albumId))
@@ -200,7 +204,8 @@ class DiscographyViewModel(
         owned = album.owned,
         wanted = album.wanted,
         formats = album.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
-        formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false
+        formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false,
+        statuses = album.statuses?.let(ReleaseStatuses::decode)
     )
 
     /**

@@ -285,4 +285,79 @@ class DiscographyVisibilityTest {
     fun `display formats of an album with none are none`() {
         assertEquals(emptyList<String>(), DiscographyVisibility.displayFormats(emptyList(), Settings.ShowEverything))
     }
+
+    private fun withStatuses(id: String, statuses: List<String>?, owned: Boolean = false, wanted: Boolean = false) =
+        AlbumUiModel(id = id, title = "Album $id", owned = owned, wanted = wanted, statuses = statuses)
+
+    private val hideAllStatuses = Settings.ShowEverything.copy(hideBootlegs = true, hidePromos = true, hideUnknownStatus = true)
+
+    @Test
+    fun `an album with only bootleg releases is hidden when bootlegs are hidden`() {
+        val input = grouped(studio to listOf(withStatuses("1", listOf("Bootleg")), withStatuses("2", listOf("Official"))))
+
+        val result = DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hideBootlegs = true))
+
+        assertEquals(listOf("2"), ids(result, studio))
+        assertEquals(1, result.hiddenCount)
+    }
+
+    @Test
+    fun `an album with an official release is never hidden by status`() {
+        val input = grouped(studio to listOf(withStatuses("1", listOf("Bootleg", "Official", "Promotion"))))
+
+        val result = DiscographyVisibility.apply(input, hideAllStatuses)
+
+        assertEquals(listOf("1"), ids(result, studio))
+    }
+
+    @Test
+    fun `promo only and unknown status only albums follow their own settings`() {
+        val input = grouped(
+            studio to listOf(withStatuses("promo", listOf("Promotion")), withStatuses("odd", listOf("Other")))
+        )
+
+        assertEquals(listOf("odd"), ids(DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hidePromos = true)), studio))
+        assertEquals(listOf("promo"), ids(DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hideUnknownStatus = true)), studio))
+    }
+
+    @Test
+    fun `a mix of hidden kinds with no official release is hidden only when every kind is hidden`() {
+        val input = grouped(studio to listOf(withStatuses("1", listOf("Bootleg", "Promotion"))))
+
+        val bootlegsOnly = DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hideBootlegs = true))
+        val both = DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hideBootlegs = true, hidePromos = true))
+
+        assertEquals(listOf("1"), ids(bootlegsOnly, studio))
+        assertEquals(emptyList<String>(), ids(both, studio))
+    }
+
+    @Test
+    fun `statuses not looked up yet, or none listed, leave the album shown`() {
+        val input = grouped(studio to listOf(withStatuses("1", null), withStatuses("2", emptyList())))
+
+        val result = DiscographyVisibility.apply(input, hideAllStatuses)
+
+        assertEquals(listOf("1", "2"), ids(result, studio))
+    }
+
+    @Test
+    fun `an album you own or want is shown whatever its statuses`() {
+        val input = grouped(
+            studio to listOf(
+                withStatuses("1", listOf("Bootleg"), owned = true),
+                withStatuses("2", listOf("Bootleg"), wanted = true)
+            )
+        )
+
+        assertEquals(listOf("1", "2"), ids(DiscographyVisibility.apply(input, hideAllStatuses), studio))
+    }
+
+    @Test
+    fun `an album hidden by kind and by status is counted once`() {
+        val input = grouped(live to listOf(withStatuses("1", listOf("Bootleg"))))
+
+        val result = DiscographyVisibility.apply(input, hideAllStatuses.copy(hideLiveAlbums = true))
+
+        assertEquals(1, result.hiddenCount)
+    }
 }

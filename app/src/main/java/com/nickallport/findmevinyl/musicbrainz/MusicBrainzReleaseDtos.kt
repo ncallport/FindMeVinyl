@@ -12,6 +12,10 @@ data class MusicBrainzReleaseListResponse(
             .flatMap { it.media.orEmpty() }
             .mapNotNull { it.format }
             .distinct()
+
+    /** The status of each release once, as [com.nickallport.findmevinyl.discography.ReleaseStatuses] names them. */
+    fun statusTokens(): List<String> =
+        releases.orEmpty().map { com.nickallport.findmevinyl.discography.ReleaseStatuses.token(it.status) }.distinct()
 }
 
 /** One page of the releases of an artist (`release?artist=`), with the total over all pages. */
