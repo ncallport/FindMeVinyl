@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.shops
 
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
@@ -16,21 +17,36 @@ object OpeningHoursDescriber {
         DayOfWeek.SUNDAY to "Sun"
     )
 
-    fun describe(openingHours: String, now: LocalDateTime): String? {
+    /**
+     * [isPublicHoliday] says whether a date is a public holiday where the shop is. Without it the
+     * holidays are not known, so hours that mention them say that holidays may differ. With it, public
+     * holiday rules are followed, and a shop whose hours mention them says so on a public holiday.
+     */
+    fun describe(
+        openingHours: String,
+        now: LocalDateTime,
+        isPublicHoliday: ((LocalDate) -> Boolean)? = null
+    ): String? {
         val hours = OpeningHours.parse(openingHours) ?: return null
+        val holidayToday = isPublicHoliday?.invoke(now.toLocalDate()) ?: false
 
-        val status = when (val current = hours.statusAt(now)) {
+        val status = when (val current = hours.statusAt(now, holidayToday)) {
             is OpeningStatus.Open -> {
                 current.closesAt?.let { "Open now, closes ${formatTime(it)}" } ?: "Open now"
             }
-            OpeningStatus.Closed -> describeClosed(hours, now)
+            OpeningStatus.Closed -> describeClosed(hours, now, isPublicHoliday ?: { false })
         }
 
-        return if (hours.mentionsPublicHolidays) "$status (public holidays may differ)" else status
+        return when {
+            !hours.mentionsPublicHolidays -> status
+            isPublicHoliday == null -> "$status (public holidays may differ)"
+            holidayToday -> "$status (public holiday today)"
+            else -> status
+        }
     }
 
-    private fun describeClosed(hours: OpeningHours, now: LocalDateTime): String {
-        val next = hours.nextOpening(now) ?: return "Closed"
+    private fun describeClosed(hours: OpeningHours, now: LocalDateTime, isPublicHoliday: (LocalDate) -> Boolean): String {
+        val next = hours.nextOpening(now, isPublicHoliday) ?: return "Closed"
 
         val daysAway = ChronoUnit.DAYS.between(now.toLocalDate(), next.toLocalDate())
         val time = formatTime(next.toLocalTime())

@@ -106,4 +106,56 @@ class OpeningHoursDescriberTest {
             OpeningHoursDescriber.describe("Mo-Fr 09:00-17:00; PH off", at(monday, "12:00"))
         )
     }
+
+    // With public holiday dates, the note about holidays is replaced by the answer.
+
+    private val noHolidays: (LocalDate) -> Boolean = { false }
+
+    @Test
+    fun `drops the public holiday note when the holiday dates are known`() {
+        assertEquals(
+            "Open now, closes 17:00",
+            OpeningHoursDescriber.describe("Mo-Fr 09:00-17:00; PH off", at(monday, "12:00"), noHolidays)
+        )
+    }
+
+    @Test
+    fun `says closed on a public holiday when the shop is off, and when it opens next`() {
+        assertEquals(
+            "Closed, opens Tue 09:00 (public holiday today)",
+            OpeningHoursDescriber.describe("Mo-Fr 09:00-17:00; PH off", at(monday, "12:00")) { it == monday }
+        )
+    }
+
+    @Test
+    fun `says the shop is open on a public holiday when it has public holiday hours`() {
+        assertEquals(
+            "Open now, closes 16:00 (public holiday today)",
+            OpeningHoursDescriber.describe("Mo-Sa 10:00-18:00; PH 11:00-16:00", at(monday, "12:00")) { it == monday }
+        )
+    }
+
+    @Test
+    fun `skips a public holiday when saying when the shop opens next`() {
+        assertEquals(
+            "Closed, opens Tue 09:00",
+            OpeningHoursDescriber.describe("Mo-Fr 09:00-17:00; PH off", at(monday.minusDays(3), "18:00")) { it == monday }
+        )
+    }
+
+    @Test
+    fun `says nothing about public holidays when the hours do not mention them`() {
+        assertEquals(
+            "Open now, closes 18:00",
+            OpeningHoursDescriber.describe("Mo-Sa 10:00-18:00", at(monday, "12:00")) { it == monday }
+        )
+    }
+
+    @Test
+    fun `keeps the note when the holiday dates are not known`() {
+        assertEquals(
+            "Open now, closes 17:00 (public holidays may differ)",
+            OpeningHoursDescriber.describe("Mo-Fr 09:00-17:00; PH off", at(monday, "12:00"), null)
+        )
+    }
 }

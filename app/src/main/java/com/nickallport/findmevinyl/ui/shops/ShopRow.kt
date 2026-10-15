@@ -18,6 +18,7 @@ import com.nickallport.findmevinyl.ui.common.ListCard
 import com.nickallport.findmevinyl.shops.OpeningHoursDescriber
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Composable
@@ -25,6 +26,7 @@ fun ShopRow(
     shop: Shop,
     modifier: Modifier = Modifier,
     now: LocalDateTime = LocalDateTime.now(),
+    isPublicHoliday: ((LocalDate) -> Boolean)? = null,
     onClick: (() -> Unit)? = null
 ) {
     var hoursExpanded by rememberSaveable { mutableStateOf(false) }
@@ -35,7 +37,7 @@ fun ShopRow(
         ShopCategory.SECOND_HAND_SHOP -> "Second-Hand Shop"
     }
     val hours = shop.openingHours
-    val status = hours?.let { OpeningHoursDescriber.describe(it, now) }
+    val status = hours?.let { OpeningHoursDescriber.describe(it, now, isPublicHoliday) }
 
     ListCard(modifier = modifier, onClick = onClick) {
     Column(modifier = Modifier.padding(16.dp)) {

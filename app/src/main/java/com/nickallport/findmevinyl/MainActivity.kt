@@ -36,6 +36,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_1_2
 import com.nickallport.findmevinyl.storage.MIGRATION_2_3
 import com.nickallport.findmevinyl.storage.MIGRATION_3_4
 import com.nickallport.findmevinyl.storage.MIGRATION_4_5
+import com.nickallport.findmevinyl.storage.MIGRATION_5_6
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -59,6 +60,9 @@ import android.net.Uri
 import android.widget.Toast
 import com.nickallport.findmevinyl.shops.MapLinkBuilder
 import com.nickallport.findmevinyl.shops.Shop
+import com.nickallport.findmevinyl.holidays.NagerApiFactory
+import com.nickallport.findmevinyl.holidays.PublicHolidayCalendar
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
 
@@ -101,7 +105,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
@@ -111,6 +115,7 @@ class MainActivity : ComponentActivity() {
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
+        val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao())
         val wantListViewModel = WantListViewModel(database.albumDao())
         val shopSearchViewModel = ShopSearchViewModel(
@@ -250,6 +255,7 @@ class MainActivity : ComponentActivity() {
                                 searchPlace = { place, others ->
                                     shopSearchViewModel.searchPlace(place, others)
                                 },
+                                loadPublicHolidays = { region -> publicHolidayCalendar.datesNear(region, LocalDate.now()) },
                                 cache = SearchResultCache.shared
                             )
                         }

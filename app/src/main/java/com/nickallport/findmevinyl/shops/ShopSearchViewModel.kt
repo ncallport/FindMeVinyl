@@ -1,7 +1,10 @@
 package com.nickallport.findmevinyl.shops
 
+import com.nickallport.findmevinyl.holidays.HolidayRegion
+import com.nickallport.findmevinyl.nominatim.NominatimAddressDto
 import com.nickallport.findmevinyl.nominatim.NominatimApi
 import com.nickallport.findmevinyl.nominatim.NominatimResultDto
+import com.nickallport.findmevinyl.nominatim.NominatimReverseDto
 import com.nickallport.findmevinyl.overpass.OverpassApi
 import com.nickallport.findmevinyl.overpass.OverpassQueryBuilder
 import com.nickallport.findmevinyl.overpass.OverpassResponse
@@ -15,7 +18,9 @@ import retrofit2.HttpException
 data class PlaceCandidate(
     val name: String,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
+    /** Where the place is, for public holidays. Null when Nominatim did not say. */
+    val region: HolidayRegion? = null
 )
 
 sealed class ShopSearchUiState {
@@ -24,7 +29,9 @@ sealed class ShopSearchUiState {
         val placeName: String,
         val centerLatitude: Double,
         val centerLongitude: Double,
-        val otherPlaces: List<PlaceCandidate> = emptyList()
+        val otherPlaces: List<PlaceCandidate> = emptyList(),
+        /** The country and region the shops are in, so public holidays can be looked up. Null when unknown. */
+        val region: HolidayRegion? = null
     ) : ShopSearchUiState()
 
     data class TownNotFound(val town: String) : ShopSearchUiState()
@@ -51,7 +58,8 @@ class ShopSearchViewModel(
                 radiusMeters = radiusMeters,
                 placeName = placeName
             ).copy(
-                otherPlaces = alternativesTo(placeName, latitude, longitude, matches.drop(1))
+                otherPlaces = alternativesTo(placeName, latitude, longitude, matches.drop(1)),
+                region = regionOf(geocoded.address)
             )
         } catch (e: CancellationException) {
             throw e
@@ -67,7 +75,8 @@ class ShopSearchViewModel(
     ): ShopSearchUiState {
         return try {
             val result = findShops(latitude, longitude, radiusMeters, placeName = DEFAULT_PLACE_NAME)
-            result.copy(placeName = lookUpPlaceName(latitude, longitude) ?: DEFAULT_PLACE_NAME)
+            val place = lookUpPlace(latitude, longitude)
+            result.copy(placeName = place?.displayName ?: DEFAULT_PLACE_NAME, region = regionOf(place?.address))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -82,7 +91,7 @@ class ShopSearchViewModel(
     ): ShopSearchUiState {
         return try {
             findShops(place.latitude, place.longitude, radiusMeters, place.name)
-                .copy(otherPlaces = otherPlaces)
+                .copy(otherPlaces = otherPlaces, region = place.region)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -112,20 +121,25 @@ class ShopSearchViewModel(
             }
             if (tooClose) continue
 
-            kept.add(PlaceCandidate(name, latitude, longitude))
+            kept.add(PlaceCandidate(name, latitude, longitude, regionOf(result.address)))
             positionsToAvoid.add(latitude to longitude)
         }
         return kept
     }
 
-    private suspend fun lookUpPlaceName(latitude: Double, longitude: Double): String? {
+    private suspend fun lookUpPlace(latitude: Double, longitude: Double): NominatimReverseDto? {
         return try {
-            nominatimApi.reverse(latitude, longitude).displayName
+            nominatimApi.reverse(latitude, longitude)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun regionOf(address: NominatimAddressDto?): HolidayRegion? {
+        val country = address?.countryCode?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return HolidayRegion(country.uppercase(), address.subdivisionCode?.trim()?.takeIf { it.isNotEmpty() }?.uppercase())
     }
 
     private suspend fun findShops(
