@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
+import com.nickallport.findmevinyl.settings.AppSettings
+import com.nickallport.findmevinyl.settings.SettingsStore
+import com.nickallport.findmevinyl.ui.settings.SettingsScreen
+import androidx.compose.runtime.collectAsState
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
 import com.nickallport.findmevinyl.artist.ArtistPhotoStore
 import com.nickallport.findmevinyl.artist.ArtistPhotoViewModel
@@ -144,6 +148,8 @@ class MainActivity : ComponentActivity() {
             "find-me-vinyl-db"
         ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
 
+        val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
+
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
         val artistImageViewModel = ArtistImageViewModel(
@@ -186,6 +192,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val settings by appSettings.settings.collectAsState()
                     var currentScreen by rememberSaveable(stateSaver = ScreenSaver) {
                         mutableStateOf<Screen>(Screen.Home)
                     }
@@ -206,7 +213,8 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 onArtists = { currentScreen = Screen.Search },
                                 onWants = { currentScreen = Screen.WantList },
-                                onShops = { currentScreen = Screen.Shops }
+                                onShops = { currentScreen = Screen.Shops },
+                                onSettings = { currentScreen = Screen.Settings }
                             )
                         }
                         is Screen.Search -> {
@@ -309,8 +317,13 @@ class MainActivity : ComponentActivity() {
                                 onShareText = { text -> shareText(text) }
                             )
                         }
+                        is Screen.Settings -> {
+                            SettingsScreen(settings = settings, onChange = { appSettings.set(it) })
+                        }
                         is Screen.Shops -> {
                             ShopSearchRoute(
+                                hideCharityShops = settings.hideCharityShops,
+                                onOpenSettings = { currentScreen = Screen.Settings },
                                 search = { town -> shopSearchViewModel.searchTown(town) },
                                 searchNearby = { nearbyShopSearcher.findNearby() },
                                 onShopSelected = { shop -> openInMaps(shop) },

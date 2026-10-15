@@ -26,7 +26,9 @@ fun ShopSearchResultsScreen(
     modifier: Modifier = Modifier,
     onShopSelected: ((Shop) -> Unit)? = null,
     onPlaceSelected: ((PlaceCandidate) -> Unit)? = null,
-    isPublicHoliday: ((LocalDate) -> Boolean)? = null
+    isPublicHoliday: ((LocalDate) -> Boolean)? = null,
+    hiddenShops: Int = 0,
+    onOpenSettings: (() -> Unit)? = null
 ) {
     var othersExpanded by remember(state) { mutableStateOf(false) }
 
@@ -38,6 +40,20 @@ fun ShopSearchResultsScreen(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
+
+                // Shops the settings left out, so a short list is not a puzzle.
+                if (hiddenShops > 0) {
+                    val noun = if (hiddenShops == 1) "charity shop" else "charity shops"
+                    Text(
+                        text = "$hiddenShops $noun hidden by your settings",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .testTag("hidden_shops_note")
+                            .then(if (onOpenSettings != null) Modifier.clickable { onOpenSettings() } else Modifier)
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
 
                 if (state.otherPlaces.isNotEmpty() && onPlaceSelected != null) {
                     TextButton(
@@ -64,7 +80,7 @@ fun ShopSearchResultsScreen(
 
                 if (state.shops.isEmpty()) {
                     Text(
-                        text = "No shops found nearby",
+                        text = if (hiddenShops > 0) "No other shops found nearby" else "No shops found nearby",
                         modifier = Modifier.padding(16.dp)
                     )
                 } else {

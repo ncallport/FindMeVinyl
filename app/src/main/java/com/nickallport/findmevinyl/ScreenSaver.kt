@@ -11,6 +11,8 @@ internal sealed class Screen {
     data class ArtistResults(val query: String) : Screen()
     object WantList : Screen()
     object Shops : Screen()
+    /** What to hide, as the user chooses. Reached from the front screen. */
+    object Settings : Screen()
     data class Discography(
         val artistId: String,
         val artistName: String,
@@ -48,6 +50,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.ArtistResults -> listOf("results", value.query)
         is Screen.WantList -> listOf("wantlist")
         is Screen.Shops -> listOf("shops")
+        is Screen.Settings -> listOf("settings")
         is Screen.Discography ->
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
         is Screen.AlbumDetail ->
@@ -60,6 +63,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         "results" -> value.getOrNull(1)?.let { Screen.ArtistResults(it) }
         "wantlist" -> Screen.WantList
         "shops" -> Screen.Shops
+        "settings" -> Screen.Settings
         "discography" -> restore(value.drop(3))?.let {
             Screen.Discography(value[1], value[2], it)
         }
