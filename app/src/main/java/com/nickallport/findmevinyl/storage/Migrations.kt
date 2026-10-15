@@ -21,6 +21,16 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/** Adds a table for the photos the user chooses for artists. It starts empty and nothing that was stored changes. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `artist_user_photos` (`artistId` TEXT NOT NULL, `fileName` TEXT NOT NULL, " +
+                "`savedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+        )
+    }
+}
+
 /** Adds a table for the public holidays of countries. It starts empty and nothing that was stored changes. */
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {

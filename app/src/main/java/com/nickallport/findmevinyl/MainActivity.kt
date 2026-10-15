@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
+import com.nickallport.findmevinyl.artist.ArtistPhotoStore
+import com.nickallport.findmevinyl.artist.ArtistPhotoViewModel
+import com.nickallport.findmevinyl.artist.ArtistPictureSource
+import com.nickallport.findmevinyl.artist.LimitedReader
 import com.nickallport.findmevinyl.artist.ArtistImageViewModel
 import com.nickallport.findmevinyl.artist.ArtistSearchViewModel
 import com.nickallport.findmevinyl.image.ImageLoader
@@ -37,6 +41,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_2_3
 import com.nickallport.findmevinyl.storage.MIGRATION_3_4
 import com.nickallport.findmevinyl.storage.MIGRATION_4_5
 import com.nickallport.findmevinyl.storage.MIGRATION_5_6
+import com.nickallport.findmevinyl.storage.MIGRATION_6_7
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -49,7 +54,11 @@ import com.nickallport.findmevinyl.shops.ShopSearchViewModel
 import com.nickallport.findmevinyl.ui.shops.ShopSearchRoute
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
 import com.nickallport.findmevinyl.location.DeviceLocationProvider
 import com.nickallport.findmevinyl.shops.NearbyShopSearcher
@@ -67,6 +76,34 @@ import java.time.LocalDate
 class MainActivity : ComponentActivity() {
 
     private var permissionResult: CompletableDeferred<Boolean>? = null
+    private var photoResult: CompletableDeferred<Uri?>? = null
+
+    // The system photo picker. It needs no permission, because the user picks the one photo to share.
+    private val photoPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        photoResult?.complete(uri)
+    }
+
+    private sealed class PickedPhoto {
+        object NoneChosen : PickedPhoto()
+        object Unreadable : PickedPhoto()
+        class Bytes(val bytes: ByteArray) : PickedPhoto()
+    }
+
+    private suspend fun pickPhoto(): PickedPhoto {
+        val result = CompletableDeferred<Uri?>()
+        photoResult = result
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        val uri = result.await() ?: return PickedPhoto.NoneChosen
+        val bytes = withContext(Dispatchers.IO) {
+            contentResolver.openInputStream(uri)?.use { LimitedReader.read(it, MAX_PHOTO_BYTES) }
+        }
+        return bytes?.let { PickedPhoto.Bytes(it) } ?: PickedPhoto.Unreadable
+    }
+
+    private companion object {
+        // A phone photo is a few megabytes. Anything much bigger is not a photo to put in memory.
+        const val MAX_PHOTO_BYTES = 30 * 1024 * 1024
+    }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -105,13 +142,22 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
         val artistImageViewModel = ArtistImageViewModel(
             ArtistImageFinder(api, WikidataApiFactory.create()),
             database.artistImageDao()
+        )
+        val artistPhotoViewModel = ArtistPhotoViewModel(
+            database.artistUserPhotoDao(),
+            ArtistPhotoStore(File(filesDir, "artist_photos"))
+        )
+        // A photo the user chose wins over the picture from the web, and then the web is not asked.
+        val artistPictures = ArtistPictureSource(
+            userPhoto = { id -> artistPhotoViewModel.loadPhoto(id) },
+            webPicture = { id -> artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) } }
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
@@ -169,9 +215,7 @@ class MainActivity : ComponentActivity() {
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
                                 onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
                                 onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
-                                loadArtistImage = { id ->
-                                    artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
-                                },
+                                loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
                                 }
@@ -181,9 +225,7 @@ class MainActivity : ComponentActivity() {
                             ArtistResultsRoute(
                                 query = screen.query,
                                 search = { query -> searchViewModel.search(query) },
-                                loadArtistImage = { id ->
-                                    artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
-                                },
+                                loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, screen)
                                 },
@@ -209,6 +251,23 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
+                                loadArtistImage = { id -> artistPictures.load(id) },
+                                onChoosePhoto = { id ->
+                                    when (val picked = pickPhoto()) {
+                                        PickedPhoto.NoneChosen -> false
+                                        PickedPhoto.Unreadable -> {
+                                            Toast.makeText(this@MainActivity, "Couldn't use that photo", Toast.LENGTH_SHORT).show()
+                                            false
+                                        }
+                                        is PickedPhoto.Bytes -> artistPhotoViewModel.savePhoto(id, picked.bytes).also { saved ->
+                                            if (!saved) {
+                                                Toast.makeText(this@MainActivity, "Couldn't use that photo", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                hasUserPhoto = { id -> artistPhotoViewModel.hasPhoto(id) },
+                                onUseOriginalPhoto = { id -> artistPhotoViewModel.removePhoto(id) },
                                 onOpenAlbum = { albumId, title ->
                                     currentScreen = Screen.AlbumDetail(
                                         albumId, title, screen.artistId, screen.artistName, screen
