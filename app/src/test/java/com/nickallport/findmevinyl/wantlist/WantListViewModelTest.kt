@@ -247,4 +247,77 @@ class WantListViewModelTest {
 
         assertEquals(listOf("Dated", "Empty"), titles())
     }
+
+    @Test
+    fun `removing an album from the wants stops it being wanted, and it leaves the list`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        wanted("2", "r", "Two", wantPosition = 1)
+
+        viewModel.remove("1")
+
+        assertEquals(listOf("Two"), titles())
+        assertEquals(false, database.albumDao().getById("1")?.wanted)
+    }
+
+    @Test
+    fun `removing a want keeps the album and its other details`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", "1972-06-16")
+
+        viewModel.remove("1")
+
+        val kept = database.albumDao().getById("1")!!
+        assertEquals("One", kept.title)
+        assertEquals("1972-06-16", kept.firstReleaseDate)
+        assertEquals(false, kept.owned)
+    }
+
+    @Test
+    fun `removing a want does not change the order of the others`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        wanted("2", "r", "Two", wantPosition = 1)
+        wanted("3", "r", "Three", wantPosition = 2)
+
+        viewModel.remove("2")
+
+        assertEquals(listOf("One", "Three"), titles())
+    }
+
+    @Test
+    fun `an artist with no wants left is not on the list, and stays a favourite`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One")
+
+        viewModel.remove("1")
+
+        assertEquals(emptyList<String>(), titles())
+        assertEquals("Roxy Music", database.artistDao().getById("r")?.name)
+    }
+
+    @Test
+    fun `an album that was removed and is wanted again goes last`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        wanted("2", "r", "Two", wantPosition = 1)
+
+        viewModel.remove("1")
+        database.albumDao().markWanted("1")
+
+        assertEquals(listOf("Two", "One"), titles())
+    }
+
+    @Test
+    fun `removing an album that is not wanted or does not exist changes nothing`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One")
+        database.albumDao().insert(AlbumEntity("9", "r", "Nine", "STUDIO_ALBUM", null, owned = true, wanted = false))
+
+        viewModel.remove("9")
+        viewModel.remove("missing")
+
+        assertEquals(listOf("One"), titles())
+        assertEquals(true, database.albumDao().getById("9")?.owned)
+    }
 }

@@ -32,6 +32,9 @@ class ThemeContrastTest {
             "onPrimaryContainer on primaryContainer" to (scheme.onPrimaryContainer to scheme.primaryContainer),
             "onSecondaryContainer on secondaryContainer" to (scheme.onSecondaryContainer to scheme.secondaryContainer),
             "onSurface on surfaceVariant" to (scheme.onSurface to scheme.surfaceVariant),
+            // The format line on the card of an owned album and on the card of a wanted one.
+            "onSurfaceVariant on primaryContainer" to (scheme.onSurfaceVariant to scheme.primaryContainer),
+            "onSurfaceVariant on secondaryContainer" to (scheme.onSurfaceVariant to scheme.secondaryContainer),
             "primary text on background" to (scheme.primary to scheme.background),
             "primary text on surface" to (scheme.primary to scheme.surface),
             "onTertiary on tertiary" to (scheme.onTertiary to scheme.tertiary),

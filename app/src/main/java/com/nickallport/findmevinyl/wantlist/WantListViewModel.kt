@@ -25,6 +25,11 @@ class WantListViewModel(private val albumDao: AlbumDao) {
         return ordered().map { WantedAlbumUiModel(it.albumId, it.artistName, it.albumTitle) }
     }
 
+    /** Takes an album off the want list. The album itself stays, and shows as not wanted in its discography. */
+    suspend fun remove(albumId: String) {
+        albumDao.setWanted(albumId, false)
+    }
+
     suspend fun moveUp(albumId: String) = move(albumId, -1)
 
     suspend fun moveDown(albumId: String) = move(albumId, 1)

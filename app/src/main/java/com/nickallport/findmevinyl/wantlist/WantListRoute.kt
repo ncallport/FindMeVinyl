@@ -20,7 +20,8 @@ fun WantListRoute(
     onShareText: (String) -> Unit,
     modifier: Modifier = Modifier,
     onMoveUp: suspend (String) -> Unit = {},
-    onMoveDown: suspend (String) -> Unit = {}
+    onMoveDown: suspend (String) -> Unit = {},
+    onRemove: suspend (String) -> Unit = {}
 ) {
     var wanted by remember { mutableStateOf<List<WantedAlbumUiModel>?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -43,7 +44,8 @@ fun WantListRoute(
             modifier = modifier,
             // After a move the list is read again, so it shows what is stored.
             onMoveUp = { id -> coroutineScope.launch { onMoveUp(id); wanted = load() } },
-            onMoveDown = { id -> coroutineScope.launch { onMoveDown(id); wanted = load() } }
+            onMoveDown = { id -> coroutineScope.launch { onMoveDown(id); wanted = load() } },
+            onRemove = { id -> coroutineScope.launch { onRemove(id); wanted = load() } }
         )
     }
 }

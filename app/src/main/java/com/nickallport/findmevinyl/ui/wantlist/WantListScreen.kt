@@ -10,7 +10,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,8 +39,12 @@ fun WantListScreen(
     onShare: () -> Unit,
     modifier: Modifier = Modifier,
     onMoveUp: (String) -> Unit = {},
-    onMoveDown: (String) -> Unit = {}
+    onMoveDown: (String) -> Unit = {},
+    onRemove: (String) -> Unit = {}
 ) {
+    // The album the user has tapped remove on, until they answer the question.
+    var pendingRemoval by remember { mutableStateOf<WantedAlbumUiModel?>(null) }
+
     if (wanted.isEmpty()) {
         Column(
             modifier = modifier.fillMaxWidth().padding(32.dp),
@@ -102,11 +113,45 @@ fun WantListScreen(
                                         onMoveDown = { onMoveDown(album.albumId) }
                                     )
                                 }
+                                IconButton(
+                                    onClick = { pendingRemoval = album },
+                                    modifier = Modifier.testTag("want_remove_${album.albumId}").size(40.dp)
+                                ) {
+                                    Icon(
+                                        Glyphs.Delete,
+                                        contentDescription = "Remove ${album.albumTitle} from wants",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    pendingRemoval?.let { album ->
+        AlertDialog(
+            onDismissRequest = { pendingRemoval = null },
+            title = { Text("Remove ${album.albumTitle} from your wants?") },
+            text = { Text("The album stays in its discography, as not wanted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingRemoval = null
+                        onRemove(album.albumId)
+                    },
+                    modifier = Modifier.testTag("want_remove_confirm")
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingRemoval = null },
+                    modifier = Modifier.testTag("want_remove_cancel")
+                ) { Text("Keep") }
+            },
+            modifier = Modifier.testTag("want_remove_dialog")
+        )
     }
 }

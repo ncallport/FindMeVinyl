@@ -155,4 +155,78 @@ class WantListScreenTest {
         }
         assertEquals(tops.sorted(), tops)
     }
+
+    @Test
+    fun `every wanted album has a button to remove it, even an artist's only one`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithTag("want_remove_1").assertExists()
+        composeTestRule.onNodeWithTag("want_remove_2").assertExists()
+        composeTestRule.onNodeWithTag("want_remove_3").assertExists()
+    }
+
+    @Test
+    fun `the remove buttons say which album they remove`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithContentDescription("Remove Siren from wants").assertExists()
+    }
+
+    @Test
+    fun `tapping remove asks first, and does not remove yet`() {
+        val removed = mutableListOf<String>()
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
+        }
+
+        composeTestRule.onNodeWithTag("want_remove_3").performClick()
+
+        composeTestRule.onNodeWithTag("want_remove_dialog").assertExists()
+        composeTestRule.onNodeWithText("Remove Siren from your wants?").assertExists()
+        assertEquals(emptyList<String>(), removed)
+    }
+
+    @Test
+    fun `confirming removes the album and closes the question`() {
+        val removed = mutableListOf<String>()
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
+        }
+
+        composeTestRule.onNodeWithTag("want_remove_3").performClick()
+        composeTestRule.onNodeWithTag("want_remove_confirm").performClick()
+
+        assertEquals(listOf("3"), removed)
+        composeTestRule.onNodeWithTag("want_remove_dialog").assertDoesNotExist()
+    }
+
+    @Test
+    fun `keeping the album closes the question and removes nothing`() {
+        val removed = mutableListOf<String>()
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
+        }
+
+        composeTestRule.onNodeWithTag("want_remove_3").performClick()
+        composeTestRule.onNodeWithTag("want_remove_cancel").performClick()
+
+        assertEquals(emptyList<String>(), removed)
+        composeTestRule.onNodeWithTag("want_remove_dialog").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the remove button does not move the album`() {
+        val moved = mutableListOf<String>()
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {}, onMoveUp = { moved.add(it) }, onMoveDown = { moved.add(it) })
+        }
+
+        composeTestRule.onNodeWithTag("want_remove_3").performClick()
+
+        assertEquals(emptyList<String>(), moved)
+    }
 }

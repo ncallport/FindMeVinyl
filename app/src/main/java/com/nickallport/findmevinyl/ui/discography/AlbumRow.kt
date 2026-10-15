@@ -44,10 +44,11 @@ fun AlbumRow(
     loadFormats: suspend (String) -> List<String>? = { null },
     checkingFormats: Boolean = false
 ) {
-    val backgroundColor = if (album.owned) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surface
+    // Owned albums are teal and wanted ones are orange, so a list can be scanned for either.
+    val backgroundColor = when {
+        album.owned -> MaterialTheme.colorScheme.primaryContainer
+        album.wanted -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surface
     }
 
     ListCard(
@@ -70,11 +71,12 @@ fun AlbumRow(
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats
                 )
-                if (album.wanted) {
+                // An owned album is never wanted. Rows saved before that rule can have both flags.
+                if (album.wanted && !album.owned) {
                     Text(
-                        text = "Want",
+                        text = "Wanted",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
@@ -88,20 +90,24 @@ fun AlbumRow(
                         onClick = onToggleOwned
                     )
                 } else {
+                    // On the orange card of a wanted album the pill would vanish if it were orange too.
                     Pill(
                         text = "+ Owned",
                         tag = "owned_toggle",
-                        container = MaterialTheme.colorScheme.secondaryContainer,
-                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        container = if (album.wanted) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.secondaryContainer,
+                        content = if (album.wanted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer,
                         onClick = onToggleOwned
                     )
-                    Pill(
-                        text = "+ Want",
-                        tag = "wanted_toggle",
-                        container = MaterialTheme.colorScheme.secondaryContainer,
-                        content = MaterialTheme.colorScheme.onSecondaryContainer,
-                        onClick = onToggleWanted
-                    )
+                    // Once it is wanted there is nothing more to want. It comes off the list on the Wants page.
+                    if (!album.wanted) {
+                        Pill(
+                            text = "+ Want",
+                            tag = "wanted_toggle",
+                            container = MaterialTheme.colorScheme.secondaryContainer,
+                            content = MaterialTheme.colorScheme.onSecondaryContainer,
+                            onClick = onToggleWanted
+                        )
+                    }
                 }
             }
         }

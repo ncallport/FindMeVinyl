@@ -334,7 +334,8 @@ class DiscographyRouteTest {
         composeTestRule.onNodeWithTag("wanted_toggle").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Want").assertExists()
+        composeTestRule.onNodeWithText("Wanted").assertExists()
+        composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
         assertEquals(1, loads)
     }
 
