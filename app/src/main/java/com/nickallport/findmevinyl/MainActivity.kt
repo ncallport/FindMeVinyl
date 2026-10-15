@@ -208,6 +208,7 @@ class MainActivity : ComponentActivity() {
                                 loadIsFavourite = { discographyViewModel.isFavourite(screen.artistId) },
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
+                                onOpenArtists = { currentScreen = Screen.Search },
                                 onOpenAlbum = { albumId, title ->
                                     currentScreen = Screen.AlbumDetail(
                                         albumId, title, screen.artistId, screen.artistName, screen

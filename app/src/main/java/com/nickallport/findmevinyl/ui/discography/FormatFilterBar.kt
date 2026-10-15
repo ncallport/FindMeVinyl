@@ -21,6 +21,9 @@ import com.nickallport.findmevinyl.discography.FormatOption
  * found so far with the number of albums that have it. Tapping the chosen chip, or All, clears the
  * choice. While a format is chosen, a line says how many albums have not been looked up yet, since
  * those stay in the list until their lookup tells whether they match.
+ *
+ * When [ownedFirst] is given, an "Owned first" chip leads the row. It is a way of looking at the list,
+ * not a format, so it is there even while no format is known. It is off or on as [ownedFirst] says.
  */
 @Composable
 fun FormatFilterBar(
@@ -28,10 +31,13 @@ fun FormatFilterBar(
     selected: String?,
     unchecked: Int,
     onSelect: (String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    ownedFirst: Boolean? = null,
+    onToggleOwnedFirst: () -> Unit = {}
 ) {
     // With no format known yet there is nothing to filter by.
-    if (options.isEmpty() && selected == null) return
+    val hasFormats = options.isNotEmpty() || selected != null
+    if (!hasFormats && ownedFirst == null) return
 
     // A chosen format that no album has any more still gets a chip, so the choice can be cleared.
     val chips = if (selected != null && options.none { it.label == selected }) {
@@ -45,19 +51,29 @@ fun FormatFilterBar(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = selected == null,
-                onClick = { onSelect(null) },
-                label = { Text("All") },
-                modifier = Modifier.testTag("format_chip_all")
-            )
-            chips.forEach { option ->
+            if (ownedFirst != null) {
                 FilterChip(
-                    selected = option.label == selected,
-                    onClick = { onSelect(if (option.label == selected) null else option.label) },
-                    label = { Text("${option.label} ${option.count}") },
-                    modifier = Modifier.testTag("format_chip_${option.label}")
+                    selected = ownedFirst,
+                    onClick = onToggleOwnedFirst,
+                    label = { Text("Owned first") },
+                    modifier = Modifier.testTag("owned_first_toggle")
                 )
+            }
+            if (hasFormats) {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onSelect(null) },
+                    label = { Text("All") },
+                    modifier = Modifier.testTag("format_chip_all")
+                )
+                chips.forEach { option ->
+                    FilterChip(
+                        selected = option.label == selected,
+                        onClick = { onSelect(if (option.label == selected) null else option.label) },
+                        label = { Text("${option.label} ${option.count}") },
+                        modifier = Modifier.testTag("format_chip_${option.label}")
+                    )
+                }
             }
         }
         if (selected != null && unchecked > 0) {

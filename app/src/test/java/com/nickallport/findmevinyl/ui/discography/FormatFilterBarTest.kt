@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.nickallport.findmevinyl.discography.FormatOption
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.layout.positionInRoot
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -134,5 +136,101 @@ class FormatFilterBarTest {
         composeTestRule.onNodeWithTag("format_chip_MC").assertIsSelected()
         composeTestRule.onNodeWithText("MC 0").assertExists()
         composeTestRule.onNodeWithTag("format_chip_all").assertExists()
+    }
+
+    // The Owned first chip, which leads the row when the bar is given it.
+
+    @Test
+    fun `has no Owned first chip unless it is given one`() {
+        composeTestRule.setContent {
+            FormatFilterBar(options = options, selected = null, unchecked = 0, onSelect = {})
+        }
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").assertDoesNotExist()
+    }
+
+    @Test
+    fun `shows the Owned first chip even while no formats are known`() {
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = emptyList(), selected = null, unchecked = 40, onSelect = {},
+                ownedFirst = false, onToggleOwnedFirst = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").assertExists()
+        composeTestRule.onNodeWithText("All").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the Owned first chip is selected when owned first is on`() {
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = {},
+                ownedFirst = true, onToggleOwnedFirst = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").assertIsSelected()
+    }
+
+    @Test
+    fun `the Owned first chip is not selected when owned first is off`() {
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = {},
+                ownedFirst = false, onToggleOwnedFirst = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").assertIsNotSelected()
+    }
+
+    @Test
+    fun `tapping the Owned first chip asks to switch it, and does not choose a format`() {
+        var toggled = 0
+        val chosen = mutableListOf<String?>()
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = { chosen.add(it) },
+                ownedFirst = false, onToggleOwnedFirst = { toggled++ }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+
+        assertEquals(1, toggled)
+        assertEquals(emptyList<String?>(), chosen)
+    }
+
+    @Test
+    fun `the Owned first chip comes before All, on the same line`() {
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = {},
+                ownedFirst = false, onToggleOwnedFirst = {}
+            )
+        }
+
+        val owned = composeTestRule.onNodeWithTag("owned_first_toggle").fetchSemanticsNode().positionInRoot
+        val all = composeTestRule.onNodeWithTag("format_chip_all").fetchSemanticsNode().positionInRoot
+
+        assertTrue("Owned first is left of All", owned.x < all.x)
+        assertEquals(owned.y, all.y, 1f)
+    }
+
+    @Test
+    fun `choosing a format works as before with the Owned first chip there`() {
+        val chosen = mutableListOf<String?>()
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = { chosen.add(it) },
+                ownedFirst = true, onToggleOwnedFirst = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+
+        assertEquals(listOf<String?>("LP"), chosen)
     }
 }

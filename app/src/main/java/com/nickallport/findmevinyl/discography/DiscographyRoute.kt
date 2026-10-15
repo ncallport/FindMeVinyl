@@ -61,6 +61,7 @@ fun DiscographyRoute(
     onSaveFavourite: suspend (artistId: String, artistName: String) -> Unit = { _, _ -> },
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
     onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
+    onOpenArtists: (() -> Unit)? = null,
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadSaved: (suspend (String) -> DiscographyUiState)? = null,
@@ -71,6 +72,7 @@ fun DiscographyRoute(
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
+    var ownedFirst by rememberSaveable { mutableStateOf(false) }
     var formatCheck by remember { mutableStateOf<FormatCheckState>(FormatCheckState.Idle) }
     var formatCheckAttempt by remember { mutableStateOf(0) }
     var formatCheckFinished by remember(artistId) { mutableStateOf(false) }
@@ -141,6 +143,7 @@ fun DiscographyRoute(
     Column(modifier = modifier.fillMaxSize()) {
         DiscographyHeader(
             artistName = artistName,
+            onOpenArtists = onOpenArtists,
             isFavourite = isFavourite,
             onToggleFavourite = {
                 coroutineScope.launch {
@@ -167,7 +170,11 @@ fun DiscographyRoute(
                             val shownAlbums = FormatFilter.apply(uiState.groupedAlbums, chosenFormat)
 
                             Column(modifier = Modifier.fillMaxSize()) {
+                                // Owned first is a way to look at the collection: the owned albums together at
+                                // the top, for showing a friend. It is not kept when you leave the artist.
                                 FormatFilterBar(
+                                    ownedFirst = ownedFirst,
+                                    onToggleOwnedFirst = { ownedFirst = !ownedFirst },
                                     options = FormatFilter.options(allAlbums),
                                     selected = chosenFormat,
                                     unchecked = FormatFilter.unchecked(allAlbums),
@@ -196,6 +203,7 @@ fun DiscographyRoute(
                                             refreshSaved()
                                         }
                                     },
+                                    ownedFirst = ownedFirst,
                                     onOpenAlbum = { albumId ->
                                         allAlbums.find { it.id == albumId }?.let { onOpenAlbum(it.id, it.title) }
                                     },

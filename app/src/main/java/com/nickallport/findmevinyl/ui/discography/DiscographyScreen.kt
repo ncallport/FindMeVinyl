@@ -15,6 +15,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -31,7 +37,8 @@ private val categoryDisplayOrder = listOf(
 )
 
 /**
- * Every row has a key, so when albums are added above what is on screen as more pages load, the
+ * With [ownedFirst], the albums you own are taken out of their categories and shown together in an
+ * Owned section at the top, in the order of the categories. Every row has a key, so when albums are added above what is on screen as more pages load, the
  * list stays where it is. [loadingMore] adds a footer while pages are still arriving, and
  * [loadError] a footer saying some albums could not be loaded, with a button to try again.
  */
@@ -42,6 +49,7 @@ fun DiscographyScreen(
     modifier: Modifier = Modifier,
     onToggleWanted: (String) -> Unit = {},
     onOpenAlbum: (String) -> Unit = {},
+    ownedFirst: Boolean = false,
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadingMore: Boolean = false,
@@ -49,9 +57,54 @@ fun DiscographyScreen(
     onRetry: () -> Unit = {},
     checkingFormats: Boolean = false
 ) {
-    LazyColumn(modifier = modifier.testTag("discography_list")) {
+    val owned = if (ownedFirst) {
+        categoryDisplayOrder.flatMap { (category, _) -> groupedAlbums[category].orEmpty().filter { it.owned } }
+    } else {
+        emptyList()
+    }
+    val categorised = if (ownedFirst) {
+        groupedAlbums.mapValues { (_, albums) -> albums.filterNot { it.owned } }
+    } else {
+        groupedAlbums
+    }
+
+    // The list keeps its place by item, so a section added at the top would be out of sight above it.
+    // Switching owned first on or off starts from the top. A list that is only restored (a rotation) stays.
+    val listState = rememberLazyListState()
+    var shownOwnedFirst by remember { mutableStateOf(ownedFirst) }
+    LaunchedEffect(ownedFirst) {
+        if (ownedFirst != shownOwnedFirst) {
+            shownOwnedFirst = ownedFirst
+            listState.scrollToItem(0)
+        }
+    }
+
+    LazyColumn(state = listState, modifier = modifier.testTag("discography_list")) {
+        if (owned.isNotEmpty()) {
+            item(key = "header-owned") {
+                Text(
+                    text = "Owned",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .testTag("owned_section_header")
+                        .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)
+                )
+            }
+            items(owned, key = { it.id }) { album ->
+                AlbumRow(
+                    album = album,
+                    onOpen = { onOpenAlbum(album.id) },
+                    onToggleOwned = { onToggleOwned(album.id) },
+                    onToggleWanted = { onToggleWanted(album.id) },
+                    loadCover = loadCover,
+                    loadFormats = loadFormats,
+                    checkingFormats = checkingFormats
+                )
+            }
+        }
         categoryDisplayOrder.forEach { (category, headerText) ->
-            val albums = groupedAlbums[category]
+            val albums = categorised[category]
             if (!albums.isNullOrEmpty()) {
                 item(key = "header-${category.name}") {
                     Text(

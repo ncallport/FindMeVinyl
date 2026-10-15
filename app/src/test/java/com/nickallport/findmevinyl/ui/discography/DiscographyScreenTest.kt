@@ -11,11 +11,19 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+// A tall window, so the header, the chips and several rows all fit and every row is composed.
+@Config(qualifiers = "w360dp-h2400dp")
 @RunWith(RobolectricTestRunner::class)
 class DiscographyScreenTest {
 
@@ -162,5 +170,101 @@ class DiscographyScreenTest {
         composeTestRule.onNodeWithTag("owned_toggle").performClick()
 
         assertEquals("1", toggledId)
+    }
+
+    // Owned albums grouped at the top.
+
+    private val mixed = mapOf(
+        DiscographyCategory.STUDIO_ALBUM to listOf(
+            AlbumUiModel("1", "Studio Owned", owned = true, wanted = false),
+            AlbumUiModel("2", "Studio Other", owned = false, wanted = false)
+        ),
+        DiscographyCategory.LIVE_ALBUM to listOf(
+            AlbumUiModel("3", "Live Owned", owned = true, wanted = false),
+            AlbumUiModel("4", "Live Other", owned = false, wanted = false)
+        ),
+        DiscographyCategory.EP to listOf(
+            AlbumUiModel("5", "Only Owned EP", owned = true, wanted = false)
+        )
+    )
+
+    private fun top(text: String) = composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
+
+    @Test
+    fun `with owned first, the owned albums are in a section at the top`() {
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+        }
+
+        composeTestRule.onNodeWithTag("owned_section_header").assertExists()
+        val header = composeTestRule.onNodeWithTag("owned_section_header").fetchSemanticsNode().positionInRoot.y
+        assertTrue(header < top("Studio Owned"))
+        assertTrue(top("Studio Owned") < top("Live Owned"))
+        assertTrue(top("Live Owned") < top("Only Owned EP"))
+        assertTrue(top("Only Owned EP") < top("Studio Albums"))
+    }
+
+    @Test
+    fun `an owned album is in the owned section and not in its category as well`() {
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+        }
+
+        composeTestRule.onAllNodesWithText("Studio Owned").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Live Owned").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Studio Other").assertExists()
+        composeTestRule.onNodeWithText("Live Other").assertExists()
+    }
+
+    @Test
+    fun `a category whose albums are all owned disappears while owned come first`() {
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+        }
+
+        composeTestRule.onNodeWithText("EPs").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Studio Albums").assertExists()
+        composeTestRule.onNodeWithText("Live Albums").assertExists()
+    }
+
+    @Test
+    fun `without owned first, there is no owned section and each album stays in its category`() {
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {})
+        }
+
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+        composeTestRule.onNodeWithText("EPs").assertExists()
+        assertTrue(top("Studio Albums") < top("Studio Owned"))
+    }
+
+    @Test
+    fun `with owned first but nothing owned, there is no owned section`() {
+        val none = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "Studio Other", owned = false, wanted = false))
+        )
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = none, onToggleOwned = {}, ownedFirst = true)
+        }
+
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Studio Albums").assertExists()
+    }
+
+    @Test
+    fun `the owned section's albums can still be opened and toggled`() {
+        var opened: String? = null
+        var toggled: String? = null
+        composeTestRule.setContent {
+            DiscographyScreen(
+                groupedAlbums = mixed, onToggleOwned = { toggled = it }, onOpenAlbum = { opened = it }, ownedFirst = true
+            )
+        }
+
+        composeTestRule.onNodeWithText("Studio Owned").performClick()
+        composeTestRule.onAllNodesWithTag("owned_toggle")[0].performClick()
+
+        assertEquals("1", opened)
+        assertEquals("1", toggled)
     }
 }
