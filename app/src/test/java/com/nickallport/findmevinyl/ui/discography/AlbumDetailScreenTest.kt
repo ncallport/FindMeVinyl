@@ -11,6 +11,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.nickallport.findmevinyl.discography.AlbumDetails
 import com.nickallport.findmevinyl.discography.Disc
+import com.nickallport.findmevinyl.discography.Pressing
+import com.nickallport.findmevinyl.discography.Rating
 import com.nickallport.findmevinyl.discography.Track
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import org.junit.Assert.assertEquals
@@ -49,13 +51,15 @@ class AlbumDetailScreenTest {
         onRetry: () -> Unit = {},
         onToggleOwned: () -> Unit = {},
         onToggleWanted: () -> Unit = {},
+        onSelectPressing: (String) -> Unit = {},
         loadCover: suspend (String) -> Bitmap? = { null }
     ) {
         composeTestRule.setContent {
             FindMeVinylTheme(darkTheme = darkTheme) {
                 AlbumDetailScreen(
                     albumId = "1", title = "Trespass", artistName = "Genesis", album = album, state = state,
-                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted, loadCover = loadCover
+                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted,
+                    onSelectPressing = onSelectPressing, loadCover = loadCover
                 )
             }
         }
@@ -246,5 +250,111 @@ class AlbumDetailScreenTest {
 
         composeTestRule.onNodeWithTag("detail_title").assertTextEquals("Trespass")
         composeTestRule.onAllNodesWithTag("track_row").assertCountEquals(3)
+    }
+
+    // The rating and the pressings.
+
+    private val pressings = listOf(
+        Pressing("r1", "1970-10", "GB", "Charisma", "CAS 1020", "12\" Vinyl"),
+        Pressing("r2", "1972", "DE", "Charisma Records Ltd.", "6369 905", "12\" Vinyl"),
+        Pressing("r3", null, null, null, null, null)
+    )
+
+    private val withPressings = details.copy(pressings = pressings, pressingId = "r1", rating = Rating(4.3, 27))
+
+    @Test
+    fun `shows the rating`() {
+        show(state = AlbumDetailState.Loaded(withPressings))
+
+        composeTestRule.onNodeWithTag("detail_rating").assertTextEquals("Rating 4.3 / 5 (27 votes)")
+    }
+
+    @Test
+    fun `shows no rating when there is none`() {
+        show(state = AlbumDetailState.Loaded(withPressings.copy(rating = null)))
+
+        composeTestRule.onNodeWithTag("detail_rating").assertDoesNotExist()
+    }
+
+    @Test
+    fun `lists the pressings with their date, country, label, catalogue number and format`() {
+        show(state = AlbumDetailState.Loaded(withPressings))
+
+        composeTestRule.onAllNodesWithTag("pressing_row", useUnmergedTree = true).assertCountEquals(3)
+        composeTestRule.onNodeWithTag("pressing_title_r2", useUnmergedTree = true).assertTextEquals("1972, Germany")
+        composeTestRule.onNodeWithTag("pressing_detail_r2", useUnmergedTree = true)
+            .assertTextEquals("Charisma Records Ltd., 6369 905, 12\" Vinyl")
+        composeTestRule.onNodeWithTag("pressing_title_r1", useUnmergedTree = true).assertTextEquals("1970-10, United Kingdom")
+    }
+
+    @Test
+    fun `a pressing with nothing known says so`() {
+        show(state = AlbumDetailState.Loaded(withPressings))
+
+        composeTestRule.onNodeWithTag("pressing_title_r3", useUnmergedTree = true).assertTextEquals("Date unknown")
+        composeTestRule.onNodeWithTag("pressing_detail_r3", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `an album with only one pressing has no list of pressings`() {
+        show(state = AlbumDetailState.Loaded(withPressings.copy(pressings = pressings.take(1))))
+
+        composeTestRule.onAllNodesWithTag("pressing_row", useUnmergedTree = true).assertCountEquals(0)
+        composeTestRule.onNodeWithText("Pressings").assertDoesNotExist()
+    }
+
+    @Test
+    fun `marks the pressing that is shown`() {
+        show(state = AlbumDetailState.Loaded(withPressings))
+
+        composeTestRule.onNodeWithTag("pressing_shown_r1", useUnmergedTree = true).assertTextEquals("Showing")
+        composeTestRule.onNodeWithTag("pressing_shown_r2", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `tapping another pressing asks for it, and tapping the one shown does nothing`() {
+        val asked = mutableListOf<String>()
+        show(state = AlbumDetailState.Loaded(withPressings), onSelectPressing = { asked.add(it) })
+
+        composeTestRule.onNodeWithTag("pressing_row_r1").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+
+        assertEquals(listOf("r2"), asked)
+    }
+
+    @Test
+    fun `shows a spinner on the pressing being loaded, and no more taps start another`() {
+        val asked = mutableListOf<String>()
+        show(
+            state = AlbumDetailState.Loaded(withPressings, switchingTo = "r2"),
+            onSelectPressing = { asked.add(it) }
+        )
+
+        composeTestRule.onNodeWithTag("pressing_loading_r2", useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithTag("pressing_row_r3").performScrollTo().performClick()
+
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `says so when another pressing could not be loaded`() {
+        show(state = AlbumDetailState.Loaded(withPressings, switchFailed = true))
+
+        composeTestRule.onNodeWithTag("pressing_failed").assertExists()
+        composeTestRule.onNodeWithText("Couldn't load that pressing").assertExists()
+    }
+
+    @Test
+    fun `says nothing about a failed pressing when none failed`() {
+        show(state = AlbumDetailState.Loaded(withPressings))
+
+        composeTestRule.onNodeWithTag("pressing_failed").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the pressings draw in dark mode too`() {
+        show(state = AlbumDetailState.Loaded(withPressings), darkTheme = true)
+
+        composeTestRule.onAllNodesWithTag("pressing_row", useUnmergedTree = true).assertCountEquals(3)
     }
 }

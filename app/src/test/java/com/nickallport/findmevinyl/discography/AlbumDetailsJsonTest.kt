@@ -15,7 +15,13 @@ class AlbumDetailsJsonTest {
                 title = null, format = "12\" Vinyl",
                 tracks = listOf(Track("A1", "Looking for Someone", 424000), Track("B1", "Stagnation, \"live\" ä", null))
             )
-        )
+        ),
+        pressings = listOf(
+            Pressing("r1", "1970-10", "GB", "Charisma", "CAS 1020", "12\" Vinyl"),
+            Pressing("r2", null, null, null, null, null)
+        ),
+        pressingId = "r1",
+        rating = Rating(4.3, 27)
     )
 
     @Test
@@ -32,18 +38,44 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `reads a stored row that has no genres or discs as empty lists`() {
-        val old = """{ "releaseDate": "1970", "label": "Charisma" }"""
+        val old = """{ "version": 2, "releaseDate": "1970", "label": "Charisma" }"""
 
         val read = AlbumDetailsJson.decode(old)!!
 
         assertEquals("Charisma", read.label)
         assertEquals(emptyList<String>(), read.genres)
         assertEquals(emptyList<Disc>(), read.discs)
+        assertEquals(emptyList<Pressing>(), read.pressings)
+        assertNull(read.pressingId)
+        assertNull(read.rating)
+    }
+
+    @Test
+    fun `a row stored before pressings and ratings were kept reads as missing, so it is fetched again`() {
+        val before = """{ "releaseDate": "1970", "label": "Charisma", "genres": ["rock"], "discs": [] }"""
+
+        assertNull(AlbumDetailsJson.decode(before))
+    }
+
+    @Test
+    fun `a row from a newer version of the app also reads as missing`() {
+        assertNull(AlbumDetailsJson.decode("""{ "version": 3, "label": "Charisma" }"""))
+    }
+
+    @Test
+    fun `leaves out a stored pressing that has no release id and a rating that makes no sense`() {
+        val odd = """{ "version": 2, "pressings": [ { "country": "GB" }, null, { "releaseId": "r1" } ],
+                       "rating": { "value": 0, "votes": 0 } }"""
+
+        val read = AlbumDetailsJson.decode(odd)!!
+
+        assertEquals(listOf("r1"), read.pressings.map { it.releaseId })
+        assertNull(read.rating)
     }
 
     @Test
     fun `reads a disc that has no tracks and a track that has no title`() {
-        val odd = """{ "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
+        val odd = """{ "version": 2, "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
 
         val read = AlbumDetailsJson.decode(odd)!!
 
@@ -53,7 +85,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `ignores fields it does not know about`() {
-        val newer = """{ "label": "Charisma", "somethingNew": [1, 2, 3] }"""
+        val newer = """{ "version": 2, "label": "Charisma", "somethingNew": [1, 2, 3] }"""
 
         assertEquals("Charisma", AlbumDetailsJson.decode(newer)?.label)
     }

@@ -35,6 +35,15 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseDetailResponse
 
+    /** The rating of one release group: an average out of 5 and how many people voted. */
+    @GET("release-group/{id}")
+    suspend fun getReleaseGroupRating(
+        @Path("id") releaseGroupId: String,
+        @Query("inc") include: String = "ratings",
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzReleaseGroupRatingResponse
+
     /** The web links of one artist, such as its Wikidata page and image, for finding its picture. */
     @GET("artist/{id}")
     suspend fun getArtistLinks(
@@ -44,11 +53,15 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzArtistLinksResponse
 
-    /** The releases of one release group with their media, which say whether it came on vinyl, CD and so on. */
+    /**
+     * The releases of one release group with their media, which say whether it came on vinyl, CD and so on.
+     * `media+labels` adds each release's label and catalogue number. The `inc` list is sent as it is,
+     * because MusicBrainz reads the plus signs as spaces.
+     */
     @GET("release/")
     suspend fun getReleasesForReleaseGroup(
         @Query("release-group") releaseGroupId: String,
-        @Query("inc") include: String = "media",
+        @Query("inc", encoded = true) include: String = "media",
         @Query("limit") limit: Int = 100,
         @Query("fmt") format: String = "json",
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE

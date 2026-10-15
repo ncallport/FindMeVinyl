@@ -28,11 +28,28 @@ data class AlbumDetails(
     val firstReleaseDate: String?,
     val format: String?,
     val genres: List<String>,
-    val discs: List<Disc>
+    val discs: List<Disc>,
+    /** The pressings of the album that can be shown, earliest first. The first is the one the page opens on. */
+    val pressings: List<Pressing> = emptyList(),
+    /** The release the date, label, format and tracks above belong to. */
+    val pressingId: String? = null,
+    val rating: Rating? = null
 ) {
-    /** False when MusicBrainz had nothing at all about the pressing, so the page can say so. */
+    /** False when MusicBrainz had nothing at all about the album, so the page can say so. */
     val hasContent: Boolean
-        get() = releaseDate != null || country != null || label != null || genres.isNotEmpty() || discs.isNotEmpty()
+        get() = releaseDate != null || country != null || label != null || genres.isNotEmpty() || discs.isNotEmpty() ||
+            pressings.isNotEmpty() || rating != null
+
+    /** The same album shown with another pressing: its date, label, format and tracks, but this album's genres, pressings and rating. */
+    fun withPressing(other: AlbumDetails): AlbumDetails = copy(
+        releaseDate = other.releaseDate,
+        country = other.country,
+        label = other.label,
+        catalogNumber = other.catalogNumber,
+        format = other.format,
+        discs = other.discs,
+        pressingId = other.pressingId
+    )
 
     companion object {
         private const val MAX_GENRES = 6

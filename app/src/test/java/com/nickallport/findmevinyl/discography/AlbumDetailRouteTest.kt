@@ -32,7 +32,8 @@ class AlbumDetailRouteTest {
     private fun show(
         loadDetails: suspend (String) -> AlbumDetails?,
         onToggleOwned: suspend (String, Boolean) -> Unit = { _, _ -> },
-        onToggleWanted: suspend (String, Boolean) -> Unit = { _, _ -> }
+        onToggleWanted: suspend (String, Boolean) -> Unit = { _, _ -> },
+        loadPressing: suspend (String, String) -> AlbumDetails? = { _, _ -> null }
     ) {
         composeTestRule.setContent {
             FindMeVinylTheme {
@@ -41,7 +42,8 @@ class AlbumDetailRouteTest {
                     loadDetails = loadDetails,
                     loadAlbum = { album },
                     onToggleOwned = onToggleOwned,
-                    onToggleWanted = onToggleWanted
+                    onToggleWanted = onToggleWanted,
+                    loadPressing = loadPressing
                 )
             }
         }
@@ -127,5 +129,81 @@ class AlbumDetailRouteTest {
         composeTestRule.waitForIdle()
 
         assertEquals(1, calls)
+    }
+
+    // Choosing another pressing.
+
+    private val pressings = listOf(
+        Pressing("r1", "1970", "GB", "Charisma", null, "12\" Vinyl"),
+        Pressing("r2", "1972", "DE", "Buddah", null, "12\" Vinyl")
+    )
+    private val twoPressings = details.copy(pressings = pressings, pressingId = "r1")
+    private val secondPressing = twoPressings.copy(
+        pressingId = "r2", country = "DE",
+        discs = listOf(Disc(null, "12\" Vinyl", listOf(Track("A1", "Another Take", 1000))))
+    )
+
+    @Test
+    fun `choosing a pressing loads it and shows its tracks`() {
+        val asked = mutableListOf<Pair<String, String>>()
+        show(
+            loadDetails = { twoPressings },
+            loadPressing = { album, release -> asked.add(album to release); secondPressing }
+        )
+
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("1" to "r2"), asked)
+        composeTestRule.onNodeWithText("Another Take").assertExists()
+        composeTestRule.onNodeWithText("Looking for Someone").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("pressing_shown_r2", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `shows a spinner on the pressing while it loads`() {
+        val gate = CompletableDeferred<AlbumDetails?>()
+        show(loadDetails = { twoPressings }, loadPressing = { _, _ -> gate.await() })
+
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("pressing_loading_r2", useUnmergedTree = true).assertExists()
+        // The tracks of the pressing that is shown stay on screen meanwhile.
+        composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+
+        gate.complete(secondPressing)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("pressing_loading_r2", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a pressing that cannot be loaded leaves the page as it was and says so, and can be tried again`() {
+        var calls = 0
+        show(loadDetails = { twoPressings }, loadPressing = { _, _ -> if (++calls == 1) null else secondPressing })
+
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Couldn't load that pressing").assertExists()
+        composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Couldn't load that pressing").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Another Take").assertExists()
+    }
+
+    @Test
+    fun `choosing a pressing does not load the album's details again`() {
+        var loads = 0
+        show(loadDetails = { loads++; twoPressings }, loadPressing = { _, _ -> secondPressing })
+
+        composeTestRule.onNodeWithTag("pressing_row_r2").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(1, loads)
     }
 }
