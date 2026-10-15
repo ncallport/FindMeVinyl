@@ -195,6 +195,35 @@ class DiscographyRouteSettingsTest {
     }
 
     @Test
+    fun `an album whose lookup saved only bootleg statuses is left out when bootlegs are hidden`() {
+        val unchecked = DiscographyUiState.Success(
+            mapOf(DiscographyCategory.STUDIO_ALBUM to listOf(album("N1", formats = null), album("N2", listOf("LP"))))
+        )
+        var lookedUp = false
+        val saved = DiscographyUiState.Success(
+            mapOf(
+                DiscographyCategory.STUDIO_ALBUM to listOf(
+                    AlbumUiModel("N1", "Album N1", owned = false, wanted = false, formats = listOf("LP"), statuses = listOf("Bootleg")),
+                    album("N2", listOf("LP"))
+                )
+            )
+        )
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = { flowOf(unchecked) }, onToggleOwned = { _, _ -> },
+                settings = Settings.ShowEverything.copy(hideBootlegs = true),
+                loadFormats = { lookedUp = true; listOf("LP") },
+                loadSaved = { if (lookedUp) saved else unchecked }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Album N1").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Album N2").assertExists()
+        composeTestRule.onNodeWithText("1 album hidden by your settings").assertExists()
+    }
+
+    @Test
     fun `the discography loads once however the settings are`() {
         var count = 0
         show(Settings(), loads = { count++ })

@@ -46,6 +46,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_3_4
 import com.nickallport.findmevinyl.storage.MIGRATION_4_5
 import com.nickallport.findmevinyl.storage.MIGRATION_5_6
 import com.nickallport.findmevinyl.storage.MIGRATION_6_7
+import com.nickallport.findmevinyl.storage.MIGRATION_7_8
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -146,7 +147,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
 
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
