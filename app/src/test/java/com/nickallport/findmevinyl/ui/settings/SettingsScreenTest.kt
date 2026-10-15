@@ -114,6 +114,7 @@ class SettingsScreenTest {
         Row("Hide CDs", "hideCds", { it.copy(hideCds = !it.hideCds) }, { it.hideCds }),
         Row("Hide 12\"s", "hideTwelveInches", { it.copy(hideTwelveInches = !it.hideTwelveInches) }, { it.hideTwelveInches }),
         Row("Hide 7\"s", "hideSevenInches", { it.copy(hideSevenInches = !it.hideSevenInches) }, { it.hideSevenInches }),
+        Row("Hide MCs", "hideMcs", { it.copy(hideMcs = !it.hideMcs) }, { it.hideMcs }),
         Row("Hide Digital", "hideDigital", { it.copy(hideDigital = !it.hideDigital) }, { it.hideDigital })
     )
 

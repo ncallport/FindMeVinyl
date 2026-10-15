@@ -23,7 +23,7 @@ class SettingsStoreTest {
 
     private val everythingTheOtherWay = Settings(
         hideLiveAlbums = true, hideCompilations = true, hideSingles = true, hideOtherReleases = true,
-        hideLps = true, hideCds = true, hideTwelveInches = true, hideSevenInches = true,
+        hideLps = true, hideCds = true, hideTwelveInches = true, hideSevenInches = true, hideMcs = true,
         hideDigital = false, hideBootlegs = false, hidePromos = false, hideUnknownStatus = false,
         hideCharityShops = false
     )

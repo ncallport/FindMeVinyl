@@ -27,6 +27,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             hideCds = flag("hideCds", defaults.hideCds),
             hideTwelveInches = flag("hideTwelveInches", defaults.hideTwelveInches),
             hideSevenInches = flag("hideSevenInches", defaults.hideSevenInches),
+            hideMcs = flag("hideMcs", defaults.hideMcs),
             hideDigital = flag("hideDigital", defaults.hideDigital),
             hideBootlegs = flag("hideBootlegs", defaults.hideBootlegs),
             hidePromos = flag("hidePromos", defaults.hidePromos),
@@ -45,6 +46,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("hideCds", settings.hideCds)
             .putBoolean("hideTwelveInches", settings.hideTwelveInches)
             .putBoolean("hideSevenInches", settings.hideSevenInches)
+            .putBoolean("hideMcs", settings.hideMcs)
             .putBoolean("hideDigital", settings.hideDigital)
             .putBoolean("hideBootlegs", settings.hideBootlegs)
             .putBoolean("hidePromos", settings.hidePromos)
