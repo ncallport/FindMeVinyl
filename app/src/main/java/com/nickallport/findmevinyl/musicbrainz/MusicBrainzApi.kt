@@ -35,6 +35,21 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseDetailResponse
 
+    /**
+     * A page of every release the artist is credited on, each with the release group it belongs to and
+     * its media. All of an artist's albums can be checked for their formats from these pages, a hundred
+     * releases a request, instead of one request for each album. The `inc` list is sent as it is.
+     */
+    @GET("release/")
+    suspend fun getReleasesForArtist(
+        @Query("artist") artistId: String,
+        @Query("inc", encoded = true) include: String = "release-groups+media",
+        @Query("limit") limit: Int = 100,
+        @Query("offset") offset: Int = 0,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzArtistReleasesResponse
+
     /** The rating of one release group: an average out of 5 and how many people voted. */
     @GET("release-group/{id}")
     suspend fun getReleaseGroupRating(

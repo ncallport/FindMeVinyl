@@ -214,7 +214,8 @@ class MainActivity : ComponentActivity() {
                                     )
                                 },
                                 loadCover = { id -> CoverArtLoader.shared.load(id) },
-                                loadFormats = { id -> discographyViewModel.loadFormats(id) }
+                                loadFormats = { id -> discographyViewModel.loadFormats(id) },
+                                checkAllFormats = { id, onProgress -> discographyViewModel.checkAllFormats(id, onProgress) }
                             )
                         }
                         is Screen.AlbumDetail -> {
