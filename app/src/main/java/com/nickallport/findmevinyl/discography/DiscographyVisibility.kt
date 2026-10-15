@@ -8,8 +8,8 @@ import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
  *
  * An album you own or want is never hidden. Otherwise it is hidden when its kind is hidden (live
  * albums, compilations, singles, other releases; studio albums and EPs cannot be), or when every
- * format it is known to have come out on is hidden: LP, CD, 12", 7" and Digital can be hidden, and 10"
- * and cassette cannot. A hidden format is also taken out of the album's formats, so the row and the
+ * format it is known to have come out on is hidden: LP, CD, 12", 7", MC and Digital can be hidden, and
+ * 10" cannot. A hidden format is also taken out of the album's formats, so the row and the
  * format chips do not show it. An album whose formats are not known yet is shown, because nothing can
  * be said about it until it is looked up.
  */
@@ -73,6 +73,7 @@ object DiscographyVisibility {
         if (settings.hideCds) add(ReleaseFormats.CD)
         if (settings.hideTwelveInches) add(ReleaseFormats.TWELVE_INCH)
         if (settings.hideSevenInches) add(ReleaseFormats.SEVEN_INCH)
+        if (settings.hideMcs) add(ReleaseFormats.MC)
         if (settings.hideDigital) add(ReleaseFormats.DIGITAL)
     }
 }

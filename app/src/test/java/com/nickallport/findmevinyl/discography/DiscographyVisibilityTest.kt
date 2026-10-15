@@ -157,6 +157,7 @@ class DiscographyVisibilityTest {
         assertEquals(true, hiddenBy(none.copy(hideCds = true), "CD"))
         assertEquals(true, hiddenBy(none.copy(hideTwelveInches = true), "12\""))
         assertEquals(true, hiddenBy(none.copy(hideSevenInches = true), "7\""))
+        assertEquals(true, hiddenBy(none.copy(hideMcs = true), "MC"))
         assertEquals(true, hiddenBy(none.copy(hideDigital = true), "Digital"))
     }
 
@@ -171,18 +172,21 @@ class DiscographyVisibilityTest {
         assertFalse(hiddenBy(Settings.ShowEverything.copy(hideCds = true), "LP"))
         assertFalse(hiddenBy(Settings.ShowEverything.copy(hideTwelveInches = true), "7\""))
         assertFalse(hiddenBy(Settings.ShowEverything.copy(hideSevenInches = true), "12\""))
+        assertFalse(hiddenBy(Settings.ShowEverything.copy(hideMcs = true), "CD"))
+        assertFalse(hiddenBy(Settings.ShowEverything.copy(hideCds = true), "MC"))
     }
 
     @Test
     fun `formats that cannot be hidden are never hidden`() {
-        val input = grouped(studio to listOf(album("1", listOf("MC")), album("2", listOf("10\""))))
+        val input = grouped(studio to listOf(album("1", listOf("10\""))))
         val everyFormat = Settings.ShowEverything.copy(
-            hideLps = true, hideCds = true, hideTwelveInches = true, hideSevenInches = true, hideDigital = true
+            hideLps = true, hideCds = true, hideTwelveInches = true, hideSevenInches = true, hideMcs = true,
+            hideDigital = true
         )
 
         val result = DiscographyVisibility.apply(input, everyFormat)
 
-        assertEquals(listOf("1", "2"), ids(result, studio))
+        assertEquals(listOf("1"), ids(result, studio))
     }
 
     @Test

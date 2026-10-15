@@ -70,6 +70,7 @@ fun SettingsScreen(
             SettingRow("Hide 7\"s", "hideSevenInches", settings.hideSevenInches) {
                 onChange(settings.copy(hideSevenInches = it))
             }
+            SettingRow("Hide MCs", "hideMcs", settings.hideMcs) { onChange(settings.copy(hideMcs = it)) }
             SettingRow("Hide Digital", "hideDigital", settings.hideDigital) {
                 onChange(settings.copy(hideDigital = it))
             }
