@@ -77,8 +77,6 @@ fun DiscographyRoute(
     onOpenSettings: (() -> Unit)? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onChoosePhoto: (suspend (artistId: String) -> Boolean)? = null,
-    hasUserPhoto: suspend (artistId: String) -> Boolean = { false },
-    onUseOriginalPhoto: suspend (artistId: String) -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadSaved: (suspend (String) -> DiscographyUiState)? = null,
@@ -92,7 +90,6 @@ fun DiscographyRoute(
     var ownedFirst by rememberSaveable(artistId) { mutableStateOf(startWithOwnedFirst) }
     // Counts the changes to the artist's photo. Each one loads the picture again.
     var photoVersion by remember { mutableStateOf(0) }
-    var userPhoto by remember { mutableStateOf(false) }
     var formatCheck by remember { mutableStateOf<FormatCheckState>(FormatCheckState.Idle) }
     var formatCheckAttempt by remember { mutableStateOf(0) }
     var formatCheckFinished by remember(artistId) { mutableStateOf(false) }
@@ -134,10 +131,6 @@ fun DiscographyRoute(
         }
     }
 
-    LaunchedEffect(artistId, photoVersion) {
-        userPhoto = onChoosePhoto != null && hasUserPhoto(artistId)
-    }
-
     LaunchedEffect(artistId, attempt) {
         isFavourite = loadIsFavourite()
         load(artistId).collect { loadState = LoadState.Loaded(it) }
@@ -173,13 +166,6 @@ fun DiscographyRoute(
             photoVersion = photoVersion,
             onChoosePhoto = onChoosePhoto?.let { choose ->
                 { coroutineScope.launch { if (choose(artistId)) photoVersion++ } }
-            },
-            hasUserPhoto = userPhoto,
-            onUseOriginalPhoto = {
-                coroutineScope.launch {
-                    onUseOriginalPhoto(artistId)
-                    photoVersion++
-                }
             },
             isFavourite = isFavourite,
             onToggleFavourite = {
