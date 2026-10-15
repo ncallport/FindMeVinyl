@@ -108,4 +108,14 @@ class ScreenSaverTest {
         val restored = roundTrip(screen) as Screen.Discography
         assertEquals(Screen.ArtistResults("One"), restored.backTo)
     }
+
+    @Test
+    fun theSettingsPageRoundTrips() {
+        assertEquals(Screen.Settings, roundTrip(Screen.Settings))
+    }
+
+    @Test
+    fun backFromTheSettingsPageGoesToTheFrontScreen() {
+        assertEquals(Screen.Home, Screen.Settings.backTarget())
+    }
 }

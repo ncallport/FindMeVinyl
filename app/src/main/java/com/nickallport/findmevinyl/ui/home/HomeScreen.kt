@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,7 +34,8 @@ fun HomeScreen(
     onArtists: () -> Unit,
     onWants: () -> Unit,
     onShops: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSettings: (() -> Unit)? = null
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -52,6 +54,13 @@ fun HomeScreen(
         HomeButton("WANTS", Glyphs.Heart, colors.secondary, colors.onSecondary, "home_wants", onWants)
         Spacer(modifier = Modifier.height(16.dp))
         HomeButton("SHOPS", Glyphs.Pin, colors.tertiary, colors.onTertiary, "home_shops", onShops)
+        if (onSettings != null) {
+            Spacer(modifier = Modifier.height(24.dp))
+            // Quieter than the three that matter every day.
+            OutlinedButton(onClick = onSettings, modifier = Modifier.testTag("home_settings")) {
+                Text("Settings")
+            }
+        }
     }
 }
 

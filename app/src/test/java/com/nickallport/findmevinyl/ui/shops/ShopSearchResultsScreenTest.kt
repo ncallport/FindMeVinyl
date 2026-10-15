@@ -226,4 +226,60 @@ class ShopSearchResultsScreenTest {
         composeTestRule.onNodeWithText("Newport, Isle of Wight, England, United Kingdom").assertDoesNotExist()
         composeTestRule.onNodeWithText("Not the right place?").assertExists()
     }
+
+    // Shops left out by the settings.
+
+    private fun london(vararg shops: Shop) = ShopSearchUiState.Success(
+        shops = shops.toList(), placeName = "London, UK", centerLatitude = 51.5074, centerLongitude = -0.1278
+    )
+
+    private val sisterRay = Shop("1", "Sister Ray", ShopCategory.RECORD_SHOP, 51.51, -0.13, null)
+
+    @Test
+    fun `says nothing when no shops were left out`() {
+        composeTestRule.setContent { ShopSearchResultsScreen(state = london(sisterRay)) }
+
+        composeTestRule.onNodeWithTag("hidden_shops_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `says how many charity shops were left out`() {
+        composeTestRule.setContent { ShopSearchResultsScreen(state = london(sisterRay), hiddenShops = 3) }
+
+        composeTestRule.onNodeWithText("3 charity shops hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `says it in the singular for one`() {
+        composeTestRule.setContent { ShopSearchResultsScreen(state = london(sisterRay), hiddenShops = 1) }
+
+        composeTestRule.onNodeWithText("1 charity shop hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `tapping the note goes to the settings`() {
+        var opened = 0
+        composeTestRule.setContent {
+            ShopSearchResultsScreen(state = london(sisterRay), hiddenShops = 2, onOpenSettings = { opened++ })
+        }
+
+        composeTestRule.onNodeWithTag("hidden_shops_note").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `when only charity shops were found, it does not say there were no shops`() {
+        composeTestRule.setContent { ShopSearchResultsScreen(state = london(), hiddenShops = 4) }
+
+        composeTestRule.onNodeWithText("No other shops found nearby").assertExists()
+        composeTestRule.onNodeWithText("4 charity shops hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `when nothing was found at all, it says so as before`() {
+        composeTestRule.setContent { ShopSearchResultsScreen(state = london()) }
+
+        composeTestRule.onNodeWithText("No shops found nearby").assertExists()
+    }
 }

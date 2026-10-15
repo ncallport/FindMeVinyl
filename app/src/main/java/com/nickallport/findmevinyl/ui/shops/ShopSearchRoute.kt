@@ -25,6 +25,7 @@ import com.nickallport.findmevinyl.SearchResultCache
 import com.nickallport.findmevinyl.holidays.HolidayRegion
 import com.nickallport.findmevinyl.shops.PlaceCandidate
 import com.nickallport.findmevinyl.shops.Shop
+import com.nickallport.findmevinyl.shops.ShopCategory
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
 import com.nickallport.findmevinyl.ui.brand.Glyphs
 import com.nickallport.findmevinyl.ui.common.SearchField
@@ -47,7 +48,10 @@ private sealed class RouteState {
  * searching again is up to the user.
  *
  * With [loadPublicHolidays], the public holidays of the region the shown shops are in are looked up,
- * so opening hours can follow their public holiday rules. Until they are known, and when they cannot be
+ * so opening hours can follow their public holiday rules.
+ *
+ * With [hideCharityShops], charity shops are left out of what is shown, and a note says how many. The
+ * kept result still has them, so changing the setting needs no new search. Until they are known, and when they cannot be
  * found or the region is not known, hours that mention holidays say that holidays may differ.
  */
 @Composable
@@ -58,7 +62,9 @@ fun ShopSearchRoute(
     onShopSelected: ((Shop) -> Unit)? = null,
     searchPlace: (suspend (PlaceCandidate, List<PlaceCandidate>) -> ShopSearchUiState)? = null,
     cache: SearchResultCache = remember { SearchResultCache() },
-    loadPublicHolidays: (suspend (HolidayRegion) -> Set<LocalDate>?)? = null
+    loadPublicHolidays: (suspend (HolidayRegion) -> Set<LocalDate>?)? = null,
+    hideCharityShops: Boolean = false,
+    onOpenSettings: (() -> Unit)? = null
 ) {
     var town by rememberSaveable { mutableStateOf("") }
     var routeState by remember {
@@ -147,8 +153,21 @@ fun ShopSearchRoute(
                             null
                         }
 
+                    val hiddenShops = if (hideCharityShops && shown is ShopSearchUiState.Success) {
+                        shown.shops.count { it.category == ShopCategory.CHARITY_SHOP }
+                    } else {
+                        0
+                    }
+                    val displayed = if (hiddenShops > 0 && shown is ShopSearchUiState.Success) {
+                        shown.copy(shops = shown.shops.filter { it.category != ShopCategory.CHARITY_SHOP })
+                    } else {
+                        shown
+                    }
+
                     ShopSearchResultsScreen(
-                        state = shown,
+                        state = displayed,
+                        hiddenShops = hiddenShops,
+                        onOpenSettings = onOpenSettings,
                         onShopSelected = onShopSelected,
                         onPlaceSelected = onPlaceSelected,
                         isPublicHoliday = isPublicHoliday

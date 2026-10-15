@@ -18,6 +18,8 @@ import com.nickallport.findmevinyl.shops.ShopSearchUiState
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -514,5 +516,85 @@ class ShopSearchRouteTest {
         composeTestRule.waitForIdle()
 
         assertEquals(PlaceCandidate("London, UK", 51.5074, -0.1278, england), others.single().first())
+    }
+
+    // Charity shops, left out by the settings.
+
+    private val charity = Shop("2", "Oxfam", ShopCategory.CHARITY_SHOP, 51.52, -0.14, null)
+    private val secondHand = Shop("3", "Second Spin", ShopCategory.SECOND_HAND_SHOP, 51.53, -0.15, null)
+    private val withCharity = oneShop.copy(shops = oneShop.shops + charity + secondHand)
+
+    @Test
+    fun `leaves charity shops out when the setting says so, and says how many`() {
+        show { ShopSearchRoute(search = { withCharity }, cache = triedCache(), hideCharityShops = true) }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Sister Ray").assertExists()
+        composeTestRule.onNodeWithText("Second Spin").assertExists()
+        composeTestRule.onNodeWithText("Oxfam").assertDoesNotExist()
+        composeTestRule.onNodeWithText("1 charity shop hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `shows charity shops when the setting says not to hide them`() {
+        show { ShopSearchRoute(search = { withCharity }, cache = triedCache(), hideCharityShops = false) }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Oxfam").assertExists()
+        composeTestRule.onNodeWithTag("hidden_shops_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `charity shops are shown by default, when the route is not told about the setting`() {
+        show { ShopSearchRoute(search = { withCharity }, cache = triedCache()) }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Oxfam").assertExists()
+    }
+
+    @Test
+    fun `changing the setting changes the list without searching again`() {
+        var searches = 0
+        var hide by androidx.compose.runtime.mutableStateOf(true)
+        show {
+            ShopSearchRoute(search = { searches++; withCharity }, cache = triedCache(), hideCharityShops = hide)
+        }
+        searchFor("London")
+        composeTestRule.onNodeWithText("Oxfam").assertDoesNotExist()
+
+        hide = false
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Oxfam").assertExists()
+        assertEquals(1, searches)
+    }
+
+    @Test
+    fun `the note takes you to the settings`() {
+        var opened = 0
+        show {
+            ShopSearchRoute(
+                search = { withCharity }, cache = triedCache(), hideCharityShops = true, onOpenSettings = { opened++ }
+            )
+        }
+        searchFor("London")
+
+        composeTestRule.onNodeWithTag("hidden_shops_note").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `the kept result still has the charity shops in it, so showing them again needs no search`() {
+        val cache = triedCache()
+        show { ShopSearchRoute(search = { withCharity }, cache = cache, hideCharityShops = true) }
+        searchFor("London")
+
+        val kept = cache.shop as ShopSearchUiState.Success
+
+        assertEquals(3, kept.shops.size)
     }
 }
