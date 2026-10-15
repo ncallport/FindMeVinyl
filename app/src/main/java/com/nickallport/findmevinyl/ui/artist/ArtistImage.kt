@@ -3,6 +3,8 @@ package com.nickallport.findmevinyl.ui.artist
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.ui.common.SquareImage
 
 /**
@@ -14,6 +16,7 @@ fun ArtistImage(
     artistId: String,
     loadImage: suspend (String) -> Bitmap?,
     modifier: Modifier = Modifier,
+    size: Dp = 56.dp,
     onShownChange: (Boolean) -> Unit = {}
 ) {
     SquareImage(
@@ -22,6 +25,7 @@ fun ArtistImage(
         imageTag = "artist_image",
         placeholderTag = "artist_placeholder",
         modifier = modifier,
+        size = size,
         onShownChange = onShownChange
     )
 }

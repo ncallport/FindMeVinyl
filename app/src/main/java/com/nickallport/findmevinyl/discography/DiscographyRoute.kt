@@ -62,6 +62,10 @@ fun DiscographyRoute(
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
     onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
     onOpenArtists: (() -> Unit)? = null,
+    loadArtistImage: suspend (String) -> Bitmap? = { null },
+    onChoosePhoto: (suspend (artistId: String) -> Boolean)? = null,
+    hasUserPhoto: suspend (artistId: String) -> Boolean = { false },
+    onUseOriginalPhoto: suspend (artistId: String) -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadSaved: (suspend (String) -> DiscographyUiState)? = null,
@@ -73,6 +77,9 @@ fun DiscographyRoute(
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
     var ownedFirst by rememberSaveable { mutableStateOf(false) }
+    // Counts the changes to the artist's photo. Each one loads the picture again.
+    var photoVersion by remember { mutableStateOf(0) }
+    var userPhoto by remember { mutableStateOf(false) }
     var formatCheck by remember { mutableStateOf<FormatCheckState>(FormatCheckState.Idle) }
     var formatCheckAttempt by remember { mutableStateOf(0) }
     var formatCheckFinished by remember(artistId) { mutableStateOf(false) }
@@ -114,6 +121,10 @@ fun DiscographyRoute(
         }
     }
 
+    LaunchedEffect(artistId, photoVersion) {
+        userPhoto = onChoosePhoto != null && hasUserPhoto(artistId)
+    }
+
     LaunchedEffect(artistId, attempt) {
         isFavourite = loadIsFavourite()
         load(artistId).collect { loadState = LoadState.Loaded(it) }
@@ -144,6 +155,19 @@ fun DiscographyRoute(
         DiscographyHeader(
             artistName = artistName,
             onOpenArtists = onOpenArtists,
+            artistId = artistId,
+            loadArtistImage = loadArtistImage,
+            photoVersion = photoVersion,
+            onChoosePhoto = onChoosePhoto?.let { choose ->
+                { coroutineScope.launch { if (choose(artistId)) photoVersion++ } }
+            },
+            hasUserPhoto = userPhoto,
+            onUseOriginalPhoto = {
+                coroutineScope.launch {
+                    onUseOriginalPhoto(artistId)
+                    photoVersion++
+                }
+            },
             isFavourite = isFavourite,
             onToggleFavourite = {
                 coroutineScope.launch {
