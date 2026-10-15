@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.discography
 
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistReleasesResponse
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumDao
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.last
+import java.util.concurrent.ConcurrentHashMap
+import retrofit2.HttpException
 
 sealed class DiscographyUiState {
     data class Success(
@@ -27,6 +30,10 @@ sealed class DiscographyUiState {
     data class Error(val message: String) : DiscographyUiState()
 }
 
+// How often a page of the format check is asked for when MusicBrainz says it is busy.
+private const val FORMAT_CHECK_ATTEMPTS = 3
+private val BUSY_CODES = setOf(429, 503)
+
 class DiscographyViewModel(
     private val api: MusicBrainzApi,
     private val albumDao: AlbumDao,
@@ -36,8 +43,105 @@ class DiscographyViewModel(
     private val maxPages: Int = 10,
     private val throttle: MusicBrainzThrottle = MusicBrainzThrottle.shared,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val formatRefreshAfterMillis: Long = 30L * 24 * 60 * 60 * 1000
+    private val formatRefreshAfterMillis: Long = 30L * 24 * 60 * 60 * 1000,
+    /** An artist with more releases than this many pages hold is not checked in one go. */
+    private val formatCheckMaxPages: Int = 60
 ) {
+    // What has been read so far of an artist's releases, so a check that failed or was left carries on.
+    private class FormatCheckProgress(val total: Int) {
+        var nextOffset = 0
+        val formatsByAlbum = mutableMapOf<String, MutableSet<String>>()
+
+        fun add(page: MusicBrainzArtistReleasesResponse, pageSize: Int) {
+            for (release in page.releases.orEmpty()) {
+                val album = release.releaseGroup?.id ?: continue
+                val formats = formatsByAlbum.getOrPut(album) { mutableSetOf() }
+                release.media.orEmpty().mapNotNullTo(formats) { it.format }
+            }
+            nextOffset += pageSize
+        }
+    }
+
+    private val formatChecks = ConcurrentHashMap<String, FormatCheckProgress>()
+    private val artistsTooBig = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Finds the formats of all of an artist's albums from the artist's releases, a hundred a request,
+     * which is far fewer requests than one for each album. A page is asked for in its own turn in the
+     * [throttle]. [onProgress] is told after each page how many pages are read and how many there are.
+     *
+     * The formats are saved at the end, in one go, for the albums the releases belong to: an album's
+     * releases can be on any page, so formats read part way would be incomplete. Albums none of the
+     * releases belong to stay unchecked. If a page fails, nothing is saved ([FormatCheckResult.Failed]),
+     * and the pages read so far are kept for the next try. They are kept too if the caller is cancelled.
+     * An artist with more than [formatCheckMaxPages] pages of releases is [FormatCheckResult.TooBig],
+     * and is not asked about again in this run of the app.
+     */
+    suspend fun checkAllFormats(
+        artistId: String,
+        onProgress: (donePages: Int, totalPages: Int) -> Unit = { _, _ -> }
+    ): FormatCheckResult {
+        if (artistId in artistsTooBig) return FormatCheckResult.TooBig
+        return try {
+            val progress = formatChecks[artistId] ?: run {
+                val first = releasesPage(artistId, offset = 0)
+                val total = first.releaseCount ?: first.releases.orEmpty().size
+                if (pagesFor(total) > formatCheckMaxPages) {
+                    artistsTooBig.add(artistId)
+                    return FormatCheckResult.TooBig
+                }
+                FormatCheckProgress(total).also {
+                    it.add(first, pageSize)
+                    formatChecks[artistId] = it
+                    onProgress(pagesFor(it.nextOffset), pagesFor(total))
+                }
+            }
+
+            while (progress.nextOffset < progress.total) {
+                val offset = progress.nextOffset
+                val page = releasesPage(artistId, offset)
+                progress.add(page, pageSize)
+                onProgress(minOf(pagesFor(progress.nextOffset), pagesFor(progress.total)), pagesFor(progress.total))
+            }
+
+            val updated = saveChecked(artistId, progress)
+            formatChecks.remove(artistId)
+            FormatCheckResult.Done(updated)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            FormatCheckResult.Failed
+        }
+    }
+
+    private fun pagesFor(releases: Int): Int = (releases + pageSize - 1) / pageSize
+
+    // A page can come back "busy" (429 or 503), which MusicBrainz sends when it is asked too often. The
+    // throttle then holds every request back for a few seconds, so asking again after it works. A check
+    // is dozens of requests, so one busy answer must not end it. Any other failure does.
+    private suspend fun releasesPage(artistId: String, offset: Int): MusicBrainzArtistReleasesResponse {
+        var attempt = 1
+        while (true) {
+            try {
+                return throttle.run { api.getReleasesForArtist(artistId, limit = pageSize, offset = offset) }
+            } catch (e: HttpException) {
+                if (attempt >= FORMAT_CHECK_ATTEMPTS || e.code() !in BUSY_CODES) throw e
+                attempt++
+            }
+        }
+    }
+
+    private suspend fun saveChecked(artistId: String, progress: FormatCheckProgress): Int {
+        val checkedAt = clock()
+        var updated = 0
+        for (album in albumDao.getAlbumsForArtist(artistId)) {
+            val names = progress.formatsByAlbum[album.id] ?: continue
+            albumDao.setFormats(album.id, ReleaseFormats.encode(names), checkedAt)
+            updated++
+        }
+        return updated
+    }
+
     /**
      * Looks up the formats of an album's releases on MusicBrainz, saves them, and returns the
      * labels to show. Null means the lookup failed, and nothing is saved, so it can be tried again.

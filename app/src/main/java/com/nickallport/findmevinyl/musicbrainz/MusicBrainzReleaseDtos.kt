@@ -14,6 +14,16 @@ data class MusicBrainzReleaseListResponse(
             .distinct()
 }
 
+/** One page of the releases of an artist (`release?artist=`), with the total over all pages. */
+data class MusicBrainzArtistReleasesResponse(
+    @SerializedName("release-count") val releaseCount: Int? = null,
+    val releases: List<MusicBrainzReleaseDto>? = null
+)
+
+data class MusicBrainzReleaseGroupRefDto(
+    val id: String? = null
+)
+
 data class MusicBrainzReleaseDto(
     val id: String? = null,
     val media: List<MusicBrainzMediumDto>? = null,
@@ -21,7 +31,9 @@ data class MusicBrainzReleaseDto(
     val status: String? = null,
     val country: String? = null,
     /** Only there when the list was asked for with labels (`inc=media+labels`). */
-    @SerializedName("label-info") val labelInfo: List<MusicBrainzLabelInfoDto>? = null
+    @SerializedName("label-info") val labelInfo: List<MusicBrainzLabelInfoDto>? = null,
+    /** Only there when asked for with `inc=release-groups`. */
+    @SerializedName("release-group") val releaseGroup: MusicBrainzReleaseGroupRefDto? = null
 )
 
 data class MusicBrainzMediumDto(
