@@ -95,4 +95,137 @@ class WantListViewModelTest {
 
         assertEquals(expected, viewModel.exportText())
     }
+
+    private suspend fun artist(id: String, name: String, position: Int = 0) =
+        database.artistDao().insert(ArtistEntity(id, name, null, null, position))
+
+    private suspend fun wanted(id: String, artistId: String, title: String, date: String? = null, wantPosition: Int = 0) {
+        database.albumDao().insert(
+            AlbumEntity(id, artistId, title, "STUDIO_ALBUM", date, owned = false, wanted = true, wantPosition = wantPosition)
+        )
+    }
+
+    private suspend fun titles() = viewModel.loadWantList().map { it.albumTitle }
+
+    @Test
+    fun `lists artists in the order the user chose for favourites, not by name`() = runBlocking {
+        artist("a", "ABC", position = 1)
+        artist("r", "Roxy Music", position = 0)
+        wanted("1", "a", "Lexicon of Love")
+        wanted("2", "r", "Avalon")
+
+        assertEquals(listOf("Avalon", "Lexicon of Love"), titles())
+    }
+
+    @Test
+    fun `lists an artist's albums in the order the user chose, not by release date`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "Avalon", "1982-05-31", wantPosition = 0)
+        wanted("2", "r", "Roxy Music", "1972-06-16", wantPosition = 2)
+        wanted("3", "r", "Siren", "1975-10-24", wantPosition = 1)
+
+        assertEquals(listOf("Avalon", "Siren", "Roxy Music"), titles())
+    }
+
+    @Test
+    fun `the share text follows the same order`() = runBlocking {
+        artist("a", "ABC", position = 1)
+        artist("r", "Roxy Music", position = 0)
+        wanted("1", "a", "Lexicon of Love")
+        wanted("2", "r", "Avalon", wantPosition = 1)
+        wanted("3", "r", "Siren", wantPosition = 0)
+
+        val expected = """
+            My vinyl want list:
+
+            Roxy Music
+            - Siren
+            - Avalon
+
+            ABC
+            - Lexicon of Love
+        """.trimIndent()
+
+        assertEquals(expected, viewModel.exportText())
+    }
+
+    @Test
+    fun `moving an album up swaps it with the one above it`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        wanted("2", "r", "Two", wantPosition = 1)
+        wanted("3", "r", "Three", wantPosition = 2)
+
+        viewModel.moveUp("3")
+
+        assertEquals(listOf("One", "Three", "Two"), titles())
+    }
+
+    @Test
+    fun `moving an album down swaps it with the one below it`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        wanted("2", "r", "Two", wantPosition = 1)
+
+        viewModel.moveDown("1")
+
+        assertEquals(listOf("Two", "One"), titles())
+    }
+
+    @Test
+    fun `an album never moves past its own artist's albums`() = runBlocking {
+        artist("a", "ABC", position = 0)
+        artist("r", "Roxy Music", position = 1)
+        wanted("1", "a", "Lexicon of Love")
+        wanted("2", "r", "Avalon")
+        wanted("3", "r", "Siren", wantPosition = 1)
+
+        viewModel.moveUp("2")
+        viewModel.moveDown("3")
+        viewModel.moveDown("1")
+
+        assertEquals(listOf("Lexicon of Love", "Avalon", "Siren"), titles())
+    }
+
+    @Test
+    fun `moving does nothing for an album that is not wanted or does not exist`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One")
+        database.albumDao().insert(AlbumEntity("9", "r", "Nine", "STUDIO_ALBUM", null, owned = false, wanted = false))
+
+        viewModel.moveUp("9")
+        viewModel.moveDown("missing")
+
+        assertEquals(listOf("One"), titles())
+    }
+
+    @Test
+    fun `the first move works on albums never ordered, starting from the release order`() = runBlocking {
+        artist("r", "Roxy Music")
+        // All at position 0, as after the upgrade: shown oldest first, undated last.
+        wanted("1", "r", "Siren", "1975-10-24")
+        wanted("2", "r", "Avalon", "1982-05-31")
+        wanted("3", "r", "Roxy Music", "1972-06-16")
+        wanted("4", "r", "Undated", null)
+
+        viewModel.moveUp("2")
+
+        assertEquals(listOf("Roxy Music", "Avalon", "Siren", "Undated"), titles())
+        val positions = listOf("3", "2", "1", "4").map { database.albumDao().getById(it)!!.wantPosition }
+        assertEquals(listOf(0, 1, 2, 3), positions)
+    }
+
+    @Test
+    fun `an album that is owned is not counted when moving`() = runBlocking {
+        artist("r", "Roxy Music")
+        wanted("1", "r", "One", wantPosition = 0)
+        database.albumDao().insert(
+            AlbumEntity("2", "r", "Owned", "STUDIO_ALBUM", null, owned = true, wanted = true, wantPosition = 1)
+        )
+        wanted("3", "r", "Three", wantPosition = 2)
+
+        viewModel.moveUp("3")
+
+        assertEquals(listOf("Three", "One"), titles())
+    }
 }

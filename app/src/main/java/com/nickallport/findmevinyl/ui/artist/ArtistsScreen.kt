@@ -26,7 +26,9 @@ fun ArtistsScreen(
     loadFavourites: suspend () -> List<FavouriteArtistUiModel>,
     onArtistSelected: (FavouriteArtistUiModel) -> Unit,
     modifier: Modifier = Modifier,
-    loadArtistImage: suspend (String) -> Bitmap? = { null }
+    loadArtistImage: suspend (String) -> Bitmap? = { null },
+    onMoveFavouriteUp: suspend (String) -> Unit = {},
+    onMoveFavouriteDown: suspend (String) -> Unit = {}
 ) {
     var query by rememberSaveable { mutableStateOf("") }
 
@@ -47,7 +49,9 @@ fun ArtistsScreen(
         FavouritesRoute(
             load = loadFavourites,
             onArtistSelected = onArtistSelected,
-            loadArtistImage = loadArtistImage
+            loadArtistImage = loadArtistImage,
+            onMoveUp = onMoveFavouriteUp,
+            onMoveDown = onMoveFavouriteDown
         )
     }
 }

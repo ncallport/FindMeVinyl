@@ -198,8 +198,10 @@ class DiscographyViewModel(
         artistId: String,
         artistName: String
     ) {
-        albumDao.setWanted(albumId, !currentlyWanted)
-        if (!currentlyWanted) {
+        if (currentlyWanted) {
+            albumDao.setWanted(albumId, false)
+        } else {
+            albumDao.markWanted(albumId)
             saveFavourite(artistId, artistName)
         }
     }
@@ -209,7 +211,10 @@ class DiscographyViewModel(
     }
 
     suspend fun saveFavourite(artistId: String, artistName: String) {
-        artistDao.insert(ArtistEntity(id = artistId, name = artistName, type = null, country = null))
+        // A favourite that is already saved keeps its place in the user's order. A new one goes last.
+        if (artistDao.getById(artistId) != null) return
+        val position = (artistDao.maxPosition() ?: -1) + 1
+        artistDao.insert(ArtistEntity(id = artistId, name = artistName, type = null, country = null, position = position))
     }
 
     suspend fun removeFavourite(artistId: String) {

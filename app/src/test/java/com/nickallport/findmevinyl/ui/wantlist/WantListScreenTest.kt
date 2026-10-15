@@ -8,6 +8,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.nickallport.findmevinyl.wantlist.WantedAlbumUiModel
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.layout.positionInRoot
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,5 +81,78 @@ class WantListScreenTest {
         composeTestRule.onNodeWithTag("share_button").performClick()
 
         assertTrue(shared)
+    }
+
+    @Test
+    fun `an artist with several albums has buttons to move each album`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithTag("want_down_2").assertIsEnabled()
+        composeTestRule.onNodeWithTag("want_up_3").assertIsEnabled()
+    }
+
+    @Test
+    fun `the first album of an artist cannot move up and the last cannot move down`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithTag("want_up_2").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("want_down_3").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `an artist with one album has nothing to move past, so no move buttons`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithTag("want_up_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("want_down_1").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the move buttons report the album`() {
+        val up = mutableListOf<String>()
+        val down = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {}, onMoveUp = { up.add(it) }, onMoveDown = { down.add(it) })
+        }
+
+        composeTestRule.onNodeWithTag("want_up_3").performClick()
+        composeTestRule.onNodeWithTag("want_down_2").performClick()
+
+        assertEquals(listOf("3"), up)
+        assertEquals(listOf("2"), down)
+    }
+
+    @Test
+    fun `the move buttons say which album they move`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = {})
+        }
+
+        composeTestRule.onNodeWithContentDescription("Move Siren up").assertExists()
+        composeTestRule.onNodeWithContentDescription("Move Avalon down").assertExists()
+    }
+
+    @Test
+    fun `shows the artists and albums in the order given`() {
+        val ordered = listOf(
+            WantedAlbumUiModel("2", "Roxy Music", "Siren"),
+            WantedAlbumUiModel("3", "Roxy Music", "Avalon"),
+            WantedAlbumUiModel("1", "ABC", "Lexicon of Love")
+        )
+        composeTestRule.setContent {
+            WantListScreen(wanted = ordered, onShare = {})
+        }
+
+        val tops = listOf("Roxy Music", "Siren", "Avalon", "ABC").map {
+            composeTestRule.onNodeWithText(it).fetchSemanticsNode().positionInRoot.y
+        }
+        assertEquals(tops.sorted(), tops)
     }
 }

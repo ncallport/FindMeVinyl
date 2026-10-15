@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.ui.wantlist
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,13 +23,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.ui.brand.Glyphs
 import com.nickallport.findmevinyl.ui.common.ListCard
+import com.nickallport.findmevinyl.ui.common.MoveButtons
 import com.nickallport.findmevinyl.wantlist.WantedAlbumUiModel
 
 @Composable
 fun WantListScreen(
     wanted: List<WantedAlbumUiModel>,
     onShare: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMoveUp: (String) -> Unit = {},
+    onMoveDown: (String) -> Unit = {}
 ) {
     if (wanted.isEmpty()) {
         Column(
@@ -76,12 +80,29 @@ fun WantListScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        albums.forEach { album ->
-                            Text(
-                                text = album.albumTitle,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
+                        albums.forEachIndexed { index, album ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = album.albumTitle,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                // An artist with one album has nothing to move it past.
+                                if (albums.size > 1) {
+                                    MoveButtons(
+                                        name = album.albumTitle,
+                                        upTag = "want_up_${album.albumId}",
+                                        downTag = "want_down_${album.albumId}",
+                                        canMoveUp = index > 0,
+                                        canMoveDown = index < albums.lastIndex,
+                                        onMoveUp = { onMoveUp(album.albumId) },
+                                        onMoveDown = { onMoveDown(album.albumId) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }

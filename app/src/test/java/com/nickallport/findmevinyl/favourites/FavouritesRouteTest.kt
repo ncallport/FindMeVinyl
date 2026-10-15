@@ -6,6 +6,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,5 +80,55 @@ class FavouritesRouteTest {
 
         assertEquals("1", selected?.id)
         assertEquals("Roxy Music", selected?.name)
+    }
+
+    @Test
+    fun `moving an artist up tells the caller and shows the list again from the load`() {
+        var order = listOf(
+            FavouriteArtistUiModel("1", "Roxy Music"),
+            FavouriteArtistUiModel("2", "The Smiths")
+        )
+        val moved = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            FavouritesRoute(
+                load = { order },
+                onArtistSelected = {},
+                onMoveUp = { id -> moved.add(id); order = order.reversed() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_up_2").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("2"), moved)
+        // The Smiths is now first, so it cannot move up any more.
+        composeTestRule.onNodeWithTag("favourite_up_2").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("favourite_up_1").assertIsEnabled()
+    }
+
+    @Test
+    fun `moving an artist down tells the caller`() {
+        var order = listOf(
+            FavouriteArtistUiModel("1", "Roxy Music"),
+            FavouriteArtistUiModel("2", "The Smiths")
+        )
+        val moved = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            FavouritesRoute(
+                load = { order },
+                onArtistSelected = {},
+                onMoveDown = { id -> moved.add(id); order = order.reversed() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_down_1").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("1"), moved)
+        composeTestRule.onNodeWithTag("favourite_down_1").assertIsNotEnabled()
     }
 }

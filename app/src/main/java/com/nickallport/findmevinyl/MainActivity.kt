@@ -35,6 +35,7 @@ import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
 import com.nickallport.findmevinyl.storage.MIGRATION_2_3
 import com.nickallport.findmevinyl.storage.MIGRATION_3_4
+import com.nickallport.findmevinyl.storage.MIGRATION_4_5
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -100,7 +101,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
@@ -161,6 +162,8 @@ class MainActivity : ComponentActivity() {
                             ArtistsScreen(
                                 onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
+                                onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
+                                onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
                                 loadArtistImage = { id ->
                                     artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) }
                                 },
@@ -231,6 +234,8 @@ class MainActivity : ComponentActivity() {
                             WantListRoute(
                                 load = { wantListViewModel.loadWantList() },
                                 exportText = { wantListViewModel.exportText() },
+                                onMoveUp = { id -> wantListViewModel.moveUp(id) },
+                                onMoveDown = { id -> wantListViewModel.moveDown(id) },
                                 onShareText = { text -> shareText(text) }
                             )
                         }
