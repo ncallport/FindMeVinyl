@@ -22,8 +22,11 @@ class DiscographyRouteBulkFormatsTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun album(id: String, formats: List<String>? = null, stale: Boolean = false) =
-        AlbumUiModel(id = id, title = "Album $id", owned = false, wanted = false, formats = formats, formatsStale = stale)
+    private fun album(id: String, formats: List<String>? = null, stale: Boolean = false, statuses: List<String>? = null) =
+        AlbumUiModel(
+            id = id, title = "Album $id", owned = false, wanted = false, formats = formats, formatsStale = stale,
+            statuses = statuses
+        )
 
     private fun success(vararg albums: AlbumUiModel, loadingMore: Boolean = false, loadError: String? = null) =
         DiscographyUiState.Success(mapOf(DiscographyCategory.STUDIO_ALBUM to albums.toList()), loadingMore, loadError)
@@ -89,9 +92,29 @@ class DiscographyRouteBulkFormatsTest {
     fun `does not start when every album is checked and up to date`() {
         val asked = mutableListOf<String>()
 
-        show(success(album("A", listOf("LP")), album("B", emptyList()))) { artist, _ -> asked.add(artist); FormatCheckResult.Done(0) }
+        show(
+            success(album("A", listOf("LP"), statuses = listOf("Official")), album("B", emptyList(), statuses = emptyList()))
+        ) { artist, _ -> asked.add(artist); FormatCheckResult.Done(0) }
 
         assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `starts when the formats are known but the release statuses are not, as for albums saved before statuses`() {
+        val asked = mutableListOf<String>()
+
+        show(success(album("A", listOf("LP")))) { artist, _ -> asked.add(artist); FormatCheckResult.Done(1) }
+
+        assertEquals(listOf("a"), asked)
+    }
+
+    @Test
+    fun `checks once a visit even when some albums stay without statuses`() {
+        val asked = mutableListOf<String>()
+
+        show(success(album("A"))) { artist, _ -> asked.add(artist); FormatCheckResult.Done(0) }
+
+        assertEquals(1, asked.size)
     }
 
     @Test

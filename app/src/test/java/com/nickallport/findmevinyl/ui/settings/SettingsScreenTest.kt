@@ -115,7 +115,10 @@ class SettingsScreenTest {
         Row("Hide 12\"s", "hideTwelveInches", { it.copy(hideTwelveInches = !it.hideTwelveInches) }, { it.hideTwelveInches }),
         Row("Hide 7\"s", "hideSevenInches", { it.copy(hideSevenInches = !it.hideSevenInches) }, { it.hideSevenInches }),
         Row("Hide MCs", "hideMcs", { it.copy(hideMcs = !it.hideMcs) }, { it.hideMcs }),
-        Row("Hide Digital", "hideDigital", { it.copy(hideDigital = !it.hideDigital) }, { it.hideDigital })
+        Row("Hide Digital", "hideDigital", { it.copy(hideDigital = !it.hideDigital) }, { it.hideDigital }),
+        Row("Hide Bootlegs", "hideBootlegs", { it.copy(hideBootlegs = !it.hideBootlegs) }, { it.hideBootlegs }),
+        Row("Hide Promos", "hidePromos", { it.copy(hidePromos = !it.hidePromos) }, { it.hidePromos }),
+        Row("Hide Unknown Status releases", "hideUnknownStatus", { it.copy(hideUnknownStatus = !it.hideUnknownStatus) }, { it.hideUnknownStatus })
     )
 
     @Test
@@ -179,5 +182,6 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithTag("settings_discography_hint").assertExists()
         composeTestRule.onNodeWithText("Albums you own or want are always shown.", substring = true).assertExists()
         composeTestRule.onNodeWithText("every format it came out on", substring = true).assertExists()
+        composeTestRule.onNodeWithText("has no official release", substring = true).assertExists()
     }
 }
