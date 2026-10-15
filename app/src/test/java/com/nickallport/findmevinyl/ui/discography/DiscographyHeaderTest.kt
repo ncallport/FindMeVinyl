@@ -5,6 +5,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.layout.positionInRoot
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,5 +57,62 @@ class DiscographyHeaderTest {
         composeTestRule.onNodeWithTag("favourite_toggle").performClick()
 
         assertTrue(toggled)
+    }
+
+    @Test
+    fun `has an Artists button that goes to the favourite artists`() {
+        var opened = false
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {},
+                onOpenArtists = { opened = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("artists_button").assertTextEquals("Artists")
+        composeTestRule.onNodeWithTag("artists_button").performClick()
+
+        assertEquals(true, opened)
+    }
+
+    @Test
+    fun `has no Artists button when it is not given a place to go`() {
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {})
+        }
+
+        composeTestRule.onNodeWithTag("artists_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the buttons are on a line below the artist's name, side by side`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {}, onOpenArtists = {}
+            )
+        }
+
+        fun top(node: androidx.compose.ui.test.SemanticsNodeInteraction) =
+            node.fetchSemanticsNode().positionInRoot.y
+        val name = top(composeTestRule.onNodeWithText("Roxy Music"))
+        val artists = top(composeTestRule.onNodeWithTag("artists_button"))
+        val save = top(composeTestRule.onNodeWithTag("favourite_toggle"))
+
+        assertTrue("the buttons are below the name", artists > name && save > name)
+        assertEquals(artists, save, 1f)
+    }
+
+    @Test
+    fun `tapping Artists does not save or unsave the artist`() {
+        var toggled = false
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = { toggled = true }, onOpenArtists = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("artists_button").performClick()
+
+        assertEquals(false, toggled)
     }
 }

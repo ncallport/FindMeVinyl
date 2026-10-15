@@ -18,9 +18,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 
+// A tall window, so the header, the chips and several rows all fit and every row is composed.
+@Config(qualifiers = "w360dp-h2400dp")
 @RunWith(RobolectricTestRunner::class)
 class DiscographyRouteTest {
 
@@ -677,5 +680,114 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
 
         assertEquals(1, loads)
+    }
+
+    // The view options: owned first, and the way to the favourite artists.
+
+    private fun twoOwned() = success(
+        album("A", formats = listOf("LP"), owned = true),
+        album("B", formats = listOf("CD"), owned = true),
+        album("C", formats = listOf("LP"))
+    )
+
+    @Test
+    fun `has an Owned first chip, off to begin with`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").assertExists()
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the Owned first chip groups the owned albums at the top, and again takes the grouping away`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_section_header").assertExists()
+
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a chosen format also narrows the owned section`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("format_chip_LP").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Album A").assertExists()
+        composeTestRule.onNodeWithText("Album B").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the format chips count every album, however the list is grouped`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("LP 2").assertExists()
+        composeTestRule.onNodeWithText("CD 1").assertExists()
+    }
+
+    @Test
+    fun `the Artists button goes to the favourite artists`() {
+        var opened = 0
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                onOpenArtists = { opened++ }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("artists_button").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `marking an album as owned while owned first is on moves it into the owned section`() {
+        var owned = false
+        val state = { success(album("A", owned = owned), album("B")) }
+
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = { flowOf(state()) },
+                onToggleOwned = { _, _ -> owned = true },
+                loadSaved = { state() }
+            )
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+
+        composeTestRule.onAllNodesWithTag("owned_toggle")[0].performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("owned_section_header").assertExists()
     }
 }
