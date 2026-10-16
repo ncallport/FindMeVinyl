@@ -282,4 +282,22 @@ class ShopSearchResultsScreenTest {
 
         composeTestRule.onNodeWithText("No shops found nearby").assertExists()
     }
+
+    @Test
+    fun `says second-hand shops when that is what was left out`() {
+        composeTestRule.setContent {
+            ShopSearchResultsScreen(state = london(sisterRay), hiddenShops = 2, hiddenNoun = "second-hand shop")
+        }
+
+        composeTestRule.onNodeWithText("2 second-hand shops hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `says just shops when more than one kind was left out, and one in the singular`() {
+        composeTestRule.setContent {
+            ShopSearchResultsScreen(state = london(sisterRay), hiddenShops = 1, hiddenNoun = "shop")
+        }
+
+        composeTestRule.onNodeWithText("1 shop hidden by your settings").assertExists()
+    }
 }

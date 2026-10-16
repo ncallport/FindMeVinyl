@@ -184,4 +184,25 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("every format it came out on", substring = true).assertExists()
         composeTestRule.onNodeWithText("has no official release", substring = true).assertExists()
     }
+
+    @Test
+    fun `has a switch for second-hand shops in the location settings, after the charity shops`() {
+        show()
+
+        composeTestRule.onNodeWithText("Hide Second-Hand shops").assertExists()
+        val charity = composeTestRule.onNodeWithText("Hide Charity shops").fetchSemanticsNode().positionInRoot.y
+        val secondHand = composeTestRule.onNodeWithText("Hide Second-Hand shops").fetchSemanticsNode().positionInRoot.y
+        assertEquals(true, charity < secondHand)
+    }
+
+    @Test
+    fun `the second-hand switch is off to begin with, and tapping it changes only that setting`() {
+        val changed = mutableListOf<Settings>()
+        show(Settings(), onChange = { changed.add(it) })
+
+        composeTestRule.onNodeWithTag("setting_hideSecondHandShops").assertIsOff()
+        composeTestRule.onNodeWithTag("setting_hideSecondHandShops").performClick()
+
+        assertEquals(listOf(Settings(hideSecondHandShops = true)), changed)
+    }
 }

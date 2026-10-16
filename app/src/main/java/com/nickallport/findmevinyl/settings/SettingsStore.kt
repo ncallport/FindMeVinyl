@@ -32,7 +32,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
             hideBootlegs = flag("hideBootlegs", defaults.hideBootlegs),
             hidePromos = flag("hidePromos", defaults.hidePromos),
             hideUnknownStatus = flag("hideUnknownStatus", defaults.hideUnknownStatus),
-            hideCharityShops = flag("hideCharityShops", defaults.hideCharityShops)
+            hideCharityShops = flag("hideCharityShops", defaults.hideCharityShops),
+            hideSecondHandShops = flag("hideSecondHandShops", defaults.hideSecondHandShops)
         )
     }
 
@@ -52,6 +53,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("hidePromos", settings.hidePromos)
             .putBoolean("hideUnknownStatus", settings.hideUnknownStatus)
             .putBoolean("hideCharityShops", settings.hideCharityShops)
+            .putBoolean("hideSecondHandShops", settings.hideSecondHandShops)
             .apply()
     }
 }

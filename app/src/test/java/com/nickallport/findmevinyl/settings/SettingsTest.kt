@@ -18,6 +18,7 @@ class SettingsTest {
         assertEquals(false, defaults.hideTwelveInches)
         assertEquals(false, defaults.hideSevenInches)
         assertEquals(false, defaults.hideMcs)
+        assertEquals(false, defaults.hideSecondHandShops)
         assertEquals(true, defaults.hideDigital)
         assertEquals(true, defaults.hideBootlegs)
         assertEquals(true, defaults.hidePromos)

@@ -51,8 +51,8 @@ private sealed class RouteState {
  * With [loadPublicHolidays], the public holidays of the region the shown shops are in are looked up,
  * so opening hours can follow their public holiday rules.
  *
- * With [hideCharityShops], charity shops are left out of what is shown, and a note says how many. The
- * kept result still has them, so changing the setting needs no new search. Until they are known, and when they cannot be
+ * With [hideCharityShops] and [hideSecondHandShops], those shops are left out of what is shown, and a note says
+ * how many. The kept result still has them, so changing the setting needs no new search. Until they are known, and when they cannot be
  * found or the region is not known, hours that mention holidays say that holidays may differ.
  */
 @Composable
@@ -65,6 +65,7 @@ fun ShopSearchRoute(
     cache: SearchResultCache = remember { SearchResultCache() },
     loadPublicHolidays: (suspend (HolidayRegion) -> Set<LocalDate>?)? = null,
     hideCharityShops: Boolean = false,
+    hideSecondHandShops: Boolean = false,
     onOpenSettings: (() -> Unit)? = null
 ) {
     var town by rememberSaveable { mutableStateOf("") }
@@ -154,13 +155,24 @@ fun ShopSearchRoute(
                             null
                         }
 
-                    val hiddenShops = if (hideCharityShops && shown is ShopSearchUiState.Success) {
-                        shown.shops.count { it.category == ShopCategory.CHARITY_SHOP }
+                    val hiddenCategories = buildSet {
+                        if (hideCharityShops) add(ShopCategory.CHARITY_SHOP)
+                        if (hideSecondHandShops) add(ShopCategory.SECOND_HAND_SHOP)
+                    }
+                    val hiddenList = if (shown is ShopSearchUiState.Success) {
+                        shown.shops.filter { it.category in hiddenCategories }
                     } else {
-                        0
+                        emptyList()
+                    }
+                    val hiddenShops = hiddenList.size
+                    // What the note calls them: the one kind that was left out, or just shops when it was both.
+                    val hiddenNoun = when (hiddenList.map { it.category }.toSet()) {
+                        setOf(ShopCategory.SECOND_HAND_SHOP) -> "second-hand shop"
+                        setOf(ShopCategory.CHARITY_SHOP) -> "charity shop"
+                        else -> "shop"
                     }
                     val displayed = if (hiddenShops > 0 && shown is ShopSearchUiState.Success) {
-                        shown.copy(shops = shown.shops.filter { it.category != ShopCategory.CHARITY_SHOP })
+                        shown.copy(shops = shown.shops.filter { it.category !in hiddenCategories })
                     } else {
                         shown
                     }
@@ -168,6 +180,7 @@ fun ShopSearchRoute(
                     ShopSearchResultsScreen(
                         state = displayed,
                         hiddenShops = hiddenShops,
+                        hiddenNoun = hiddenNoun,
                         onOpenSettings = onOpenSettings,
                         onShopSelected = onShopSelected,
                         onPlaceSelected = onPlaceSelected,

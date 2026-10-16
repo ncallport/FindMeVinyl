@@ -391,6 +391,7 @@ class MainActivity : ComponentActivity() {
                         is Screen.Shops -> {
                             ShopSearchRoute(
                                 hideCharityShops = settings.hideCharityShops,
+                                hideSecondHandShops = settings.hideSecondHandShops,
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 search = { town -> shopSearchViewModel.searchTown(town) },
                                 searchNearby = { nearbyShopSearcher.findNearby() },
