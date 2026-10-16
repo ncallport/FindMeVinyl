@@ -70,7 +70,8 @@ data class BackupShop(
     val regionSubdivision: String? = null,
     val savedAt: Long? = null,
     val approximatePosition: Boolean? = null,
-    val mapQuery: String? = null
+    val mapQuery: String? = null,
+    val mapsLink: String? = null
 )
 
 data class BackupSummary(val artists: Int, val albums: Int, val photos: Int, val shops: Int = 0)

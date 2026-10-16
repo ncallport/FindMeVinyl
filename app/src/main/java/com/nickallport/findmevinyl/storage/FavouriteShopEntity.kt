@@ -33,5 +33,7 @@ data class FavouriteShopEntity(
     /** The position is only the town's, because a shop the user added has an address that was not found. */
     @ColumnInfo(defaultValue = "0") val approximatePosition: Boolean = false,
     /** What to ask a map app for, the name and address of a shop the user added. */
-    val mapQuery: String? = null
+    val mapQuery: String? = null,
+    /** The Google Maps link a shop added by hand came from. */
+    val mapsLink: String? = null
 )

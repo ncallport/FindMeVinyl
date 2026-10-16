@@ -139,4 +139,16 @@ class FavouriteShopsViewModelTest {
         assertEquals(added, kept)
         assertTrue(kept.isCustom)
     }
+
+    @Test
+    fun `a shop comes back with the Maps link it was added from`() = runBlocking {
+        val added = Shop(
+            "custom/abc", "Silver Tentacle", ShopCategory.RECORD_SHOP, 39.4, -9.1, null,
+            mapsLink = "https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA"
+        )
+
+        viewModel.add(added, null)
+
+        assertEquals("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA", viewModel.loadAll().single().shop.mapsLink)
+    }
 }

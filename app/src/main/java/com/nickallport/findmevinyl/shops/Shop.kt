@@ -16,7 +16,9 @@ data class Shop(
     /** The position is only that of the town, because the street was not found. */
     val approximatePosition: Boolean = false,
     /** What to ask a map app for, when the position alone does not find the shop: its name and address. */
-    val mapQuery: String? = null
+    val mapQuery: String? = null,
+    /** The Google Maps link a shop added by hand came from, to open its page there: hours, photos and reviews. */
+    val mapsLink: String? = null
 ) {
     /** A shop the user added, because OpenStreetMap does not have it. */
     val isCustom: Boolean get() = id.startsWith(CUSTOM_PREFIX)

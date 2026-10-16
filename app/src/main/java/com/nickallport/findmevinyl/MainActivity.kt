@@ -60,6 +60,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_5_6
 import com.nickallport.findmevinyl.storage.MIGRATION_6_7
 import com.nickallport.findmevinyl.storage.MIGRATION_7_8
 import com.nickallport.findmevinyl.storage.MIGRATION_8_9
+import com.nickallport.findmevinyl.storage.MIGRATION_10_11
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -223,7 +224,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -494,6 +495,7 @@ class MainActivity : ComponentActivity() {
                                 shop = screen.shop,
                                 region = screen.region,
                                 loadIsFavourite = { favouriteShopsViewModel.isFavourite(screen.shop.id) },
+                                onOpenMapsLink = { url -> openLink(Intent.ACTION_VIEW, url, "No web browser or maps app found on this device") },
                                 onEdit = if (screen.shop.isCustom) {
                                     { currentScreen = Screen.AddShop(null, screen.shop) }
                                 } else {

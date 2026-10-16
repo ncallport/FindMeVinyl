@@ -380,4 +380,60 @@ class AddShopRouteTest {
 
         assertEquals("hi@silver.pt", saved.single().email)
     }
+
+    // The Google Maps link, kept with the shop.
+
+    @Test
+    fun `a shop added from a Maps link keeps the link`() {
+        show()
+
+        paste(shared)
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(link, saved.single().mapsLink)
+    }
+
+    @Test
+    fun `a shop added from text with no link has none`() {
+        show()
+        paste("39.4036, -9.1349")
+        composeTestRule.onNodeWithTag("add_shop_name").performScrollTo().performTextInput("Silver Tentacle")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertNull(saved.single().mapsLink)
+    }
+
+    @Test
+    fun `a link that is not to Google Maps is not kept`() {
+        show()
+
+        paste("Silver Tentacle\nR. Raul Proença 56a, 2500 Caldas da Rainha\nhttps://example.com/silver")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertNull(saved.single().mapsLink)
+    }
+
+    @Test
+    fun `editing keeps the link the shop had`() {
+        show(editing = added.copy(mapsLink = link))
+
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(link, saved.single().mapsLink)
+    }
+
+    @Test
+    fun `reading another link while editing replaces the link`() {
+        show(editing = added.copy(mapsLink = "https://maps.app.goo.gl/old"))
+
+        paste(shared)
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(link, saved.single().mapsLink)
+    }
 }

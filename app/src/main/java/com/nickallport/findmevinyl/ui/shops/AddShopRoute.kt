@@ -70,6 +70,8 @@ fun AddShopRoute(
         form = form.copy(
             name = place.name ?: form.name,
             address = place.address ?: form.address,
+            // Only a Google Maps link is kept, to open the shop's page there later.
+            mapsLink = link?.takeIf { SharedPlaceParser.isMapsLink(it) } ?: form.mapsLink,
             status = status
         )
 
@@ -167,6 +169,7 @@ fun AddShopRoute(
                             phone = form.phone.trim().takeIf { it.isNotEmpty() },
                             website = form.website.trim().takeIf { it.isNotEmpty() },
                             approximatePosition = form.approximate,
+                            mapsLink = form.mapsLink,
                             mapQuery = listOfNotNull(name, address).joinToString(", ")
                         )
                     )
