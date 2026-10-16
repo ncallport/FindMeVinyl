@@ -392,9 +392,66 @@ class MigrationTest {
         helper.close()
     }
 
+    // Version 10, from schemas/.../10.json: everything of version 9 plus two columns of favourite_shops.
+    private fun createVersion10Database() {
+        val helper = object : SQLiteOpenHelper(context, dbName, null, 10) {
+            override fun onCreate(db: SQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `albums` (`id` TEXT NOT NULL, `artistId` TEXT NOT NULL, " +
+                        "`title` TEXT NOT NULL, `category` TEXT NOT NULL, `firstReleaseDate` TEXT, " +
+                        "`owned` INTEGER NOT NULL, `wanted` INTEGER NOT NULL, `formats` TEXT, " +
+                        "`formatsCheckedAt` INTEGER, `wantPosition` INTEGER NOT NULL DEFAULT 0, `statuses` TEXT, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favourite_artists` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                        "`type` TEXT, `country` TEXT, `position` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `artist_images` (`artistId` TEXT NOT NULL, `imageUrl` TEXT, " +
+                        "`checkedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `album_details` (`albumId` TEXT NOT NULL, `json` TEXT NOT NULL, " +
+                        "`fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`albumId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `public_holidays` (`country` TEXT NOT NULL, `year` INTEGER NOT NULL, " +
+                        "`json` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`country`, `year`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favourite_shops` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                        "`category` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `openingHours` TEXT, " +
+                        "`street` TEXT, `houseNumber` TEXT, `postcode` TEXT, `city` TEXT, `addressCountry` TEXT, `phone` TEXT, " +
+                        "`website` TEXT, `email` TEXT, `secondHandOnly` INTEGER NOT NULL, `regionCountry` TEXT, " +
+                        "`regionSubdivision` TEXT, `savedAt` INTEGER NOT NULL, `approximatePosition` INTEGER NOT NULL DEFAULT 0, `mapQuery` TEXT, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `artist_user_photos` (`artistId` TEXT NOT NULL, `fileName` TEXT NOT NULL, " +
+                        "`savedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+                )
+            }
+
+            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        helper.writableDatabase.use { db ->
+            db.execSQL("INSERT INTO albums VALUES ('1', 'artist-1', 'Foxtrot', 'STUDIO_ALBUM', '1972-10-06', 1, 0, 'CD', 1700000000000, 3, 'Official')")
+            db.execSQL("INSERT INTO albums VALUES ('2', 'artist-1', 'Trespass', 'STUDIO_ALBUM', NULL, 0, 1, NULL, NULL, 1, NULL)")
+            db.execSQL("INSERT INTO favourite_artists VALUES ('artist-1', 'Genesis', 'Group', 'GB', 2)")
+            db.execSQL("INSERT INTO artist_images VALUES ('artist-1', 'https://commons.test/a.jpg', 99)")
+            db.execSQL("INSERT INTO album_details VALUES ('1', '{}', 5)")
+            db.execSQL("INSERT INTO public_holidays VALUES ('GB', 2026, '[]', 9)")
+            db.execSQL("INSERT INTO artist_user_photos VALUES ('artist-1', 'artist-1-7.jpg', 7)")
+            db.execSQL(
+                "INSERT INTO favourite_shops VALUES ('node/1', 'Louie Louie', 'RECORD_SHOP', 38.71, -9.14, 'Mo-Sa 11:00-19:30', " +
+                    "'Escadinhas', '3', '1100-225', 'Lisboa', 'PT', '+351 213 472 232', 'https://www.louielouie.biz/', NULL, 1, 'PT', NULL, 5, 1, 'Louie Louie, Lisboa')"
+            )
+        }
+        helper.close()
+    }
+
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .allowMainThreadQueries()
             .build()
 
@@ -699,6 +756,31 @@ class MigrationTest {
         )
 
         assertEquals("Silver Tentacle, Caldas da Rainha", database.favouriteShopDao().get("custom/abc")?.mapQuery)
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database keeps its shops when they get the Maps link column`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        val shop = database.favouriteShopDao().get("node/1")!!
+
+        assertEquals("Louie Louie", shop.name)
+        assertEquals(true, shop.approximatePosition)
+        assertEquals("Louie Louie, Lisboa", shop.mapQuery)
+        assertNull(shop.mapsLink)
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database can keep a Maps link after the upgrade`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        database.favouriteShopDao().save(database.favouriteShopDao().get("node/1")!!.copy(mapsLink = "https://maps.app.goo.gl/x"))
+
+        assertEquals("https://maps.app.goo.gl/x", database.favouriteShopDao().get("node/1")?.mapsLink)
         database.close()
     }
 }

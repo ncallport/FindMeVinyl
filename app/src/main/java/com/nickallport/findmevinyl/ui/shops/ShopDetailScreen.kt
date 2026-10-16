@@ -28,6 +28,7 @@ import com.nickallport.findmevinyl.shops.EmailLink
 import com.nickallport.findmevinyl.shops.OpeningHours
 import com.nickallport.findmevinyl.shops.OpeningHoursDescriber
 import com.nickallport.findmevinyl.shops.PhoneLink
+import com.nickallport.findmevinyl.shops.SharedPlaceParser
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
 import com.nickallport.findmevinyl.shops.WebLink
@@ -62,7 +63,9 @@ fun ShopDetailScreen(
     /** Shows the favourite button, and says what to do when it is tapped. */
     onToggleFavourite: (() -> Unit)? = null,
     /** Shows an Edit button, for a shop that was added by hand. */
-    onEdit: (() -> Unit)? = null
+    onEdit: (() -> Unit)? = null,
+    /** Opens the Google Maps page a shop added by hand came from. */
+    onOpenMapsLink: (String) -> Unit = {}
 ) {
     val hours = shop.openingHours
     val parsed = hours?.let { OpeningHours.parse(it) }
@@ -159,6 +162,12 @@ fun ShopDetailScreen(
         Spacer(Modifier.height(24.dp))
         FilledTonalButton(onClick = onOpenMap, modifier = Modifier.testTag("shop_detail_map")) {
             Text("Open in map")
+        }
+        shop.mapsLink?.takeIf { SharedPlaceParser.isMapsLink(it) }?.let { link ->
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(onClick = { onOpenMapsLink(link) }, modifier = Modifier.testTag("shop_detail_google_maps")) {
+                Text("View on Google Maps")
+            }
         }
         if (shop.isCustom && onEdit != null) {
             Spacer(Modifier.height(12.dp))

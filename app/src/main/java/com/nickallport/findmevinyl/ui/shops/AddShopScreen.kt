@@ -45,7 +45,9 @@ data class AddShopForm(
     val positionNote: String = "",
     /** The position is only the town's. */
     val approximate: Boolean = false,
-    val status: String? = null
+    val status: String? = null,
+    /** The Google Maps link the shop came from, kept with it. */
+    val mapsLink: String? = null
 ) {
     val canSave: Boolean get() = name.isNotBlank() && position != null
 
@@ -60,7 +62,8 @@ data class AddShopForm(
             hours = shop.openingHours.orEmpty(),
             position = Coordinates(shop.latitude, shop.longitude),
             positionNote = if (shop.approximatePosition) "approximate, as saved" else "as saved",
-            approximate = shop.approximatePosition
+            approximate = shop.approximatePosition,
+            mapsLink = shop.mapsLink
         )
     }
 }
@@ -71,7 +74,7 @@ val AddShopFormSaver: Saver<AddShopForm, List<String>> = Saver(
         listOf(
             it.paste, it.name, it.kind.name, it.address, it.phone, it.website, it.hours,
             it.position?.latitude?.toString().orEmpty(), it.position?.longitude?.toString().orEmpty(),
-            it.positionNote, if (it.approximate) "1" else "0", it.status.orEmpty()
+            it.positionNote, if (it.approximate) "1" else "0", it.status.orEmpty(), it.mapsLink.orEmpty()
         )
     },
     restore = { v ->
@@ -81,7 +84,8 @@ val AddShopFormSaver: Saver<AddShopForm, List<String>> = Saver(
             paste = v[0], name = v[1], kind = runCatching { ShopCategory.valueOf(v[2]) }.getOrDefault(ShopCategory.RECORD_SHOP),
             address = v[3], phone = v[4], website = v[5], hours = v[6],
             position = if (lat != null && lon != null) Coordinates(lat, lon) else null,
-            positionNote = v[9], approximate = v[10] == "1", status = v[11].ifEmpty { null }
+            positionNote = v[9], approximate = v[10] == "1", status = v[11].ifEmpty { null },
+            mapsLink = v.getOrNull(12)?.ifEmpty { null }
         )
     }
 )

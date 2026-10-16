@@ -303,4 +303,40 @@ class ShopDetailScreenTest {
 
         composeTestRule.onNodeWithTag("shop_detail_edit").assertDoesNotExist()
     }
+
+    private fun showWithMapsLink(link: String?, onOpen: (String) -> Unit = {}) {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ShopDetailScreen(
+                    shop = louie.copy(id = "custom/abc", mapsLink = link), now = monday, onOpenMap = {}, onCall = {},
+                    onOpenWebsite = {}, onSendEmail = {}, onOpenMapsLink = onOpen
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a shop added from a Maps link has a button that opens that page`() {
+        var opened: String? = null
+        showWithMapsLink("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA") { opened = it }
+
+        composeTestRule.onNodeWithTag("shop_detail_google_maps").performScrollTo().assertTextEquals("View on Google Maps")
+        composeTestRule.onNodeWithTag("shop_detail_google_maps").performClick()
+
+        assertEquals("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA", opened)
+    }
+
+    @Test
+    fun `a shop with no Maps link has no such button`() {
+        showWithMapsLink(null)
+
+        composeTestRule.onNodeWithTag("shop_detail_google_maps").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a link that is not to Google Maps is never offered`() {
+        showWithMapsLink("https://evil.example.com/maps.app.goo.gl")
+
+        composeTestRule.onNodeWithTag("shop_detail_google_maps").assertDoesNotExist()
+    }
 }

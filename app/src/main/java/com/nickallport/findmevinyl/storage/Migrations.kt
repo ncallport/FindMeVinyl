@@ -93,3 +93,10 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         db.execSQL("ALTER TABLE `favourite_shops` ADD COLUMN `mapQuery` TEXT")
     }
 }
+
+/** Adds the Google Maps link of a shop the user added by hand. Shops kept before have none. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `favourite_shops` ADD COLUMN `mapsLink` TEXT")
+    }
+}

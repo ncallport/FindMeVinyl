@@ -572,4 +572,16 @@ class BackupViewModelTest {
         assertEquals("Silver Tentacle, Caldas da Rainha", kept.mapQuery)
         fresh.close()
     }
+
+    @Test
+    fun `a shop's Maps link is restored with it`() = runBlocking {
+        database.favouriteShopDao().save(louie.copy(id = "custom/abc", mapsLink = "https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA"))
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA", fresh.favouriteShopDao().get("custom/abc")?.mapsLink)
+        fresh.close()
+    }
 }

@@ -10,6 +10,7 @@ import com.nickallport.findmevinyl.settings.Settings
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.ArtistEntity
+import com.nickallport.findmevinyl.shops.SharedPlaceParser
 import com.nickallport.findmevinyl.shops.ShopCategory
 import com.nickallport.findmevinyl.storage.ArtistUserPhotoEntity
 import com.nickallport.findmevinyl.storage.FavouriteShopEntity
@@ -71,7 +72,7 @@ class BackupViewModel(
                 BackupShop(
                     it.id, it.name, it.category, it.latitude, it.longitude, it.openingHours, it.street, it.houseNumber,
                     it.postcode, it.city, it.addressCountry, it.phone, it.website, it.email, it.secondHandOnly,
-                    it.regionCountry, it.regionSubdivision, it.savedAt, it.approximatePosition, it.mapQuery
+                    it.regionCountry, it.regionSubdivision, it.savedAt, it.approximatePosition, it.mapQuery, it.mapsLink
                 )
             },
             settings = currentSettings()
@@ -219,7 +220,8 @@ class BackupViewModel(
                     id, shop.name.orEmpty(), category.name, latitude, longitude, shop.openingHours, shop.street,
                     shop.houseNumber, shop.postcode, shop.city, shop.addressCountry, shop.phone, shop.website, shop.email,
                     shop.secondHandOnly == true, shop.regionCountry, shop.regionSubdivision, shop.savedAt ?: clock(),
-                    shop.approximatePosition == true, shop.mapQuery
+                    shop.approximatePosition == true, shop.mapQuery,
+                    shop.mapsLink?.takeIf { SharedPlaceParser.isMapsLink(it) }
                 )
             )
             if (added > 0) shops++

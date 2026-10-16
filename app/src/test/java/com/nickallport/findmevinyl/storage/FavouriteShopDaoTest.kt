@@ -102,4 +102,20 @@ class FavouriteShopDaoTest {
         assertEquals(false, dao.get("node/1")?.approximatePosition)
         assertNull(dao.get("node/1")?.mapQuery)
     }
+
+    @Test
+    fun `a shop keeps the Google Maps link it was added from`() = runBlocking {
+        val added = shop("custom/abc").copy(mapsLink = "https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA")
+
+        dao.save(added)
+
+        assertEquals("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA", dao.get("custom/abc")?.mapsLink)
+    }
+
+    @Test
+    fun `a shop has no Google Maps link unless it was given one`() = runBlocking {
+        dao.save(shop("node/1"))
+
+        assertNull(dao.get("node/1")?.mapsLink)
+    }
 }
