@@ -294,10 +294,17 @@ class DiscographyViewModel(
         wanted = false
     )
 
-    suspend fun toggleOwned(albumId: String, currentlyOwned: Boolean) {
+    /** Marking an album owned also saves the artist as a favourite, as wanting an album does. */
+    suspend fun toggleOwned(
+        albumId: String,
+        currentlyOwned: Boolean,
+        artistId: String,
+        artistName: String
+    ) {
         albumDao.setOwned(albumId, !currentlyOwned)
         if (!currentlyOwned) {
             albumDao.setWanted(albumId, false)
+            saveFavourite(artistId, artistName)
         }
     }
 
