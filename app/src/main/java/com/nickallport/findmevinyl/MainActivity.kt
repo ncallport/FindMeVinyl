@@ -323,6 +323,7 @@ class MainActivity : ComponentActivity() {
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
                                 onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
                                 onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
+                                onReorderFavourites = { ids -> favouritesViewModel.reorder(ids) },
                                 startInGrid = favouritesLayoutStore.isGrid(),
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 loadArtistImage = { id -> artistPictures.load(id) },

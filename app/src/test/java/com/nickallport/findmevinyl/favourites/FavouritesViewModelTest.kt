@@ -131,4 +131,32 @@ class FavouritesViewModelTest {
 
         assertEquals(listOf("b", "a"), FavouritesViewModel(database.artistDao()).loadFavourites().map { it.id })
     }
+
+    @Test
+    fun `reorder stores the given order`() = runBlocking {
+        favourite("a", "ABC", 0); favourite("b", "Bowie", 1); favourite("c", "Cure", 2)
+
+        viewModel.reorder(listOf("c", "a", "b"))
+
+        assertEquals(listOf("c", "a", "b"), ids())
+        assertEquals(listOf(0, 1, 2), database.artistDao().getAllFavourites().sortedBy { it.position }.map { it.position })
+    }
+
+    @Test
+    fun `reorder keeps favourites it was not given after the others, in their current order`() = runBlocking {
+        favourite("a", "ABC", 0); favourite("b", "Bowie", 1); favourite("c", "Cure", 2)
+
+        viewModel.reorder(listOf("c"))
+
+        assertEquals(listOf("c", "a", "b"), ids())
+    }
+
+    @Test
+    fun `reorder ignores ids that are not favourites`() = runBlocking {
+        favourite("a", "ABC", 0); favourite("b", "Bowie", 1)
+
+        viewModel.reorder(listOf("zzz", "b", "a"))
+
+        assertEquals(listOf("b", "a"), ids())
+    }
 }

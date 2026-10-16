@@ -35,6 +35,7 @@ fun ArtistsScreen(
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onMoveFavouriteUp: suspend (String) -> Unit = {},
     onMoveFavouriteDown: suspend (String) -> Unit = {},
+    onReorderFavourites: suspend (List<String>) -> Unit = {},
     /** Show the favourites as a grid of pictures when the page opens. */
     startInGrid: Boolean = false,
     /** Told when the user switches between the list and the grid, so the choice can be kept. */
@@ -81,6 +82,7 @@ fun ArtistsScreen(
             loadArtistImage = loadArtistImage,
             onMoveUp = onMoveFavouriteUp,
             onMoveDown = onMoveFavouriteDown,
+            onReorder = onReorderFavourites,
             grid = grid
         )
     }

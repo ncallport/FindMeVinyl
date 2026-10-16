@@ -18,6 +18,21 @@ class FavouritesViewModel(private val artistDao: ArtistDao) {
 
     suspend fun moveDown(artistId: String) = move(artistId, 1)
 
+    /**
+     * Puts the favourites in the order of [ids], as after dragging a picture to a new place. Ids that are not
+     * favourites are ignored, and favourites not named keep their order after the named ones.
+     */
+    suspend fun reorder(ids: List<String>) {
+        val current = ordered()
+        val known = current.map { it.id }.toSet()
+        val named = ids.filter { it in known }.distinct()
+        val order = named + current.map { it.id }.filter { it !in named }
+        val positions = current.associate { it.id to it.position }
+        order.forEachIndexed { index, id ->
+            if (positions[id] != index) artistDao.setPosition(id, index)
+        }
+    }
+
     private suspend fun ordered(): List<ArtistEntity> =
         artistDao.getAllFavourites().sortedWith(compareBy<ArtistEntity> { it.position }.thenBy { it.name.lowercase() })
 
