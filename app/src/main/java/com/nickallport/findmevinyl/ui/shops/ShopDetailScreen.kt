@@ -60,7 +60,9 @@ fun ShopDetailScreen(
     /** Whether the shop is one of the user's favourites. */
     isFavourite: Boolean = false,
     /** Shows the favourite button, and says what to do when it is tapped. */
-    onToggleFavourite: (() -> Unit)? = null
+    onToggleFavourite: (() -> Unit)? = null,
+    /** Shows an Edit button, for a shop that was added by hand. */
+    onEdit: (() -> Unit)? = null
 ) {
     val hours = shop.openingHours
     val parsed = hours?.let { OpeningHours.parse(it) }
@@ -157,6 +159,12 @@ fun ShopDetailScreen(
         Spacer(Modifier.height(24.dp))
         FilledTonalButton(onClick = onOpenMap, modifier = Modifier.testTag("shop_detail_map")) {
             Text("Open in map")
+        }
+        if (shop.isCustom && onEdit != null) {
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onEdit, modifier = Modifier.testTag("shop_detail_edit")) {
+                Text("Edit this shop")
+            }
         }
     }
 }

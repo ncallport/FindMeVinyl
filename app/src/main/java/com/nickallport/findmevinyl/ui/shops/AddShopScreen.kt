@@ -26,7 +26,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.nominatim.Coordinates
-import com.nickallport.findmevinyl.shops.OpeningHours
+import com.nickallport.findmevinyl.shops.FriendlyHours
+import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
 import java.util.Locale
 
@@ -47,6 +48,21 @@ data class AddShopForm(
     val status: String? = null
 ) {
     val canSave: Boolean get() = name.isNotBlank() && position != null
+
+    companion object {
+        /** The form for changing a shop that was added by hand, filled in with what it has. */
+        fun from(shop: Shop) = AddShopForm(
+            name = shop.name,
+            kind = shop.category,
+            address = shop.address?.toText().orEmpty(),
+            phone = shop.phone.orEmpty(),
+            website = shop.website.orEmpty(),
+            hours = shop.openingHours.orEmpty(),
+            position = Coordinates(shop.latitude, shop.longitude),
+            positionNote = if (shop.approximatePosition) "approximate, as saved" else "as saved",
+            approximate = shop.approximatePosition
+        )
+    }
 }
 
 /** Keeps the form over a rotation, as a list of strings. */
@@ -81,6 +97,7 @@ val AddShopFormSaver: Saver<AddShopForm, List<String>> = Saver(
 fun AddShopScreen(
     form: AddShopForm,
     busy: Boolean,
+    isEditing: Boolean,
     onFormChange: (AddShopForm) -> Unit,
     onRead: () -> Unit,
     onUsePosition: () -> Unit,
@@ -94,7 +111,11 @@ fun AddShopScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = "Add a shop", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            text = if (isEditing) "Edit shop" else "Add a shop",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.testTag("add_shop_title")
+        )
         Text(
             text = "In Google Maps, open the shop, tap Share and choose Find Me Vinyl. Or paste what Maps gives you " +
                 "below: the shared text, a link, or a position such as 39.4036, -9.1349.",
@@ -138,15 +159,25 @@ fun AddShopScreen(
         Field("Address", form.address, "add_shop_address", capitalise = true) { onFormChange(form.copy(address = it)) }
         Field("Phone (optional)", form.phone, "add_shop_phone", keyboard = KeyboardType.Phone) { onFormChange(form.copy(phone = it)) }
         Field("Website (optional)", form.website, "add_shop_website", keyboard = KeyboardType.Uri) { onFormChange(form.copy(website = it)) }
-        Field("Opening hours (optional)", form.hours, "add_shop_hours") { onFormChange(form.copy(hours = it)) }
-        if (form.hours.isNotBlank() && OpeningHours.parse(form.hours) == null) {
-            Text(
-                text = "This is not in the form OpenStreetMap uses, such as Mo-Sa 10:00-18:00, so it will be shown as " +
-                    "written and the shop will not say whether it is open now.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("add_shop_hours_note")
-            )
+        Field("Opening hours (optional), such as Mon-Sat 10-7", form.hours, "add_shop_hours") { onFormChange(form.copy(hours = it)) }
+        if (form.hours.isNotBlank()) {
+            val understood = FriendlyHours.toOsm(form.hours)
+            if (understood == null) {
+                Text(
+                    text = "I could not read these hours, so they will be shown as written and the shop will not say " +
+                        "whether it is open now. Try something like Mon-Sat 10-7; Sun closed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("add_shop_hours_note")
+                )
+            } else if (understood != form.hours.trim()) {
+                Text(
+                    text = "Understood as: $understood",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("add_shop_hours_preview")
+                )
+            }
         }
 
         Spacer(Modifier.height(4.dp))
@@ -162,7 +193,7 @@ fun AddShopScreen(
 
         Spacer(Modifier.height(8.dp))
         Button(onClick = onSave, enabled = !busy && form.canSave, modifier = Modifier.testTag("add_shop_save")) {
-            Text("Save as a favourite")
+            Text(if (isEditing) "Save changes" else "Save as a favourite")
         }
     }
 }

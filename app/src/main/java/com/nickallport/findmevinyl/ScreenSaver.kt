@@ -29,7 +29,11 @@ internal sealed class Screen {
     /** The shops the user keeps as favourites. */
     object FavouriteShops : Screen()
     /** Adding a shop that OpenStreetMap does not have. [sharedText] is what Google Maps shared into the app, if anything. */
-    data class AddShop(val sharedText: String?) : Screen()
+    data class AddShop(
+        val sharedText: String?,
+        /** A shop added by hand that is being changed, instead of a new one being added. */
+        val editing: com.nickallport.findmevinyl.shops.Shop? = null
+    ) : Screen()
     /** One album: its tracklist and details. [backTo] is the discography it was opened from. */
     data class AlbumDetail(
         val albumId: String,
@@ -70,7 +74,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
             listOf("shop", Gson().toJson(value.shop), value.region?.country.orEmpty(), value.region?.subdivision.orEmpty()) +
                 save(value.backTo)
         is Screen.FavouriteShops -> listOf("favouriteshops")
-        is Screen.AddShop -> listOf("addshop", value.sharedText.orEmpty())
+        is Screen.AddShop -> listOf("addshop", value.sharedText.orEmpty(), value.editing?.let { Gson().toJson(it) }.orEmpty())
         is Screen.Discography ->
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
         is Screen.AlbumDetail ->
@@ -92,7 +96,12 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
             Screen.ShopDetail(shop, region, restore(value.drop(4)) ?: Screen.Shops)
         }.getOrNull()
         "favouriteshops" -> Screen.FavouriteShops
-        "addshop" -> Screen.AddShop(value.getOrNull(1)?.ifEmpty { null })
+        "addshop" -> Screen.AddShop(
+            sharedText = value.getOrNull(1)?.ifEmpty { null },
+            editing = value.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let {
+                runCatching { Gson().fromJson(it, com.nickallport.findmevinyl.shops.Shop::class.java) }.getOrNull()
+            }
+        )
         "discography" -> restore(value.drop(3))?.let {
             Screen.Discography(value[1], value[2], it)
         }

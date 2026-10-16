@@ -468,6 +468,7 @@ class MainActivity : ComponentActivity() {
                         is Screen.AddShop -> {
                             AddShopRoute(
                                 sharedText = screen.sharedText,
+                                editing = screen.editing,
                                 resolveLink = { link -> mapsLinkResolver.resolve(link) },
                                 findPosition = { address -> shopPositionFinder.find(address) },
                                 currentPosition = {
@@ -493,6 +494,11 @@ class MainActivity : ComponentActivity() {
                                 shop = screen.shop,
                                 region = screen.region,
                                 loadIsFavourite = { favouriteShopsViewModel.isFavourite(screen.shop.id) },
+                                onEdit = if (screen.shop.isCustom) {
+                                    { currentScreen = Screen.AddShop(null, screen.shop) }
+                                } else {
+                                    null
+                                },
                                 onSetFavourite = { keep ->
                                     if (keep) favouriteShopsViewModel.add(screen.shop, screen.region)
                                     else favouriteShopsViewModel.remove(screen.shop.id)

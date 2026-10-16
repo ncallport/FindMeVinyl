@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import com.nickallport.findmevinyl.nominatim.Coordinates
 import com.nickallport.findmevinyl.shops.FoundPosition
 import com.nickallport.findmevinyl.shops.Shop
@@ -41,6 +42,7 @@ class AddShopRouteTest {
     private val saved = mutableListOf<Shop>()
 
     private fun show(
+        editing: Shop? = null,
         sharedText: String? = null,
         resolveLink: suspend (String) -> String? = { resolved.add(it); null },
         findPosition: suspend (String) -> FoundPosition? = { asked.add(it); FoundPosition(street, false, it) },
@@ -49,7 +51,7 @@ class AddShopRouteTest {
         composeTestRule.setContent {
             FindMeVinylTheme {
                 AddShopRoute(
-                    sharedText = sharedText, resolveLink = resolveLink, findPosition = findPosition,
+                    sharedText = sharedText, editing = editing, resolveLink = resolveLink, findPosition = findPosition,
                     currentPosition = currentPosition, onSave = { saved.add(it) }, newId = { "custom/test" }
                 )
             }
@@ -248,5 +250,134 @@ class AddShopRouteTest {
         composeTestRule.onNodeWithTag("add_shop_hours").performScrollTo().performTextInput("Mo-Sa 10:00-19:00")
 
         composeTestRule.onNodeWithTag("add_shop_hours_note").assertDoesNotExist()
+    }
+
+    // Hours as people write them.
+
+    @Test
+    fun `hours written in plain words are understood and shown as they will be kept`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_shop_hours").performScrollTo().performTextInput("Mon-Sat 10-7")
+
+        composeTestRule.onNodeWithTag("add_shop_hours_preview").assertTextContains("Mo-Sa 10:00-19:00", substring = true)
+        composeTestRule.onNodeWithTag("add_shop_hours_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `hours that are saved are kept in the form the app reads`() {
+        show()
+        paste("39.4036, -9.1349")
+        composeTestRule.onNodeWithTag("add_shop_name").performScrollTo().performTextInput("Silver Tentacle")
+        composeTestRule.onNodeWithTag("add_shop_hours").performScrollTo().performTextInput("Tue-Sat 10-7; Sun closed")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("Tu-Sa 10:00-19:00; Su off", saved.single().openingHours)
+    }
+
+    @Test
+    fun `hours that cannot be read are kept as written`() {
+        show()
+        paste("39.4036, -9.1349")
+        composeTestRule.onNodeWithTag("add_shop_name").performScrollTo().performTextInput("Silver Tentacle")
+        composeTestRule.onNodeWithTag("add_shop_hours").performScrollTo().performTextInput("by appointment")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("by appointment", saved.single().openingHours)
+    }
+
+    // Editing a shop that was added by hand.
+
+    private val added = Shop(
+        id = "custom/abc", name = "Silver Tentacle", category = ShopCategory.SECOND_HAND_SHOP,
+        latitude = 39.4088, longitude = -9.1377, openingHours = null,
+        address = ShopAddress(street = "R. Raul Proença 56a", postcode = "2500", city = "Caldas da Rainha"),
+        phone = "+351 262 000 000", website = "silvertentacle.com", approximatePosition = true,
+        mapQuery = "Silver Tentacle, R. Raul Proença 56a, 2500 Caldas da Rainha"
+    )
+
+    @Test
+    fun `editing shows the shop's details in the form`() {
+        show(editing = added)
+
+        composeTestRule.onNodeWithTag("add_shop_title").assertTextEquals("Edit shop")
+        composeTestRule.onNodeWithTag("add_shop_name").performScrollTo().assertTextContains("Silver Tentacle")
+        composeTestRule.onNodeWithTag("add_shop_address").assertTextContains("R. Raul Proença 56a, 2500 Caldas da Rainha")
+        composeTestRule.onNodeWithTag("add_shop_phone").assertTextContains("+351 262 000 000")
+        composeTestRule.onNodeWithTag("add_shop_website").assertTextContains("silvertentacle.com")
+        composeTestRule.onNodeWithTag("add_shop_position").assertTextContains("39.4088, -9.1377", substring = true)
+        composeTestRule.onNodeWithTag("add_shop_position").assertTextContains("approximate", substring = true)
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `the page for a new shop is not an edit page`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_shop_title").assertTextEquals("Add a shop")
+    }
+
+    @Test
+    fun `saving an edit keeps the id and the position and changes what was changed`() {
+        show(editing = added)
+
+        composeTestRule.onNodeWithTag("add_shop_hours").performScrollTo().performTextInput("Tue-Sat 11-7")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        val shop = saved.single()
+        assertEquals("custom/abc", shop.id)
+        assertEquals("Tu-Sa 11:00-19:00", shop.openingHours)
+        assertEquals(39.4088, shop.latitude, 0.00001)
+        assertEquals(-9.1377, shop.longitude, 0.00001)
+        assertEquals(true, shop.approximatePosition)
+        assertEquals(ShopCategory.SECOND_HAND_SHOP, shop.category)
+        assertEquals("+351 262 000 000", shop.phone)
+        assertEquals(ShopAddress(street = "R. Raul Proença 56a", postcode = "2500", city = "Caldas da Rainha"), shop.address)
+    }
+
+    @Test
+    fun `an edit can change the name and the kind of shop`() {
+        show(editing = added)
+
+        composeTestRule.onNodeWithTag("add_shop_kind_record").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("add_shop_name").performScrollTo().performTextReplacement("Silver Tentacle Merchandising")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("Silver Tentacle Merchandising", saved.single().name)
+        assertEquals(ShopCategory.RECORD_SHOP, saved.single().category)
+        assertEquals("custom/abc", saved.single().id)
+    }
+
+    @Test
+    fun `an edit can give the shop a better position`() {
+        show(editing = added)
+
+        paste("39.4036, -9.1349")
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(39.4036, saved.single().latitude, 0.00001)
+        assertEquals(false, saved.single().approximatePosition)
+    }
+
+    @Test
+    fun `the button says it saves changes`() {
+        show(editing = added)
+
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().assertTextEquals("Save changes")
+    }
+
+    @Test
+    fun `an edit keeps what is not on the form, such as an email`() {
+        show(editing = added.copy(email = "hi@silver.pt"))
+
+        composeTestRule.onNodeWithTag("add_shop_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("hi@silver.pt", saved.single().email)
     }
 }

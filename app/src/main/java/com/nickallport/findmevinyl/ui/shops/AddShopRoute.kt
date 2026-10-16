@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.nickallport.findmevinyl.nominatim.Coordinates
 import com.nickallport.findmevinyl.shops.FoundPosition
+import com.nickallport.findmevinyl.shops.FriendlyHours
 import com.nickallport.findmevinyl.shops.SharedPlace
 import com.nickallport.findmevinyl.shops.SharedPlaceParser
 import com.nickallport.findmevinyl.shops.Shop
@@ -32,9 +33,13 @@ fun AddShopRoute(
     currentPosition: suspend () -> Coordinates?,
     onSave: suspend (Shop) -> Unit,
     modifier: Modifier = Modifier,
+    /** A shop that was added by hand, to change instead of adding a new one. */
+    editing: Shop? = null,
     newId: () -> String = { Shop.CUSTOM_PREFIX + UUID.randomUUID() }
 ) {
-    var form by rememberSaveable(stateSaver = AddShopFormSaver) { mutableStateOf(AddShopForm()) }
+    var form by rememberSaveable(stateSaver = AddShopFormSaver) {
+        mutableStateOf(editing?.let { AddShopForm.from(it) } ?: AddShopForm())
+    }
     var busy by remember { mutableStateOf(false) }
     var sharedTextRead by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -124,6 +129,7 @@ fun AddShopRoute(
     AddShopScreen(
         form = form,
         busy = busy,
+        isEditing = editing != null,
         onFormChange = { form = it },
         onRead = { runRead(form.paste) },
         onUsePosition = {
@@ -148,14 +154,15 @@ fun AddShopRoute(
             scope.launch {
                 busy = true
                 try {
+                    // Changing a shop keeps what is not on the form, such as its email, and its id.
+                    val base = editing ?: Shop(newId(), name, form.kind, position.latitude, position.longitude, null)
                     onSave(
-                        Shop(
-                            id = newId(),
+                        base.copy(
                             name = name,
                             category = form.kind,
                             latitude = position.latitude,
                             longitude = position.longitude,
-                            openingHours = form.hours.trim().takeIf { it.isNotEmpty() },
+                            openingHours = FriendlyHours.toOsm(form.hours) ?: form.hours.trim().takeIf { it.isNotEmpty() },
                             address = address?.let { ShopAddress.fromText(it) },
                             phone = form.phone.trim().takeIf { it.isNotEmpty() },
                             website = form.website.trim().takeIf { it.isNotEmpty() },

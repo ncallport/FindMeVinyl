@@ -37,6 +37,13 @@ data class ShopAddress(
     val isEmpty: Boolean
         get() = listOf(street, houseNumber, postcode, city).all { it.isNullOrBlank() }
 
+    /** The address on one line, such as "R. Raul Proença 56a, 2500 Caldas da Rainha": the street, then the postcode and town. */
+    fun toText(): String {
+        val streetPart = listOf(street, houseNumber).filterNot { it.isNullOrBlank() }.joinToString(" ")
+        val townPart = listOf(postcode, city).filterNot { it.isNullOrBlank() }.joinToString(" ")
+        return listOf(streetPart, townPart).filter { it.isNotEmpty() }.joinToString(", ")
+    }
+
     /**
      * The address as one or two lines, in the order that is usual in the country: the number before the street
      * and the postcode after the town in Britain, Ireland, the United States and a few more, the number before
