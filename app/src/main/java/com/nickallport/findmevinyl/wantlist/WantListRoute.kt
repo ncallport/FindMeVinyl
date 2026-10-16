@@ -1,6 +1,6 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,7 +32,7 @@ fun WantListRoute(
 
     val loaded = wanted
     if (loaded == null) {
-        CircularProgressIndicator(modifier = modifier.testTag("loading_indicator"))
+        RecordSpinner(modifier = modifier.testTag("loading_indicator"))
     } else {
         WantListScreen(
             wanted = loaded,

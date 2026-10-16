@@ -18,7 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -118,7 +118,7 @@ fun AlbumDetailScreen(
 
         Spacer(Modifier.height(16.dp))
         when (state) {
-            AlbumDetailState.Loading -> CircularProgressIndicator(modifier = Modifier.testTag("detail_loading"))
+            AlbumDetailState.Loading -> RecordSpinner(modifier = Modifier.testTag("detail_loading"))
             AlbumDetailState.Failed -> {
                 Text("Couldn't load the details", style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(8.dp))
@@ -302,10 +302,7 @@ private fun PressingRow(pressing: Pressing, shown: Boolean, loading: Boolean, ca
             }
         }
         if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp).testTag("pressing_loading_$id"),
-                strokeWidth = 2.dp
-            )
+            RecordSpinner(modifier = Modifier.testTag("pressing_loading_$id"), size = 20.dp)
         } else if (shown) {
             Text(
                 text = "Showing",

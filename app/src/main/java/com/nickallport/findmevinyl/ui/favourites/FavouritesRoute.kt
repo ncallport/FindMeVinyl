@@ -1,7 +1,7 @@
 package com.nickallport.findmevinyl.ui.favourites
 
 import android.graphics.Bitmap
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +31,7 @@ fun FavouritesRoute(
 
     val loaded = artists
     if (loaded == null) {
-        CircularProgressIndicator(modifier = modifier.testTag("loading_indicator"))
+        RecordSpinner(modifier = modifier.testTag("loading_indicator"))
     } else {
         FavouritesScreen(
             artists = loaded,
