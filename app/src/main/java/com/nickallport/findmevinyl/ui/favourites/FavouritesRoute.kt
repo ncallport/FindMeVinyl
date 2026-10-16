@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import android.graphics.Bitmap
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.runtime.Composable
@@ -32,7 +35,7 @@ fun FavouritesRoute(
 
     val loaded = artists
     if (loaded == null) {
-        RecordSpinner(modifier = modifier.testTag("loading_indicator"))
+        RecordSpinner(modifier = modifier.fillMaxWidth().padding(16.dp).testTag("loading_indicator"))
     } else {
         FavouritesScreen(
             artists = loaded,

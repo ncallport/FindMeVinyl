@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,7 +36,7 @@ fun WantListRoute(
 
     val loaded = wanted
     if (loaded == null) {
-        RecordSpinner(modifier = modifier.testTag("loading_indicator"))
+        RecordSpinner(modifier = modifier.fillMaxWidth().padding(16.dp).testTag("loading_indicator"))
     } else {
         WantListScreen(
             wanted = loaded,

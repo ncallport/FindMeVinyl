@@ -45,7 +45,7 @@ fun ArtistSearchResultsScreen(
             )
         }
         is ArtistSearchUiState.Loading -> {
-            RecordSpinner(modifier = modifier.testTag("loading_indicator"))
+            RecordSpinner(modifier = modifier.fillMaxWidth().padding(16.dp).testTag("loading_indicator"))
         }
         is ArtistSearchUiState.Success -> {
             var picturesShown by remember { mutableIntStateOf(0) }
