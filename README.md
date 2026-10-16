@@ -27,7 +27,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 - Show your favourite artists as a list, or as a grid of pictures when there are many, and the app remembers which you chose.
 - Keep a list of favourite artists and a want list in the order you choose, and share the want list as text. Before sharing you can add a message ("It's my birthday soon, here are some ideas") and choose how many albums to send, such as the top 10 or top 20, so the list is not too long.
 - Add your own photo for an artist when the one from the web is poor or missing.
-- Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account. Tap a shop for its page: address, phone, website, email and the hours of every day of the week, with a button to open it on a map. Keep the shops you like as favourites, listed by town, to find them again without a search.
+- Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account. Tap a shop for its page: address, phone, website, email and the hours of every day of the week, with a button to open it on a map. Keep the shops you like as favourites, listed by town, to find them again without a search. Add a shop that the map does not have by sharing it from Google Maps into the app, or by typing it in.
 - Hide what you do not want to see: live albums, compilations, singles, particular formats, bootlegs, promos, releases with an unknown status, charity shops and second-hand shops.
 - Back up your data (artists, albums, photos, favourite shops and settings) to a zip file and restore it later, for example on a new phone.
 
@@ -43,13 +43,14 @@ The app talks to these public services. None needs an account or a key. They are
 | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) | Turns a town name into a position, and a position into a region, which decides which public holidays apply. |
 | [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) (OpenStreetMap) | The shops: record, music, charity and second hand shops around a position, with their names and opening hours. The app asks the server of [OpenStreetMap France](https://overpass.openstreetmap.fr) first, and [overpass-api.de](https://overpass-api.de) if that fails or is slow. The data is the work of OpenStreetMap contributors. |
 | [Nager.Date](https://date.nager.at) | Public holidays by country and year, used to judge whether a shop is open on a bank holiday. Only a country code and a year are sent. |
+| [Google Maps](https://maps.google.com) | Only when you add a shop from a link: the app follows the short Maps link you share, once, to read the shop's name and address from where it leads. Nothing else is sent. A link that is not a Google Maps link is never followed. |
 | Google Play services location | The phone's position, for the Near me search. This is a library on the phone, not a web service. |
 
 Answers are kept on the phone for a while (formats for 30 days, album pages and artist pictures for 90 days, holidays for 90 days), so reopening an artist costs few or no requests.
 
 ## Privacy
 
-The app has no analytics and no server of its own. Your favourites (artists and shops), owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else.
+The app has no analytics and no server of its own. Your favourites (artists and shops), owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Adding a shop from a Google Maps link sends that link to Google, and nothing else, so the app can read the name and address. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else.
 
 ## Building it
 

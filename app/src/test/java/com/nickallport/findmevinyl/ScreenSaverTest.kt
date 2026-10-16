@@ -166,4 +166,17 @@ class ScreenSaverTest {
         assertEquals(Screen.FavouriteShops, screen.backTarget())
         assertEquals(screen, roundTrip(screen))
     }
+
+    @Test
+    fun theAddAShopPageKeepsTheTextShared() {
+        val text = "Silver Tentacle Merchandising\nR. Raul Proença 56a, 2500 Caldas da Rainha\nhttps://maps.app.goo.gl/x"
+
+        assertEquals(Screen.AddShop(text), roundTrip(Screen.AddShop(text)))
+        assertEquals(Screen.AddShop(null), roundTrip(Screen.AddShop(null)))
+    }
+
+    @Test
+    fun theAddAShopPageGoesBackToTheFavouriteShops() {
+        assertEquals(Screen.FavouriteShops, Screen.AddShop(null).backTarget())
+    }
 }

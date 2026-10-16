@@ -42,7 +42,8 @@ internal fun FavouriteShop.toEntity(savedAt: Long) = FavouriteShopEntity(
     street = shop.address?.street, houseNumber = shop.address?.houseNumber, postcode = shop.address?.postcode,
     city = shop.address?.city, addressCountry = shop.address?.country,
     phone = shop.phone, website = shop.website, email = shop.email, secondHandOnly = shop.secondHandOnly,
-    regionCountry = region?.country, regionSubdivision = region?.subdivision, savedAt = savedAt
+    regionCountry = region?.country, regionSubdivision = region?.subdivision, savedAt = savedAt,
+    approximatePosition = shop.approximatePosition, mapQuery = shop.mapQuery
 )
 
 internal fun FavouriteShopEntity.toFavourite(): FavouriteShop {
@@ -52,7 +53,8 @@ internal fun FavouriteShopEntity.toFavourite(): FavouriteShop {
             id = id, name = name,
             category = runCatching { ShopCategory.valueOf(category) }.getOrDefault(ShopCategory.RECORD_SHOP),
             latitude = latitude, longitude = longitude, openingHours = openingHours, address = address,
-            phone = phone, website = website, email = email, secondHandOnly = secondHandOnly
+            phone = phone, website = website, email = email, secondHandOnly = secondHandOnly,
+            approximatePosition = approximatePosition, mapQuery = mapQuery
         ),
         region = regionCountry?.let { HolidayRegion(it, regionSubdivision) }
     )

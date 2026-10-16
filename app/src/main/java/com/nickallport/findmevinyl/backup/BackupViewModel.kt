@@ -71,7 +71,7 @@ class BackupViewModel(
                 BackupShop(
                     it.id, it.name, it.category, it.latitude, it.longitude, it.openingHours, it.street, it.houseNumber,
                     it.postcode, it.city, it.addressCountry, it.phone, it.website, it.email, it.secondHandOnly,
-                    it.regionCountry, it.regionSubdivision, it.savedAt
+                    it.regionCountry, it.regionSubdivision, it.savedAt, it.approximatePosition, it.mapQuery
                 )
             },
             settings = currentSettings()
@@ -218,7 +218,8 @@ class BackupViewModel(
                 FavouriteShopEntity(
                     id, shop.name.orEmpty(), category.name, latitude, longitude, shop.openingHours, shop.street,
                     shop.houseNumber, shop.postcode, shop.city, shop.addressCountry, shop.phone, shop.website, shop.email,
-                    shop.secondHandOnly == true, shop.regionCountry, shop.regionSubdivision, shop.savedAt ?: clock()
+                    shop.secondHandOnly == true, shop.regionCountry, shop.regionSubdivision, shop.savedAt ?: clock(),
+                    shop.approximatePosition == true, shop.mapQuery
                 )
             )
             if (added > 0) shops++

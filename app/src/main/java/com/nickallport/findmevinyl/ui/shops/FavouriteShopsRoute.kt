@@ -16,7 +16,8 @@ import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 fun FavouriteShopsRoute(
     load: suspend () -> List<FavouriteShop>,
     onShopSelected: (FavouriteShop) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAddShop: (() -> Unit)? = null
 ) {
     var shops by remember { mutableStateOf<List<FavouriteShop>?>(null) }
 
@@ -28,6 +29,6 @@ fun FavouriteShopsRoute(
     if (loaded == null) {
         RecordSpinner(modifier = modifier.testTag("loading_indicator"))
     } else {
-        FavouriteShopsScreen(shops = loaded, onShopSelected = onShopSelected, modifier = modifier)
+        FavouriteShopsScreen(shops = loaded, onShopSelected = onShopSelected, modifier = modifier, onAddShop = onAddShop)
     }
 }

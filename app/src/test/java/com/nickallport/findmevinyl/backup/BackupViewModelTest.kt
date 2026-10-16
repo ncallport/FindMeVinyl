@@ -556,4 +556,20 @@ class BackupViewModelTest {
 
         assertEquals("RECORD_SHOP", database.favouriteShopDao().get("node/5")?.category)
     }
+
+    @Test
+    fun `a shop added by hand is restored with its approximate position and map search text`() = runBlocking {
+        database.favouriteShopDao().save(
+            louie.copy(id = "custom/abc", approximatePosition = true, mapQuery = "Silver Tentacle, Caldas da Rainha")
+        )
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val kept = fresh.favouriteShopDao().get("custom/abc")!!
+        assertTrue(kept.approximatePosition)
+        assertEquals("Silver Tentacle, Caldas da Rainha", kept.mapQuery)
+        fresh.close()
+    }
 }

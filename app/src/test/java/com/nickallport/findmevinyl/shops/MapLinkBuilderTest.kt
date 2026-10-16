@@ -57,4 +57,24 @@ class MapLinkBuilderTest {
             Locale.setDefault(original)
         }
     }
+
+    @Test
+    fun `a shop with a text to search for is opened by that text, near its position`() {
+        val shop = Shop(
+            "custom/1", "Silver Tentacle", ShopCategory.RECORD_SHOP, 39.4072, -9.1346, null,
+            mapQuery = "Silver Tentacle Merchandising, R. Raul Proença 56a, Caldas da Rainha"
+        )
+
+        assertEquals(
+            "geo:39.407200,-9.134600?q=Silver%20Tentacle%20Merchandising%2C%20R.%20Raul%20Proen%C3%A7a%2056a%2C%20Caldas%20da%20Rainha",
+            MapLinkBuilder.geoUri(shop)
+        )
+    }
+
+    @Test
+    fun `a shop without one is opened at its position as before`() {
+        val shop = Shop("1", "Sister Ray", ShopCategory.RECORD_SHOP, 51.5, -0.1, null)
+
+        assertEquals("geo:51.500000,-0.100000?q=51.500000,-0.100000(Sister%20Ray)", MapLinkBuilder.geoUri(shop))
+    }
 }

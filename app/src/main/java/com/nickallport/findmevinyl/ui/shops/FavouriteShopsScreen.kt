@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.ui.shops
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,7 +34,9 @@ private const val NO_TOWN = "Other places"
 fun FavouriteShopsScreen(
     shops: List<FavouriteShop>,
     onShopSelected: (FavouriteShop) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Shows an Add a shop button, for a shop that OpenStreetMap does not have. */
+    onAddShop: (() -> Unit)? = null
 ) {
     if (shops.isEmpty()) {
         Column(
@@ -54,6 +58,7 @@ fun FavouriteShopsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+            if (onAddShop != null) AddShopButton(onAddShop)
         }
         return
     }
@@ -61,6 +66,11 @@ fun FavouriteShopsScreen(
     val byTown = shops.groupBy { it.shop.address?.city?.takeIf { city -> city.isNotBlank() } ?: NO_TOWN }.toList()
 
     LazyColumn(modifier = modifier) {
+        if (onAddShop != null) {
+            item(key = "add_shop") {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { AddShopButton(onAddShop) }
+            }
+        }
         byTown.forEach { (town, inTown) ->
             item(key = "town_$town") {
                 Text(
@@ -79,5 +89,12 @@ fun FavouriteShopsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AddShopButton(onClick: () -> Unit) {
+    FilledTonalButton(onClick = onClick, modifier = Modifier.testTag("favourite_shops_add")) {
+        Text("Add a shop")
     }
 }

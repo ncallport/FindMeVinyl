@@ -12,8 +12,19 @@ data class Shop(
     val website: String? = null,
     val email: String? = null,
     /** OpenStreetMap says the shop sells nothing new (`second_hand=only`). */
-    val secondHandOnly: Boolean = false
-)
+    val secondHandOnly: Boolean = false,
+    /** The position is only that of the town, because the street was not found. */
+    val approximatePosition: Boolean = false,
+    /** What to ask a map app for, when the position alone does not find the shop: its name and address. */
+    val mapQuery: String? = null
+) {
+    /** A shop the user added, because OpenStreetMap does not have it. */
+    val isCustom: Boolean get() = id.startsWith(CUSTOM_PREFIX)
+
+    companion object {
+        const val CUSTOM_PREFIX = "custom/"
+    }
+}
 
 /** The parts of a shop's address that OpenStreetMap has. Any of them can be missing. */
 data class ShopAddress(
@@ -45,9 +56,29 @@ data class ShopAddress(
         return listOf(streetLine, townLine).filter { it.isNotBlank() }
     }
 
-    private companion object {
-        val POSTCODE_LAST = setOf("GB", "IE", "US", "CA", "AU", "NZ", "ZA")
-        val NUMBER_FIRST = POSTCODE_LAST + "FR"
+    companion object {
+        private val POSTCODE_LAST = setOf("GB", "IE", "US", "CA", "AU", "NZ", "ZA")
+        private val NUMBER_FIRST = POSTCODE_LAST + "FR"
+        private val POSTCODE_AND_TOWN = Regex("""^(\d{4}(?:-\d{3})?)\s+(.+)$""")
+
+        /**
+         * An address written on one line, as Google Maps gives it, split in parts: the last part after a comma is the
+         * town, with a four digit (or 1234-567) postcode in front of it taken off, and everything before it is the street.
+         * A line with no comma is all street.
+         */
+        fun fromText(text: String): ShopAddress {
+            val parts = text.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            if (parts.isEmpty()) return ShopAddress()
+            if (parts.size == 1) return ShopAddress(street = parts[0])
+
+            val town = parts.last()
+            val match = POSTCODE_AND_TOWN.matchEntire(town)
+            return ShopAddress(
+                street = parts.dropLast(1).joinToString(", "),
+                postcode = match?.groupValues?.get(1),
+                city = match?.groupValues?.get(2) ?: town
+            )
+        }
     }
 }
 
