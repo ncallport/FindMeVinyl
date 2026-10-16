@@ -6,6 +6,8 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
+import com.nickallport.findmevinyl.storage.ArtistEntity
+import com.nickallport.findmevinyl.favourites.FavouritesViewModel
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -17,7 +19,7 @@ import org.robolectric.RobolectricTestRunner
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-/** New favourites and new wants go last in the user's own order, and saving again changes nothing. */
+/** A new favourite goes first and a new want goes last in the user's own order, and saving again changes nothing. */
 @RunWith(RobolectricTestRunner::class)
 class DiscographyViewModelPriorityTest {
 
@@ -59,14 +61,48 @@ class DiscographyViewModelPriorityTest {
     private fun wantPosition(albumId: String) = runBlocking { database.albumDao().getById(albumId)?.wantPosition }
 
     @Test
-    fun `the first favourite gets position 0 and each new one goes after the last`() = runBlocking {
+    fun `the first favourite gets position 0 and each new one goes before the first`() = runBlocking {
         viewModel.saveFavourite("g", "Genesis")
         viewModel.saveFavourite("r", "Ramones")
         viewModel.saveFavourite("x", "Roxy Music")
 
         assertEquals(0, position("g"))
-        assertEquals(1, position("r"))
-        assertEquals(2, position("x"))
+        assertEquals(-1, position("r"))
+        assertEquals(-2, position("x"))
+    }
+
+    @Test
+    fun `a new favourite is first in the list the Artists page shows`() = runBlocking {
+        viewModel.saveFavourite("g", "Genesis")
+        viewModel.saveFavourite("r", "Ramones")
+
+        viewModel.saveFavourite("x", "Roxy Music")
+
+        val names = FavouritesViewModel(database.artistDao()).loadFavourites().map { it.name }
+        assertEquals(listOf("Roxy Music", "Ramones", "Genesis"), names)
+    }
+
+    @Test
+    fun `a new favourite is first even when the others were never ordered and all sit at 0`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "Zed", null, null, position = 0))
+        database.artistDao().insert(ArtistEntity("b", "Abba", null, null, position = 0))
+
+        viewModel.saveFavourite("x", "Roxy Music")
+
+        val names = FavouritesViewModel(database.artistDao()).loadFavourites().map { it.name }
+        assertEquals(listOf("Roxy Music", "Abba", "Zed"), names)
+    }
+
+    @Test
+    fun `a new favourite is first after the others were moved, which rewrites their positions`() = runBlocking {
+        viewModel.saveFavourite("g", "Genesis")
+        viewModel.saveFavourite("r", "Ramones")
+        val favourites = FavouritesViewModel(database.artistDao())
+        favourites.moveDown("r")
+
+        viewModel.saveFavourite("x", "Roxy Music")
+
+        assertEquals(listOf("Roxy Music", "Genesis", "Ramones"), favourites.loadFavourites().map { it.name })
     }
 
     @Test
@@ -78,7 +114,7 @@ class DiscographyViewModelPriorityTest {
         viewModel.saveFavourite("g", "Genesis")
 
         assertEquals(7, position("g"))
-        assertEquals(1, position("r"))
+        assertEquals(-1, position("r"))
     }
 
     @Test

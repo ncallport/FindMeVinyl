@@ -17,9 +17,9 @@ interface ArtistDao {
     @Query("UPDATE favourite_artists SET position = :position WHERE id = :artistId")
     suspend fun setPosition(artistId: String, position: Int): Int
 
-    /** The largest position in use, or null when there are no favourites. */
-    @Query("SELECT MAX(position) FROM favourite_artists")
-    suspend fun maxPosition(): Int?
+    /** The lowest position in use, or null when there are no favourites. */
+    @Query("SELECT MIN(position) FROM favourite_artists")
+    suspend fun minPosition(): Int?
 
     @Query("DELETE FROM favourite_artists WHERE id = :artistId")
     suspend fun deleteById(artistId: String): Int
