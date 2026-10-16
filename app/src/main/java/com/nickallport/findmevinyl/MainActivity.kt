@@ -26,6 +26,8 @@ import com.nickallport.findmevinyl.backup.BackupViewModel
 import com.nickallport.findmevinyl.settings.AppSettings
 import com.nickallport.findmevinyl.settings.SettingsStore
 import com.nickallport.findmevinyl.ui.settings.SettingsRoute
+import com.nickallport.findmevinyl.shops.ShopSearchUiState
+import com.nickallport.findmevinyl.ui.shops.ShopDetailRoute
 import androidx.compose.runtime.collectAsState
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
 import com.nickallport.findmevinyl.artist.ArtistPhotoStore
@@ -399,12 +401,27 @@ class MainActivity : ComponentActivity() {
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 search = { town -> shopSearchViewModel.searchTown(town) },
                                 searchNearby = { nearbyShopSearcher.findNearby() },
-                                onShopSelected = { shop -> openInMaps(shop) },
+                                onShopSelected = { shop ->
+                                    // The region of the search, for the public holidays and the layout of the address.
+                                    val region = (SearchResultCache.shared.shop as? ShopSearchUiState.Success)?.region
+                                    currentScreen = Screen.ShopDetail(shop, region)
+                                },
                                 searchPlace = { place, others ->
                                     shopSearchViewModel.searchPlace(place, others)
                                 },
                                 loadPublicHolidays = { region -> publicHolidayCalendar.datesNear(region, LocalDate.now()) },
                                 cache = SearchResultCache.shared
+                            )
+                        }
+                        is Screen.ShopDetail -> {
+                            ShopDetailRoute(
+                                shop = screen.shop,
+                                region = screen.region,
+                                loadPublicHolidays = { region -> publicHolidayCalendar.datesNear(region, LocalDate.now()) },
+                                onOpenMap = { openInMaps(screen.shop) },
+                                onCall = { uri -> openLink(Intent.ACTION_DIAL, uri, "No phone app found on this device") },
+                                onOpenWebsite = { url -> openLink(Intent.ACTION_VIEW, url, "No web browser found on this device") },
+                                onSendEmail = { uri -> openLink(Intent.ACTION_SENDTO, uri, "No email app found on this device") }
                             )
                         }
                     }
@@ -422,6 +439,15 @@ class MainActivity : ComponentActivity() {
             putExtra(Intent.EXTRA_TEXT, text)
         }
         startActivity(Intent.createChooser(sendIntent, "Share your want list"))
+    }
+
+    /** Hands a link that has already been checked ([com.nickallport.findmevinyl.shops.WebLink] and the like) to another app. */
+    private fun openLink(action: String, uri: String, noAppMessage: String) {
+        try {
+            startActivity(Intent(action, Uri.parse(uri)))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, noAppMessage, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openInMaps(shop: Shop) {

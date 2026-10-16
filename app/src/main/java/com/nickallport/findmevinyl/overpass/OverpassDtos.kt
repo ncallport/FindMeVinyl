@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.overpass
 
 import com.google.gson.Gson
 import com.nickallport.findmevinyl.shops.Shop
+import com.nickallport.findmevinyl.shops.ShopAddress
 import com.nickallport.findmevinyl.shops.ShopCategory
 
 data class OverpassResponse(
@@ -49,9 +50,26 @@ object OverpassShopMapper {
             category = category,
             latitude = resolvedLat,
             longitude = resolvedLon,
-            openingHours = elementTags["opening_hours"]
+            openingHours = elementTags["opening_hours"],
+            address = addressOf(elementTags),
+            phone = elementTags.firstOf("phone", "contact:phone"),
+            website = elementTags.firstOf("website", "contact:website"),
+            email = elementTags.firstOf("email", "contact:email"),
+            secondHandOnly = elementTags["second_hand"] == "only"
         )
     }
+
+    private fun Map<String, String>.firstOf(vararg keys: String): String? =
+        keys.firstNotNullOfOrNull { key -> this[key]?.trim()?.takeIf { it.isNotEmpty() } }
+
+    private fun addressOf(tags: Map<String, String>): ShopAddress? =
+        ShopAddress(
+            street = tags.firstOf("addr:street"),
+            houseNumber = tags.firstOf("addr:housenumber"),
+            postcode = tags.firstOf("addr:postcode"),
+            city = tags.firstOf("addr:city"),
+            country = tags.firstOf("addr:country")
+        ).takeUnless { it.isEmpty }
 
     private fun categoryFor(shopTag: String?): ShopCategory? {
         return when (shopTag) {
