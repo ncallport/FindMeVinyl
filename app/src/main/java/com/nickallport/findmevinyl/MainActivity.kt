@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
 import com.nickallport.findmevinyl.discography.OwnedFirstStore
+import com.nickallport.findmevinyl.backup.BackupMessages
+import com.nickallport.findmevinyl.backup.BackupViewModel
 import com.nickallport.findmevinyl.settings.AppSettings
 import com.nickallport.findmevinyl.settings.SettingsStore
-import com.nickallport.findmevinyl.ui.settings.SettingsScreen
+import com.nickallport.findmevinyl.ui.settings.SettingsRoute
 import androidx.compose.runtime.collectAsState
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
 import com.nickallport.findmevinyl.artist.ArtistPhotoStore
@@ -68,6 +70,7 @@ import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
 import com.nickallport.findmevinyl.location.DeviceLocationProvider
 import com.nickallport.findmevinyl.shops.NearbyShopSearcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.runtime.saveable.rememberSaveable
 import android.content.ActivityNotFoundException
@@ -87,6 +90,49 @@ class MainActivity : ComponentActivity() {
     // The system photo picker. It needs no permission, because the user picks the one photo to share.
     private val photoPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         photoResult?.complete(uri)
+    }
+
+    // The system file pickers for a backup. They need no permission, because the user picks the one file.
+    private var backupFileResult: CompletableDeferred<Uri?>? = null
+    private val backupFilePicker = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        backupFileResult?.complete(uri)
+    }
+    private var restoreFileResult: CompletableDeferred<Uri?>? = null
+    private val restoreFilePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        restoreFileResult?.complete(uri)
+    }
+
+    /** Asks where to save the backup, writes it, and says what happened. Null when the user backed out. */
+    private suspend fun backUpData(backup: BackupViewModel): String? {
+        val result = CompletableDeferred<Uri?>()
+        backupFileResult = result
+        backupFilePicker.launch("FindMeVinyl-backup-${LocalDate.now()}.zip")
+        val uri = result.await() ?: return null
+        return try {
+            val summary = contentResolver.openOutputStream(uri, "wt")?.use { backup.createBackup(it) }
+            summary?.let(BackupMessages::backedUp) ?: "The backup could not be saved."
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "The backup could not be saved."
+        }
+    }
+
+    /** Asks for a backup file, adds what is in it, and says what happened. Null when the user backed out. */
+    private suspend fun restoreData(backup: BackupViewModel): String? {
+        val result = CompletableDeferred<Uri?>()
+        restoreFileResult = result
+        // Any file type is offered, because file apps do not agree on what a zip is called.
+        restoreFilePicker.launch(arrayOf("*/*"))
+        val uri = result.await() ?: return null
+        return try {
+            val input = contentResolver.openInputStream(uri) ?: return "The file could not be opened."
+            BackupMessages.restored(input.use { backup.restore(it) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "The file could not be opened."
+        }
     }
 
     private sealed class PickedPhoto {
@@ -152,6 +198,13 @@ class MainActivity : ComponentActivity() {
 
         val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
+
+        val backupViewModel = BackupViewModel(
+            database,
+            ArtistPhotoStore(File(filesDir, "artist_photos")),
+            currentSettings = { appSettings.settings.value },
+            applySettings = { appSettings.set(it) }
+        )
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
@@ -323,7 +376,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is Screen.Settings -> {
-                            SettingsScreen(settings = settings, onChange = { appSettings.set(it) })
+                            SettingsRoute(
+                                settings = settings,
+                                onChange = { appSettings.set(it) },
+                                backUp = { backUpData(backupViewModel) },
+                                restore = { restoreData(backupViewModel) }
+                            )
                         }
                         is Screen.Shops -> {
                             ShopSearchRoute(
