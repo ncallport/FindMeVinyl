@@ -327,9 +327,10 @@ class DiscographyViewModel(
     }
 
     suspend fun saveFavourite(artistId: String, artistName: String) {
-        // A favourite that is already saved keeps its place in the user's order. A new one goes last.
+        // A favourite that is already saved keeps its place in the user's order. A new one goes first,
+        // one place before the lowest position, which can be below 0. The first ever favourite gets 0.
         if (artistDao.getById(artistId) != null) return
-        val position = (artistDao.maxPosition() ?: -1) + 1
+        val position = (artistDao.minPosition() ?: 1) - 1
         artistDao.insert(ArtistEntity(id = artistId, name = artistName, type = null, country = null, position = position))
     }
 
