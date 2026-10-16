@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl
 
 import androidx.compose.runtime.saveable.Saver
+import com.google.gson.Gson
 import androidx.compose.runtime.saveable.SaverScope
 
 internal sealed class Screen {
@@ -18,6 +19,8 @@ internal sealed class Screen {
         val artistName: String,
         val backTo: Screen
     ) : Screen()
+    /** One shop, with the region it was found in, for its public holidays and the layout of its address. */
+    data class ShopDetail(val shop: com.nickallport.findmevinyl.shops.Shop, val region: com.nickallport.findmevinyl.holidays.HolidayRegion?) : Screen()
     /** One album: its tracklist and details. [backTo] is the discography it was opened from. */
     data class AlbumDetail(
         val albumId: String,
@@ -37,6 +40,7 @@ internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Home -> null
     is Screen.Discography -> backTo
     is Screen.AlbumDetail -> backTo
+    is Screen.ShopDetail -> Screen.Shops
     is Screen.ArtistResults -> Screen.Search
     else -> Screen.Home
 }
@@ -51,6 +55,8 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.WantList -> listOf("wantlist")
         is Screen.Shops -> listOf("shops")
         is Screen.Settings -> listOf("settings")
+        is Screen.ShopDetail ->
+            listOf("shop", Gson().toJson(value.shop), value.region?.country.orEmpty(), value.region?.subdivision.orEmpty())
         is Screen.Discography ->
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
         is Screen.AlbumDetail ->
@@ -64,6 +70,13 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         "wantlist" -> Screen.WantList
         "shops" -> Screen.Shops
         "settings" -> Screen.Settings
+        "shop" -> runCatching {
+            val shop = Gson().fromJson(value[1], com.nickallport.findmevinyl.shops.Shop::class.java)
+            val country = value.getOrNull(2).orEmpty()
+            val region = if (country.isEmpty()) null else
+                com.nickallport.findmevinyl.holidays.HolidayRegion(country, value.getOrNull(3)?.ifEmpty { null })
+            Screen.ShopDetail(shop, region)
+        }.getOrNull()
         "discography" -> restore(value.drop(3))?.let {
             Screen.Discography(value[1], value[2], it)
         }

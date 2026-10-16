@@ -436,4 +436,45 @@ class OpeningHoursTest {
     fun `a PH off rule that is added to other hours is not allowed`() {
         assertNull(OpeningHours.parse("Mo-Fr 09:00-17:00, PH off"))
     }
+
+    // The hours of each day, for the shop's page.
+
+    private fun hours(text: String) = OpeningHours.parse(text)!!
+
+    @Test
+    fun `gives the hours of each day as text`() {
+        val louie = hours("Mo-Sa 11:00-19:30; Su,PH 15:00-19:30")
+
+        assertEquals("11:00-19:30", louie.hoursText(java.time.DayOfWeek.MONDAY))
+        assertEquals("11:00-19:30", louie.hoursText(java.time.DayOfWeek.SATURDAY))
+        assertEquals("15:00-19:30", louie.hoursText(java.time.DayOfWeek.SUNDAY))
+    }
+
+    @Test
+    fun `a day with two spells of opening gives both`() {
+        val carbono = hours("Mo-Sa 11:00-12:30, 13:30-19:00")
+
+        assertEquals("11:00-12:30, 13:30-19:00", carbono.hoursText(java.time.DayOfWeek.TUESDAY))
+    }
+
+    @Test
+    fun `a day with no hours is closed`() {
+        assertEquals("Closed", hours("Mo-Sa 11:00-19:30").hoursText(java.time.DayOfWeek.SUNDAY))
+    }
+
+    @Test
+    fun `open until the end of the day reads 24 00`() {
+        assertEquals("00:00-24:00", hours("Mo-Su 00:00-24:00").hoursText(java.time.DayOfWeek.FRIDAY))
+    }
+
+    @Test
+    fun `says what the public holidays are, when the hours name them`() {
+        assertEquals("Closed", hours("Mo-Sa 10:00-18:00; PH off").publicHolidayText())
+        assertEquals("15:00-19:30", hours("Mo-Sa 11:00-19:30; Su,PH 15:00-19:30").publicHolidayText())
+    }
+
+    @Test
+    fun `says nothing about public holidays when the hours do not name them`() {
+        assertNull(hours("Mo-Sa 10:00-18:00").publicHolidayText())
+    }
 }

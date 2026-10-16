@@ -28,6 +28,21 @@ class OpeningHours private constructor(
     private fun rangesOn(day: DayOfWeek, isPublicHoliday: Boolean): List<MinuteRange>? =
         (if (isPublicHoliday) holidayHours[day] else null) ?: schedule[day]
 
+    /** The usual hours of [day] as text, such as "11:00-12:30, 13:30-19:00", or "Closed". */
+    fun hoursText(day: DayOfWeek): String = format(schedule[day].orEmpty())
+
+    /**
+     * What the hours say about public holidays, as one text ("Closed", "15:00-19:30"), or null when they do not
+     * name public holidays or give different hours depending on the weekday.
+     */
+    fun publicHolidayText(): String? =
+        holidayHours.values.map { format(it) }.distinct().singleOrNull()
+
+    private fun format(ranges: List<MinuteRange>): String =
+        if (ranges.isEmpty()) "Closed" else ranges.joinToString(", ") { "${clock(it.start)}-${clock(it.end)}" }
+
+    private fun clock(minutes: Int): String = "%02d:%02d".format(minutes / 60, minutes % 60)
+
     /** [isPublicHoliday]: the moment is on a public holiday. Hours that do not name PH are the same on one. */
     fun statusAt(moment: LocalDateTime, isPublicHoliday: Boolean = false): OpeningStatus {
         val ranges = rangesOn(moment.dayOfWeek, isPublicHoliday) ?: return OpeningStatus.Closed

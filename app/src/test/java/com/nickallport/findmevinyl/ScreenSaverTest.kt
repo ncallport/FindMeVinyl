@@ -118,4 +118,35 @@ class ScreenSaverTest {
     fun backFromTheSettingsPageGoesToTheFrontScreen() {
         assertEquals(Screen.Home, Screen.Settings.backTarget())
     }
+
+    @Test
+    fun aShopPageKeepsTheShopAndItsRegion() {
+        val shop = com.nickallport.findmevinyl.shops.Shop(
+            id = "9", name = "Louie Louie", category = com.nickallport.findmevinyl.shops.ShopCategory.RECORD_SHOP,
+            latitude = 38.71, longitude = -9.14, openingHours = "Mo-Sa 11:00-19:30",
+            address = com.nickallport.findmevinyl.shops.ShopAddress("Rua", "3", "1100-225", "Lisboa", "PT"),
+            phone = "+351 213 472 232", website = "https://www.louielouie.biz/", email = "a@b.pt", secondHandOnly = true
+        )
+        val region = com.nickallport.findmevinyl.holidays.HolidayRegion("PT", "PT-11")
+
+        assertEquals(Screen.ShopDetail(shop, region), roundTrip(Screen.ShopDetail(shop, region)))
+    }
+
+    @Test
+    fun aShopPageWithNoRegionKeepsNone() {
+        val shop = com.nickallport.findmevinyl.shops.Shop(
+            "9", "Plain Records", com.nickallport.findmevinyl.shops.ShopCategory.CHARITY_SHOP, 1.0, 2.0, null
+        )
+
+        assertEquals(Screen.ShopDetail(shop, null), roundTrip(Screen.ShopDetail(shop, null)))
+    }
+
+    @Test
+    fun aShopPageGoesBackToTheShops() {
+        val shop = com.nickallport.findmevinyl.shops.Shop(
+            "9", "Plain Records", com.nickallport.findmevinyl.shops.ShopCategory.RECORD_SHOP, 1.0, 2.0, null
+        )
+
+        assertEquals(Screen.Shops, Screen.ShopDetail(shop, null).backTarget())
+    }
 }
