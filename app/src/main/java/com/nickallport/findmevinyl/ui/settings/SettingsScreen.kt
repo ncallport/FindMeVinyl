@@ -101,6 +101,9 @@ fun SettingsScreen(
             SettingRow("Hide Charity shops", "hideCharityShops", settings.hideCharityShops) {
                 onChange(settings.copy(hideCharityShops = it))
             }
+            SettingRow("Hide Second-Hand shops", "hideSecondHandShops", settings.hideSecondHandShops) {
+                onChange(settings.copy(hideSecondHandShops = it))
+            }
         }
 
         if (onBackUp != null || onRestore != null) {

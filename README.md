@@ -26,7 +26,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 - Keep a list of favourite artists and a want list in the order you choose, and share the want list as text.
 - Add your own photo for an artist when the one from the web is poor or missing.
 - Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account.
-- Hide what you do not want to see: live albums, compilations, singles, particular formats, bootlegs, promos, releases with an unknown status, and charity shops.
+- Hide what you do not want to see: live albums, compilations, singles, particular formats, bootlegs, promos, releases with an unknown status, charity shops and second-hand shops.
 - Back up your data to a zip file and restore it later, for example on a new phone.
 
 Not captured in the pictures above: the Shops page, because the shared map server was too busy when they were taken.

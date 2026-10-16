@@ -25,7 +25,7 @@ class SettingsStoreTest {
         hideLiveAlbums = true, hideCompilations = true, hideSingles = true, hideOtherReleases = true,
         hideLps = true, hideCds = true, hideTwelveInches = true, hideSevenInches = true, hideMcs = true,
         hideDigital = false, hideBootlegs = false, hidePromos = false, hideUnknownStatus = false,
-        hideCharityShops = false
+        hideCharityShops = false, hideSecondHandShops = true
     )
 
     @Test

@@ -597,4 +597,75 @@ class ShopSearchRouteTest {
 
         assertEquals(3, kept.shops.size)
     }
+
+    // Second-hand shops, left out by their own setting.
+
+    @Test
+    fun `leaves second-hand shops out when the setting says so, and says how many`() {
+        show { ShopSearchRoute(search = { withCharity }, cache = triedCache(), hideSecondHandShops = true) }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Sister Ray").assertExists()
+        composeTestRule.onNodeWithText("Oxfam").assertExists()
+        composeTestRule.onNodeWithText("Second Spin").assertDoesNotExist()
+        composeTestRule.onNodeWithText("1 second-hand shop hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `second-hand shops are shown when the setting is off, which is the default`() {
+        show { ShopSearchRoute(search = { withCharity }, cache = triedCache()) }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Second Spin").assertExists()
+        composeTestRule.onNodeWithTag("hidden_shops_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `with both settings on, both kinds are left out and one note counts them together`() {
+        show {
+            ShopSearchRoute(
+                search = { withCharity }, cache = triedCache(), hideCharityShops = true, hideSecondHandShops = true
+            )
+        }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("Sister Ray").assertExists()
+        composeTestRule.onNodeWithText("Oxfam").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Second Spin").assertDoesNotExist()
+        composeTestRule.onNodeWithText("2 shops hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `with both on but only one kind found, the note names that kind`() {
+        show {
+            ShopSearchRoute(
+                search = { oneShop.copy(shops = oneShop.shops + secondHand) },
+                cache = triedCache(), hideCharityShops = true, hideSecondHandShops = true
+            )
+        }
+
+        searchFor("London")
+
+        composeTestRule.onNodeWithText("1 second-hand shop hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `switching the second-hand setting changes the list without searching again`() {
+        var searches = 0
+        var hide by androidx.compose.runtime.mutableStateOf(true)
+        show {
+            ShopSearchRoute(search = { searches++; withCharity }, cache = triedCache(), hideSecondHandShops = hide)
+        }
+        searchFor("London")
+        composeTestRule.onNodeWithText("Second Spin").assertDoesNotExist()
+
+        hide = false
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Second Spin").assertExists()
+        assertEquals(1, searches)
+    }
 }

@@ -25,7 +25,8 @@ data class Settings(
     val hideUnknownStatus: Boolean = true,
 
     // Shops.
-    val hideCharityShops: Boolean = true
+    val hideCharityShops: Boolean = true,
+    val hideSecondHandShops: Boolean = false
 ) {
     companion object {
         /** Nothing hidden: for a screen or a test that is not about the settings. */
@@ -33,7 +34,8 @@ data class Settings(
             hideLiveAlbums = false, hideCompilations = false, hideSingles = false, hideOtherReleases = false,
             hideLps = false, hideCds = false, hideTwelveInches = false, hideSevenInches = false, hideMcs = false,
             hideDigital = false,
-            hideBootlegs = false, hidePromos = false, hideUnknownStatus = false, hideCharityShops = false
+            hideBootlegs = false, hidePromos = false, hideUnknownStatus = false, hideCharityShops = false,
+            hideSecondHandShops = false
         )
     }
 }

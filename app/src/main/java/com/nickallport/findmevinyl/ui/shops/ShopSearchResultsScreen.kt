@@ -28,6 +28,8 @@ fun ShopSearchResultsScreen(
     onPlaceSelected: ((PlaceCandidate) -> Unit)? = null,
     isPublicHoliday: ((LocalDate) -> Boolean)? = null,
     hiddenShops: Int = 0,
+    /** What the shops left out are called, in the singular. */
+    hiddenNoun: String = "charity shop",
     onOpenSettings: (() -> Unit)? = null
 ) {
     var othersExpanded by remember(state) { mutableStateOf(false) }
@@ -43,7 +45,7 @@ fun ShopSearchResultsScreen(
 
                 // Shops the settings left out, so a short list is not a puzzle.
                 if (hiddenShops > 0) {
-                    val noun = if (hiddenShops == 1) "charity shop" else "charity shops"
+                    val noun = if (hiddenShops == 1) hiddenNoun else "${hiddenNoun}s"
                     Text(
                         text = "$hiddenShops $noun hidden by your settings",
                         style = MaterialTheme.typography.bodySmall,
