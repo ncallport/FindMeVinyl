@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,7 +30,15 @@ import com.nickallport.findmevinyl.settings.Settings
 fun SettingsScreen(
     settings: Settings,
     onChange: (Settings) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Shows the Your data section, with a Back up button, when given. */
+    onBackUp: (() -> Unit)? = null,
+    /** Shows a Restore button in the Your data section, when given. */
+    onRestore: (() -> Unit)? = null,
+    /** What the last back up or restore said. */
+    dataMessage: String? = null,
+    /** A back up or restore is running, so both buttons wait. */
+    busy: Boolean = false
 ) {
     Column(
         modifier = modifier
@@ -89,6 +100,40 @@ fun SettingsScreen(
         Section("Location Settings") {
             SettingRow("Hide Charity shops", "hideCharityShops", settings.hideCharityShops) {
                 onChange(settings.copy(hideCharityShops = it))
+            }
+        }
+
+        if (onBackUp != null || onRestore != null) {
+            Section("Your data") {
+                Text(
+                    text = "Back up saves your favourite artists and their order, the albums you own or want, " +
+                        "your own artist photos and your settings, as one file you can keep anywhere. Restore " +
+                        "only adds what is in the file: it never removes anything already on this phone, " +
+                        "except that the settings in the file replace the current ones.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp).testTag("data_hint")
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onBackUp != null) {
+                        Button(onClick = onBackUp, enabled = !busy, modifier = Modifier.testTag("backup_button")) {
+                            Text("Back up")
+                        }
+                    }
+                    if (onRestore != null) {
+                        FilledTonalButton(onClick = onRestore, enabled = !busy, modifier = Modifier.testTag("restore_button")) {
+                            Text("Restore")
+                        }
+                    }
+                }
+                if (dataMessage != null) {
+                    Text(
+                        text = dataMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 8.dp).testTag("data_message")
+                    )
+                }
             }
         }
     }
