@@ -30,7 +30,9 @@ fun ShopSearchResultsScreen(
     hiddenShops: Int = 0,
     /** What the shops left out are called, in the singular. */
     hiddenNoun: String = "charity shop",
-    onOpenSettings: (() -> Unit)? = null
+    onOpenSettings: (() -> Unit)? = null,
+    /** The ids of the shops that are favourites, which get a heart. */
+    favouriteIds: Set<String> = emptySet()
 ) {
     var othersExpanded by remember(state) { mutableStateOf(false) }
 
@@ -92,7 +94,8 @@ fun ShopSearchResultsScreen(
                         fromLon = state.centerLongitude,
                         modifier = Modifier.weight(1f),
                         onShopSelected = onShopSelected,
-                        isPublicHoliday = isPublicHoliday
+                        isPublicHoliday = isPublicHoliday,
+                        favouriteIds = favouriteIds
                     )
                 }
             }

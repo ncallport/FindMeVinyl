@@ -56,4 +56,18 @@ class ShopListScreenTest {
 
         assertEquals("2", selected?.id)
     }
+
+    @Test
+    fun `puts a heart on the shops that are favourites, and only those`() {
+        val shops = listOf(
+            Shop("node/1", "Sister Ray", ShopCategory.RECORD_SHOP, 51.51, -0.13, null),
+            Shop("node/2", "Reckless Records", ShopCategory.RECORD_SHOP, 51.50, -0.12, null)
+        )
+
+        composeTestRule.setContent {
+            ShopListScreen(shops = shops, fromLat = 51.5074, fromLon = -0.1278, favouriteIds = setOf("node/2"))
+        }
+
+        composeTestRule.onAllNodesWithTag("shop_favourite_heart", useUnmergedTree = true).assertCountEquals(1)
+    }
 }

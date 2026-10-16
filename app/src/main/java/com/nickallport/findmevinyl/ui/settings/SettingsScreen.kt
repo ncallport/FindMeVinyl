@@ -110,7 +110,7 @@ fun SettingsScreen(
             Section("Your data") {
                 Text(
                     text = "Back up saves your favourite artists and their order, the albums you own or want, " +
-                        "your own artist photos and your settings, as one file you can keep anywhere. Restore " +
+                        "your own artist photos, your favourite shops and your settings, as one file you can keep anywhere. Restore " +
                         "only adds what is in the file: it never removes anything already on this phone, " +
                         "except that the settings in the file replace the current ones.",
                     style = MaterialTheme.typography.bodySmall,

@@ -27,9 +27,9 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 - Show your favourite artists as a list, or as a grid of pictures when there are many, and the app remembers which you chose.
 - Keep a list of favourite artists and a want list in the order you choose, and share the want list as text. Before sharing you can add a message ("It's my birthday soon, here are some ideas") and choose how many albums to send, such as the top 10 or top 20, so the list is not too long.
 - Add your own photo for an artist when the one from the web is poor or missing.
-- Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account. Tap a shop for its page: address, phone, website, email and the hours of every day of the week, with a button to open it on a map.
+- Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account. Tap a shop for its page: address, phone, website, email and the hours of every day of the week, with a button to open it on a map. Keep the shops you like as favourites, listed by town, to find them again without a search.
 - Hide what you do not want to see: live albums, compilations, singles, particular formats, bootlegs, promos, releases with an unknown status, charity shops and second-hand shops.
-- Back up your data to a zip file and restore it later, for example on a new phone.
+- Back up your data (artists, albums, photos, favourite shops and settings) to a zip file and restore it later, for example on a new phone.
 
 ## Where the data comes from
 
@@ -49,7 +49,7 @@ Answers are kept on the phone for a while (formats for 30 days, album pages and 
 
 ## Privacy
 
-The app has no analytics and no server of its own. Your favourites, owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else.
+The app has no analytics and no server of its own. Your favourites (artists and shops), owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else.
 
 ## Building it
 

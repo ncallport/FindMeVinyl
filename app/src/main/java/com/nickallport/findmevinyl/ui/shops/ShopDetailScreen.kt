@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import com.nickallport.findmevinyl.ui.brand.Glyphs
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,7 +56,11 @@ fun ShopDetailScreen(
     modifier: Modifier = Modifier,
     fallbackCountry: String? = null,
     now: LocalDateTime = LocalDateTime.now(),
-    isPublicHoliday: ((LocalDate) -> Boolean)? = null
+    isPublicHoliday: ((LocalDate) -> Boolean)? = null,
+    /** Whether the shop is one of the user's favourites. */
+    isFavourite: Boolean = false,
+    /** Shows the favourite button, and says what to do when it is tapped. */
+    onToggleFavourite: (() -> Unit)? = null
 ) {
     val hours = shop.openingHours
     val parsed = hours?.let { OpeningHours.parse(it) }
@@ -84,6 +92,23 @@ fun ShopDetailScreen(
                 color = if (open) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp).testTag("shop_detail_status")
             )
+        }
+
+        if (onToggleFavourite != null) {
+            Spacer(Modifier.height(12.dp))
+            if (isFavourite) {
+                FilledTonalButton(onClick = onToggleFavourite, modifier = Modifier.testTag("shop_detail_favourite")) {
+                    Icon(Glyphs.Heart, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Favourite")
+                }
+            } else {
+                OutlinedButton(onClick = onToggleFavourite, modifier = Modifier.testTag("shop_detail_favourite")) {
+                    Icon(Glyphs.Heart, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add to favourites")
+                }
+            }
         }
 
         Spacer(Modifier.height(16.dp))

@@ -22,7 +22,7 @@ class BackupMessagesTest {
 
     @Test
     fun `says so when there was nothing to back up`() {
-        assertEquals("Backed up your settings. There were no artists, albums or photos yet.", BackupMessages.backedUp(BackupSummary(0, 0, 0)))
+        assertEquals("Backed up your settings. There were no artists, albums, photos or shops yet.", BackupMessages.backedUp(BackupSummary(0, 0, 0)))
     }
 
     @Test
@@ -62,6 +62,27 @@ class BackupMessagesTest {
         assertEquals(
             "This is not a FindMeVinyl backup.",
             BackupMessages.restored(RestoreResult.Failed("This is not a FindMeVinyl backup."))
+        )
+    }
+
+    @Test
+    fun `says how many shops were backed up`() {
+        assertEquals(
+            "Backed up 2 artists, 5 albums, 1 photo and 3 shops.",
+            BackupMessages.backedUp(BackupSummary(2, 5, 1, shops = 3))
+        )
+    }
+
+    @Test
+    fun `a backup of one shop on its own is in the singular`() {
+        assertEquals("Backed up 1 shop.", BackupMessages.backedUp(BackupSummary(0, 0, 0, shops = 1)))
+    }
+
+    @Test
+    fun `says how many shops were restored`() {
+        assertEquals(
+            "Restored 4 albums and 2 shops, and your settings.",
+            BackupMessages.restored(RestoreResult.Done(0, 4, 0, settingsRestored = true, shops = 2))
         )
     }
 }

@@ -14,6 +14,7 @@ data class BackupFile(
     val favourites: List<BackupArtist>? = null,
     val albums: List<BackupAlbum>? = null,
     val photos: List<BackupPhoto>? = null,
+    val shops: List<BackupShop>? = null,
     val settings: Settings? = null
 ) {
     companion object {
@@ -48,11 +49,39 @@ data class BackupPhoto(
     val fileName: String? = null
 )
 
-data class BackupSummary(val artists: Int, val albums: Int, val photos: Int)
+/** A favourite shop, as it was when it was saved. */
+data class BackupShop(
+    val id: String? = null,
+    val name: String? = null,
+    val category: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val openingHours: String? = null,
+    val street: String? = null,
+    val houseNumber: String? = null,
+    val postcode: String? = null,
+    val city: String? = null,
+    val addressCountry: String? = null,
+    val phone: String? = null,
+    val website: String? = null,
+    val email: String? = null,
+    val secondHandOnly: Boolean? = null,
+    val regionCountry: String? = null,
+    val regionSubdivision: String? = null,
+    val savedAt: Long? = null
+)
+
+data class BackupSummary(val artists: Int, val albums: Int, val photos: Int, val shops: Int = 0)
 
 sealed class RestoreResult {
     /** What was added to the phone. Things it already had are not counted. */
-    data class Done(val artists: Int, val albums: Int, val photos: Int, val settingsRestored: Boolean) : RestoreResult()
+    data class Done(
+        val artists: Int,
+        val albums: Int,
+        val photos: Int,
+        val settingsRestored: Boolean,
+        val shops: Int = 0
+    ) : RestoreResult()
 
     /** The file was not used, and nothing on the phone was changed. */
     data class Failed(val reason: String) : RestoreResult()

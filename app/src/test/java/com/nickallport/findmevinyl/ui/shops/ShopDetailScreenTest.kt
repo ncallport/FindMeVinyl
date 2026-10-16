@@ -202,4 +202,46 @@ class ShopDetailScreenTest {
 
         assertEquals(1, opened)
     }
+
+    private fun showWithFavourite(isFavourite: Boolean, onToggle: (() -> Unit)?) {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ShopDetailScreen(
+                    shop = louie, now = monday, onOpenMap = {}, onCall = {}, onOpenWebsite = {}, onSendEmail = {},
+                    isFavourite = isFavourite, onToggleFavourite = onToggle
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `offers to add the shop to the favourites`() {
+        showWithFavourite(isFavourite = false, onToggle = {})
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertTextEquals("Add to favourites")
+    }
+
+    @Test
+    fun `shows that the shop is a favourite`() {
+        showWithFavourite(isFavourite = true, onToggle = {})
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertTextEquals("Favourite")
+    }
+
+    @Test
+    fun `tapping the favourite button asks to switch it`() {
+        var toggled = 0
+        showWithFavourite(isFavourite = false, onToggle = { toggled++ })
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").performClick()
+
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `with no way to keep a shop there is no button`() {
+        showWithFavourite(isFavourite = false, onToggle = null)
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertDoesNotExist()
+    }
 }

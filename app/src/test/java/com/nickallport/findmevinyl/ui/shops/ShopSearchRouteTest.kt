@@ -668,4 +668,32 @@ class ShopSearchRouteTest {
         composeTestRule.onNodeWithText("Second Spin").assertExists()
         assertEquals(1, searches)
     }
+
+    // Favourite shops.
+
+    @Test
+    fun `has a Favourites button next to Near me that opens the favourite shops`() {
+        var opened = 0
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache(), onOpenFavourites = { opened++ }) }
+
+        composeTestRule.onNodeWithTag("shops_favourites_button").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `without a way to open them there is no Favourites button`() {
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache()) }
+
+        composeTestRule.onNodeWithTag("shops_favourites_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun `puts a heart on the shops in the results that are favourites`() {
+        val id = (oneShop.shops.first()).id
+        show { ShopSearchRoute(search = { oneShop }, cache = triedCache(), favouriteShopIds = setOf(id)) }
+        searchFor("London")
+
+        composeTestRule.onNodeWithTag("shop_favourite_heart", useUnmergedTree = true).assertExists()
+    }
 }

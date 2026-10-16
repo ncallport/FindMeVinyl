@@ -5,12 +5,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.nickallport.findmevinyl.holidays.HolidayRegion
 import com.nickallport.findmevinyl.shops.Shop
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlinx.coroutines.launch
 
 /**
  * A shop's page, with the public holidays of [region] looked up so its status follows them. With no region
@@ -26,9 +28,19 @@ fun ShopDetailRoute(
     onOpenWebsite: (String) -> Unit,
     onSendEmail: (String) -> Unit,
     modifier: Modifier = Modifier,
-    now: LocalDateTime = LocalDateTime.now()
+    now: LocalDateTime = LocalDateTime.now(),
+    /** Whether the shop is kept as a favourite. */
+    loadIsFavourite: suspend () -> Boolean = { false },
+    /** Keeps the shop (true) or lets it go (false). Without it the page has no favourite button. */
+    onSetFavourite: (suspend (Boolean) -> Unit)? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var favourite by remember(shop.id) { mutableStateOf(false) }
     var holidays by remember(region) { mutableStateOf<Set<LocalDate>?>(null) }
+
+    LaunchedEffect(shop.id) {
+        favourite = loadIsFavourite()
+    }
 
     LaunchedEffect(region) {
         holidays = region?.let { loadPublicHolidays(it) }
@@ -44,6 +56,16 @@ fun ShopDetailRoute(
         modifier = modifier,
         fallbackCountry = region?.country,
         now = now,
-        isPublicHoliday = known?.let { set -> { date: LocalDate -> date in set } }
+        isPublicHoliday = known?.let { set -> { date: LocalDate -> date in set } },
+        isFavourite = favourite,
+        onToggleFavourite = onSetFavourite?.let { set ->
+            {
+                coroutineScope.launch {
+                    val next = !favourite
+                    set(next)
+                    favourite = next
+                }
+            }
+        }
     )
 }

@@ -3,6 +3,7 @@ package com.nickallport.findmevinyl.ui.shops
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import com.nickallport.findmevinyl.holidays.HolidayRegion
 import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
@@ -66,5 +67,52 @@ class ShopDetailRouteTest {
         show(null) { asked++; emptySet() }
 
         assertEquals(0, asked)
+    }
+
+    private fun showFavourite(
+        loadIsFavourite: suspend () -> Boolean,
+        onSetFavourite: (suspend (Boolean) -> Unit)?
+    ) {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ShopDetailRoute(
+                    shop = shop, region = null, now = monday, loadPublicHolidays = { null },
+                    onOpenMap = {}, onCall = {}, onOpenWebsite = {}, onSendEmail = {},
+                    loadIsFavourite = loadIsFavourite, onSetFavourite = onSetFavourite
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `a shop that is kept shows as a favourite`() {
+        showFavourite(loadIsFavourite = { true }, onSetFavourite = {})
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertTextEquals("Favourite")
+    }
+
+    @Test
+    fun `tapping the button keeps the shop and then shows it as a favourite`() {
+        val set = mutableListOf<Boolean>()
+        showFavourite(loadIsFavourite = { false }, onSetFavourite = { set.add(it) })
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf(true), set)
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertTextEquals("Favourite")
+    }
+
+    @Test
+    fun `tapping it again lets the shop go`() {
+        val set = mutableListOf<Boolean>()
+        showFavourite(loadIsFavourite = { true }, onSetFavourite = { set.add(it) })
+
+        composeTestRule.onNodeWithTag("shop_detail_favourite").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf(false), set)
+        composeTestRule.onNodeWithTag("shop_detail_favourite").assertTextEquals("Add to favourites")
     }
 }

@@ -21,7 +21,9 @@ data class OverpassElementDto(
     val lat: Double?,
     val lon: Double?,
     val center: OverpassCenterDto?,
-    val tags: Map<String, String>?
+    val tags: Map<String, String>?,
+    /** `node`, `way` or `relation`. Their numbers overlap, so the type is part of a shop's id. */
+    val type: String? = null
 )
 
 data class OverpassCenterDto(
@@ -45,7 +47,7 @@ object OverpassShopMapper {
         val resolvedLon = lon ?: center?.lon ?: return null
 
         return Shop(
-            id = id.toString(),
+            id = if (type.isNullOrBlank()) id.toString() else "$type/$id",
             name = elementTags["name"] ?: "Unnamed shop",
             category = category,
             latitude = resolvedLat,

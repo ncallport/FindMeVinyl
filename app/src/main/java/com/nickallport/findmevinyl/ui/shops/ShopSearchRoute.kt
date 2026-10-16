@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.shops
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,7 +67,11 @@ fun ShopSearchRoute(
     loadPublicHolidays: (suspend (HolidayRegion) -> Set<LocalDate>?)? = null,
     hideCharityShops: Boolean = false,
     hideSecondHandShops: Boolean = false,
-    onOpenSettings: (() -> Unit)? = null
+    onOpenSettings: (() -> Unit)? = null,
+    /** The ids of the user's favourite shops, which get a heart in the results. */
+    favouriteShopIds: Set<String> = emptySet(),
+    /** Shows a Favourites button next to Near me that opens the favourite shops. */
+    onOpenFavourites: (() -> Unit)? = null
 ) {
     var town by rememberSaveable { mutableStateOf("") }
     var routeState by remember {
@@ -107,18 +112,34 @@ fun ShopSearchRoute(
             hint = "Search for a town",
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        if (searchNearby != null) {
-            FilledTonalButton(
-                onClick = {
-                    routeState = RouteState.Loading
-                    coroutineScope.launch { showResult(searchNearby()) }
-                },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("use_location_button")
+        if (searchNearby != null || onOpenFavourites != null) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row {
-                    Icon(Glyphs.Pin, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Near me")
+                if (searchNearby != null) {
+                    FilledTonalButton(
+                        onClick = {
+                            routeState = RouteState.Loading
+                            coroutineScope.launch { showResult(searchNearby()) }
+                        },
+                        modifier = Modifier.testTag("use_location_button")
+                    ) {
+                        Row {
+                            Icon(Glyphs.Pin, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Near me")
+                        }
+                    }
+                }
+                if (onOpenFavourites != null) {
+                    FilledTonalButton(onClick = onOpenFavourites, modifier = Modifier.testTag("shops_favourites_button")) {
+                        Row {
+                            Icon(Glyphs.Heart, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Favourites")
+                        }
+                    }
                 }
             }
         }
@@ -184,7 +205,8 @@ fun ShopSearchRoute(
                         onOpenSettings = onOpenSettings,
                         onShopSelected = onShopSelected,
                         onPlaceSelected = onPlaceSelected,
-                        isPublicHoliday = isPublicHoliday
+                        isPublicHoliday = isPublicHoliday,
+                        favouriteIds = favouriteShopIds
                     )
                 }
             }

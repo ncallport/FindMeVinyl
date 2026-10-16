@@ -10,7 +10,9 @@ import com.nickallport.findmevinyl.settings.Settings
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.ArtistEntity
+import com.nickallport.findmevinyl.shops.ShopCategory
 import com.nickallport.findmevinyl.storage.ArtistUserPhotoEntity
+import com.nickallport.findmevinyl.storage.FavouriteShopEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,6 +56,8 @@ class BackupViewModel(
         val photos = database.artistUserPhotoDao().getAll().sortedBy { it.artistId }
             .mapNotNull { record -> photoStore.read(record.fileName)?.let { record to it } }
 
+        val shops = database.favouriteShopDao().getAll().sortedBy { it.id }
+
         val file = BackupFile(
             app = BackupFile.APP,
             version = BackupFile.VERSION,
@@ -63,6 +67,13 @@ class BackupViewModel(
                 BackupAlbum(it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition)
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
+            shops = shops.map {
+                BackupShop(
+                    it.id, it.name, it.category, it.latitude, it.longitude, it.openingHours, it.street, it.houseNumber,
+                    it.postcode, it.city, it.addressCountry, it.phone, it.website, it.email, it.secondHandOnly,
+                    it.regionCountry, it.regionSubdivision, it.savedAt
+                )
+            },
             settings = currentSettings()
         )
 
@@ -77,7 +88,7 @@ class BackupViewModel(
         }
         zip.finish()
         zip.flush()
-        BackupSummary(artists.size, albums.size, photos.size)
+        BackupSummary(artists.size, albums.size, photos.size, shops.size)
     }
 
     /** Adds what is in the backup read from [input] to the phone. See the class comment for the rules. */
@@ -118,7 +129,7 @@ class BackupViewModel(
         }
 
         file.settings?.let(applySettings)
-        RestoreResult.Done(counts.artists, counts.albums, counts.photos, file.settings != null)
+        RestoreResult.Done(counts.artists, counts.albums, counts.photos, file.settings != null, counts.shops)
     }
 
     private class ReadZip(val json: ByteArray?, val photos: Map<String, ByteArray>)
@@ -141,7 +152,7 @@ class BackupViewModel(
         return ReadZip(json, photos)
     }
 
-    private class Counts(val artists: Int, val albums: Int, val photos: Int)
+    private class Counts(val artists: Int, val albums: Int, val photos: Int, val shops: Int)
 
     // Runs inside the transaction. Everything here only adds to what the phone has.
     private suspend fun merge(file: BackupFile, photoBytes: Map<String, ByteArray>, written: MutableList<String>): Counts {
@@ -196,7 +207,23 @@ class BackupViewModel(
             photoDao.save(ArtistUserPhotoEntity(artistId, fileName, clock()))
             photos++
         }
-        return Counts(artists, albums, photos)
+
+        var shops = 0
+        for (shop in file.shops.orEmpty()) {
+            val id = shop.id?.takeIf { it.isNotBlank() } ?: continue
+            val latitude = shop.latitude?.takeIf { it in -90.0..90.0 } ?: continue
+            val longitude = shop.longitude?.takeIf { it in -180.0..180.0 } ?: continue
+            val category = runCatching { ShopCategory.valueOf(shop.category.orEmpty()) }.getOrDefault(ShopCategory.RECORD_SHOP)
+            val added = database.favouriteShopDao().insertIfNotExists(
+                FavouriteShopEntity(
+                    id, shop.name.orEmpty(), category.name, latitude, longitude, shop.openingHours, shop.street,
+                    shop.houseNumber, shop.postcode, shop.city, shop.addressCountry, shop.phone, shop.website, shop.email,
+                    shop.secondHandOnly == true, shop.regionCountry, shop.regionSubdivision, shop.savedAt ?: clock()
+                )
+            )
+            if (added > 0) shops++
+        }
+        return Counts(artists, albums, photos, shops)
     }
 
     private fun isPicture(bytes: ByteArray): Boolean {

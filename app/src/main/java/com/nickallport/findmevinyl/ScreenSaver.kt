@@ -20,7 +20,14 @@ internal sealed class Screen {
         val backTo: Screen
     ) : Screen()
     /** One shop, with the region it was found in, for its public holidays and the layout of its address. */
-    data class ShopDetail(val shop: com.nickallport.findmevinyl.shops.Shop, val region: com.nickallport.findmevinyl.holidays.HolidayRegion?) : Screen()
+    data class ShopDetail(
+        val shop: com.nickallport.findmevinyl.shops.Shop,
+        val region: com.nickallport.findmevinyl.holidays.HolidayRegion?,
+        /** The page it was opened from: the Shops page, or the favourite shops. */
+        val backTo: Screen = Shops
+    ) : Screen()
+    /** The shops the user keeps as favourites. */
+    object FavouriteShops : Screen()
     /** One album: its tracklist and details. [backTo] is the discography it was opened from. */
     data class AlbumDetail(
         val albumId: String,
@@ -40,7 +47,8 @@ internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Home -> null
     is Screen.Discography -> backTo
     is Screen.AlbumDetail -> backTo
-    is Screen.ShopDetail -> Screen.Shops
+    is Screen.ShopDetail -> backTo
+    is Screen.FavouriteShops -> Screen.Shops
     is Screen.ArtistResults -> Screen.Search
     else -> Screen.Home
 }
@@ -56,7 +64,9 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.Shops -> listOf("shops")
         is Screen.Settings -> listOf("settings")
         is Screen.ShopDetail ->
-            listOf("shop", Gson().toJson(value.shop), value.region?.country.orEmpty(), value.region?.subdivision.orEmpty())
+            listOf("shop", Gson().toJson(value.shop), value.region?.country.orEmpty(), value.region?.subdivision.orEmpty()) +
+                save(value.backTo)
+        is Screen.FavouriteShops -> listOf("favouriteshops")
         is Screen.Discography ->
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
         is Screen.AlbumDetail ->
@@ -75,8 +85,9 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
             val country = value.getOrNull(2).orEmpty()
             val region = if (country.isEmpty()) null else
                 com.nickallport.findmevinyl.holidays.HolidayRegion(country, value.getOrNull(3)?.ifEmpty { null })
-            Screen.ShopDetail(shop, region)
+            Screen.ShopDetail(shop, region, restore(value.drop(4)) ?: Screen.Shops)
         }.getOrNull()
+        "favouriteshops" -> Screen.FavouriteShops
         "discography" -> restore(value.drop(3))?.let {
             Screen.Discography(value[1], value[2], it)
         }
