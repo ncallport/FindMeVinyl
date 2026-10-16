@@ -124,4 +124,19 @@ class FavouriteShopsViewModelTest {
 
         assertEquals(setOf("node/1", "way/7"), viewModel.favouriteIds())
     }
+
+    @Test
+    fun `a shop added by hand comes back with its approximate position and map search text`() = runBlocking {
+        val added = Shop(
+            "custom/abc", "Silver Tentacle", ShopCategory.RECORD_SHOP, 39.4, -9.1, null,
+            address = ShopAddress(street = "R. Raul Proença 56a, 2500 Caldas da Rainha"),
+            approximatePosition = true, mapQuery = "Silver Tentacle, R. Raul Proença 56a, Caldas da Rainha"
+        )
+
+        viewModel.add(added, null)
+
+        val kept = viewModel.loadAll().single().shop
+        assertEquals(added, kept)
+        assertTrue(kept.isCustom)
+    }
 }

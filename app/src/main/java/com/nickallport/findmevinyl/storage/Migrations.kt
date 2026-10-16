@@ -82,3 +82,14 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         )
     }
 }
+
+/**
+ * Adds two columns to the favourite shops, for the shops the user adds by hand: whether the position is only that of
+ * the town, and the text to search a map app for. Shops kept before are exact and have no text.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `favourite_shops` ADD COLUMN `approximatePosition` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `favourite_shops` ADD COLUMN `mapQuery` TEXT")
+    }
+}

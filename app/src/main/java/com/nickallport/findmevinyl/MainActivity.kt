@@ -29,6 +29,9 @@ import com.nickallport.findmevinyl.settings.SettingsStore
 import com.nickallport.findmevinyl.ui.settings.SettingsRoute
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
 import com.nickallport.findmevinyl.shops.FavouriteShopsViewModel
+import com.nickallport.findmevinyl.shops.MapsLinkResolver
+import com.nickallport.findmevinyl.shops.ShopPositionFinder
+import com.nickallport.findmevinyl.ui.shops.AddShopRoute
 import com.nickallport.findmevinyl.ui.shops.FavouriteShopsRoute
 import com.nickallport.findmevinyl.ui.shops.ShopDetailRoute
 import androidx.compose.runtime.collectAsState
@@ -57,6 +60,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_5_6
 import com.nickallport.findmevinyl.storage.MIGRATION_6_7
 import com.nickallport.findmevinyl.storage.MIGRATION_7_8
 import com.nickallport.findmevinyl.storage.MIGRATION_8_9
+import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -81,6 +85,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.runtime.saveable.rememberSaveable
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.net.Uri
 import android.widget.Toast
 import com.nickallport.findmevinyl.shops.MapLinkBuilder
@@ -193,18 +198,37 @@ class MainActivity : ComponentActivity() {
         return result.await()
     }
 
+    // Text shared into the app, until the page for adding a shop has been opened for it.
+    private var incomingShare by mutableStateOf<String?>(null)
+
+    private fun readShare(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            incomingShare = intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        readShare(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A rotation or a return from the background has the same intent again, and it was dealt with the first time.
+        if (savedInstanceState == null) readShare(intent)
         enableEdgeToEdge()
 
         val database = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
+        val mapsLinkResolver = MapsLinkResolver()
+        val shopPositionFinder = ShopPositionFinder(ShopApiFactory.createNominatim())
         val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
@@ -238,7 +262,8 @@ class MainActivity : ComponentActivity() {
         val shopSearchViewModel = ShopSearchViewModel(
             ShopApiFactory.createNominatim(),
             ShopApiFactory.createOverpass(),
-            ShopApiFactory.createOverpassFallbacks()
+            ShopApiFactory.createOverpassFallbacks(),
+            customShops = { favouriteShopsViewModel.loadAll().map { it.shop }.filter { it.isCustom } }
         )
         val locationProvider = DeviceLocationProvider(applicationContext)
         val nearbyShopSearcher = NearbyShopSearcher(
@@ -261,6 +286,14 @@ class MainActivity : ComponentActivity() {
                     val settings by appSettings.settings.collectAsState()
                     var currentScreen by rememberSaveable(stateSaver = ScreenSaver) {
                         mutableStateOf<Screen>(Screen.Home)
+                    }
+
+                    // Text shared into the app from Google Maps opens the page for adding a shop.
+                    LaunchedEffect(incomingShare) {
+                        incomingShare?.let { text ->
+                            currentScreen = Screen.AddShop(text)
+                            incomingShare = null
+                        }
                     }
 
                     BackHandler(enabled = currentScreen.backTarget() != null) {
@@ -428,6 +461,30 @@ class MainActivity : ComponentActivity() {
                                 load = { favouriteShopsViewModel.loadAll() },
                                 onShopSelected = { favourite ->
                                     currentScreen = Screen.ShopDetail(favourite.shop, favourite.region, backTo = Screen.FavouriteShops)
+                                },
+                                onAddShop = { currentScreen = Screen.AddShop(null) }
+                            )
+                        }
+                        is Screen.AddShop -> {
+                            AddShopRoute(
+                                sharedText = screen.sharedText,
+                                resolveLink = { link -> mapsLinkResolver.resolve(link) },
+                                findPosition = { address -> shopPositionFinder.find(address) },
+                                currentPosition = {
+                                    if (requestLocationPermission()) {
+                                        try {
+                                            locationProvider.currentLocation()
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            null
+                                        }
+                                    } else {
+                                        null
+                                    }
+                                },
+                                onSave = { shop ->
+                                    favouriteShopsViewModel.add(shop, null)
+                                    currentScreen = Screen.ShopDetail(shop, null, backTo = Screen.FavouriteShops)
                                 }
                             )
                         }
@@ -461,7 +518,11 @@ class MainActivity : ComponentActivity() {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        startActivity(Intent.createChooser(sendIntent, "Share your want list"))
+        val chooser = Intent.createChooser(sendIntent, "Share your want list").apply {
+            // The app takes shared text now, to add a shop, but a want list is for other people.
+            putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(this@MainActivity, MainActivity::class.java)))
+        }
+        startActivity(chooser)
     }
 
     /** Hands a link that has already been checked ([com.nickallport.findmevinyl.shops.WebLink] and the like) to another app. */

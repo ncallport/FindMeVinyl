@@ -44,6 +44,8 @@ class ShopSearchViewModel(
     private val overpassApi: OverpassApi,
     /** Other Overpass servers, asked in order when the first one fails or is too slow. */
     private val fallbackOverpassApis: List<OverpassApi> = emptyList(),
+    /** The shops the user added by hand, which are listed with the ones found if they are within the radius. */
+    private val customShops: suspend () -> List<Shop> = { emptyList() },
     private val retryDelayMillis: Long = 1500
 ) {
     suspend fun searchTown(town: String, radiusMeters: Int = 5000): ShopSearchUiState {
@@ -154,7 +156,11 @@ class ShopSearchViewModel(
         val query = OverpassQueryBuilder.shopsNear(latitude, longitude, radiusMeters)
         val response = queryWithRetry(query)
 
-        val shops = response.elements.mapNotNull { it.toShopOrNull() }
+        val found = response.elements.mapNotNull { it.toShopOrNull() }
+        val added = customShops().filter {
+            DistanceCalculator.distanceKm(latitude, longitude, it.latitude, it.longitude) * 1000 <= radiusMeters
+        }
+        val shops = (found + added).distinctBy { it.id }
         return ShopSearchUiState.Success(
             shops = ShopSorter.sortByDistance(shops, latitude, longitude),
             placeName = placeName,

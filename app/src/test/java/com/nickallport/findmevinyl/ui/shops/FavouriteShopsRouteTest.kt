@@ -51,4 +51,19 @@ class FavouriteShopsRouteTest {
 
         assertEquals(carbono, selected)
     }
+
+    @Test
+    fun `passes on a tap on the add button`() {
+        var added = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                FavouriteShopsRoute(load = { listOf(carbono) }, onShopSelected = {}, onAddShop = { added++ })
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_shops_add").performClick()
+
+        assertEquals(1, added)
+    }
 }

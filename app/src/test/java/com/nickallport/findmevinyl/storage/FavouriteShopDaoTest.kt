@@ -85,4 +85,21 @@ class FavouriteShopDaoTest {
         assertEquals("Mine", dao.get("node/1")?.name)
         assertEquals(true, dao.insertIfNotExists(shop("node/2")) > 0)
     }
+
+    @Test
+    fun `a shop that was added by hand keeps its approximate position and its map search text`() = runBlocking {
+        val added = shop("custom/abc").copy(approximatePosition = true, mapQuery = "Silver Tentacle, Caldas da Rainha")
+
+        dao.save(added)
+
+        assertEquals(added, dao.get("custom/abc"))
+    }
+
+    @Test
+    fun `a shop is exact, with no map search text, unless it says otherwise`() = runBlocking {
+        dao.save(shop("node/1"))
+
+        assertEquals(false, dao.get("node/1")?.approximatePosition)
+        assertNull(dao.get("node/1")?.mapQuery)
+    }
 }

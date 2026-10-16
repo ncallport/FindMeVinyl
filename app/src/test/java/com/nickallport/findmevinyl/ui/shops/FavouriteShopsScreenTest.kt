@@ -97,4 +97,32 @@ class FavouriteShopsScreenTest {
         composeTestRule.onNodeWithTag("favourite_shops_empty").assertExists()
         composeTestRule.onNodeWithText("Open a shop and tap Add to favourites.").assertExists()
     }
+
+    @Test
+    fun `has a button to add a shop, which opens the form`() {
+        var opened = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme { FavouriteShopsScreen(shops = shops, onShopSelected = {}, onAddShop = { opened++ }) }
+        }
+
+        composeTestRule.onNodeWithTag("favourite_shops_add").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `the button is there when there are no favourites too`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { FavouriteShopsScreen(shops = emptyList(), onShopSelected = {}, onAddShop = {}) }
+        }
+
+        composeTestRule.onNodeWithTag("favourite_shops_add").assertExists()
+    }
+
+    @Test
+    fun `without a way to add one there is no button`() {
+        show()
+
+        composeTestRule.onNodeWithTag("favourite_shops_add").assertDoesNotExist()
+    }
 }

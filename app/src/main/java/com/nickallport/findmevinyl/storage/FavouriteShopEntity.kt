@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.storage
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -28,5 +29,9 @@ data class FavouriteShopEntity(
     val secondHandOnly: Boolean,
     val regionCountry: String?,
     val regionSubdivision: String?,
-    val savedAt: Long
+    val savedAt: Long,
+    /** The position is only the town's, because a shop the user added has an address that was not found. */
+    @ColumnInfo(defaultValue = "0") val approximatePosition: Boolean = false,
+    /** What to ask a map app for, the name and address of a shop the user added. */
+    val mapQuery: String? = null
 )

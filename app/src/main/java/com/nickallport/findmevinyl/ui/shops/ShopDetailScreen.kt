@@ -78,7 +78,8 @@ fun ShopDetailScreen(
             modifier = Modifier.testTag("shop_detail_name")
         )
         Text(
-            text = categoryLabel(shop.category) + if (shop.secondHandOnly) ", second-hand only" else "",
+            text = categoryLabel(shop.category) + (if (shop.secondHandOnly) ", second-hand only" else "") +
+                (if (shop.isCustom) ", added by you" else ""),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.testTag("shop_detail_kind")
@@ -115,6 +116,14 @@ fun ShopDetailScreen(
 
         shop.address?.lines(fallbackCountry)?.takeIf { it.isNotEmpty() }?.let { lines ->
             DetailRow("Address", lines.joinToString("\n"), "shop_detail_address")
+        }
+        if (shop.approximatePosition) {
+            Text(
+                text = "The position is only that of the town, so the map is asked to search for the shop by name.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 6.dp).testTag("shop_detail_approximate")
+            )
         }
         shop.phone?.let { phone ->
             DetailRow("Phone", phone, "shop_detail_phone", PhoneLink.dialUri(phone)?.let { uri -> { onCall(uri) } })

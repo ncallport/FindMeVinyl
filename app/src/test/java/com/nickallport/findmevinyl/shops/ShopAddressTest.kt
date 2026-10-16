@@ -61,4 +61,52 @@ class ShopAddressTest {
         assertEquals(true, ShopAddress().isEmpty)
         assertEquals(false, ShopAddress(city = "Lisboa").isEmpty)
     }
+
+    // An address typed or shared as one line.
+
+    @Test
+    fun `a line from Maps is split into street, postcode and town`() {
+        assertEquals(
+            ShopAddress(street = "R. Raul Proença 56a", postcode = "2500", city = "Caldas da Rainha"),
+            ShopAddress.fromText("R. Raul Proença 56a, 2500 Caldas da Rainha")
+        )
+        assertEquals(
+            ShopAddress(street = "Rua do Telhal 6 B", postcode = "1150-346", city = "Lisboa"),
+            ShopAddress.fromText("Rua do Telhal 6 B, 1150-346 Lisboa")
+        )
+    }
+
+    @Test
+    fun `the town after a comma is the town, whatever the street part holds`() {
+        assertEquals(
+            ShopAddress(street = "R. Raul Proença 56a 2500", city = "Caldas da Rainha"),
+            ShopAddress.fromText("R. Raul Proença 56a 2500, Caldas da Rainha")
+        )
+    }
+
+    @Test
+    fun `a line with no comma is all street`() {
+        assertEquals(ShopAddress(street = "Rua do Telhal 6"), ShopAddress.fromText("Rua do Telhal 6"))
+    }
+
+    @Test
+    fun `more than two parts keep all but the last as the street`() {
+        assertEquals(
+            ShopAddress(street = "Rua X 3, Bairro Alto", postcode = "1100-225", city = "Lisboa"),
+            ShopAddress.fromText("Rua X 3, Bairro Alto, 1100-225 Lisboa")
+        )
+    }
+
+    @Test
+    fun `a blank line is no address`() {
+        assertEquals(true, ShopAddress.fromText("  ,  ").isEmpty)
+        assertEquals(true, ShopAddress.fromText("").isEmpty)
+    }
+
+    @Test
+    fun `a text address is laid out the way the country does it, in two lines`() {
+        val address = ShopAddress.fromText("R. Raul Proença 56a, 2500 Caldas da Rainha")
+
+        assertEquals(listOf("R. Raul Proença 56a", "2500 Caldas da Rainha"), address.lines(fallbackCountry = "PT"))
+    }
 }

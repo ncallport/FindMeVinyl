@@ -244,4 +244,25 @@ class ShopDetailScreenTest {
 
         composeTestRule.onNodeWithTag("shop_detail_favourite").assertDoesNotExist()
     }
+
+    @Test
+    fun `says that a shop was added by the user`() {
+        show(louie.copy(id = "custom/abc"))
+
+        composeTestRule.onNodeWithTag("shop_detail_kind").assertTextEquals("Record Shop, added by you")
+    }
+
+    @Test
+    fun `says that a position is only approximate, and that the map will search for the shop`() {
+        show(louie.copy(id = "custom/abc", approximatePosition = true))
+
+        composeTestRule.onNodeWithTag("shop_detail_approximate").performScrollTo().assertExists()
+    }
+
+    @Test
+    fun `an exact position has no such note`() {
+        show()
+
+        composeTestRule.onNodeWithTag("shop_detail_approximate").assertDoesNotExist()
+    }
 }
