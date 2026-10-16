@@ -102,6 +102,27 @@ class AlbumDaoTest {
     )
 
     @Test
+    fun `lists only the albums that are owned or wanted`() = runBlocking {
+        dao.insert(album("1", owned = true))
+        dao.insert(album("2", wanted = true))
+        dao.insert(album("3"))
+
+        assertEquals(listOf("1", "2"), dao.getOwnedOrWanted().map { it.id }.sorted())
+    }
+
+    @Test
+    fun `wanting an album at a place sets both together and leaves the owned flag`() = runBlocking {
+        dao.insert(album("1"))
+
+        assertEquals(1, dao.setWantedAt("1", 6))
+
+        val saved = dao.getById("1")!!
+        assertTrue(saved.wanted)
+        assertEquals(6, saved.wantPosition)
+        assertEquals(false, saved.owned)
+    }
+
+    @Test
     fun `formats and statuses are saved together and leave the flags alone`() = runBlocking {
         dao.insert(album("1", owned = true, wanted = false))
         assertNull(dao.getById("1")?.statuses)
