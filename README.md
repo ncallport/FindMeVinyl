@@ -91,10 +91,22 @@ Contributions are welcome, whether that is a bug report, an idea, a fix or a fea
 - Be kind to the public services. Keep requests few, keep the User-Agent, and do not add anything that makes many requests at once. Read the notes on rate limits in `CLAUDE.md` before changing how requests are made.
 - A change to a database table needs a version bump and a migration, so nobody loses their collection when the app updates.
 - Never commit `local.properties`, keys or addresses.
+- By contributing, you agree that your contribution is released under the MIT licence below.
 
 The conventions of the code, and the problems already met and solved, are written down in [`CLAUDE.md`](CLAUDE.md). It is the best place to start reading. The list of known gaps at the end of it is a good source of things to improve.
 
 The continuous integration check (unit tests on JDK 21) runs on every pull request and has to pass before a change is merged.
+
+## Licence
+
+The code is released under the [MIT licence](LICENSE).
+
+The licence covers the code and the text of this repository. It does not cover what the app shows. Album covers, artist photos and music data belong to their owners and sources, including the ones in the screenshots above:
+
+- Album covers come from the Cover Art Archive, and each cover is the property of its rightsholder.
+- Artist photos come from Wikimedia Commons, each under its own licence, and are credited in the app.
+- Music data comes from MusicBrainz, whose core data is public domain (CC0).
+- Shop data is by OpenStreetMap contributors, under the Open Database Licence.
 
 ## How it is built
 
