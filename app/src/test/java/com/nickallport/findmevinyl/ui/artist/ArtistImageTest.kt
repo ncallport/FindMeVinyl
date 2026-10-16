@@ -5,7 +5,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -113,5 +117,18 @@ class ArtistImageTest {
         composeTestRule.waitForIdle()
 
         assertEquals(emptyList<Boolean>(), changes)
+    }
+
+    @Test
+    fun `can fill the space it is given, as a tile in a grid does`() {
+        composeTestRule.setContent {
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.size(100.dp)) {
+                ArtistImage(artistId = "1", loadImage = { null }, fillSize = true)
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("artist_placeholder", useUnmergedTree = true)
+            .assertWidthIsEqualTo(100.dp).assertHeightIsEqualTo(100.dp)
     }
 }

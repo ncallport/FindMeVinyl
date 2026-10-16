@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.layout.positionInRoot
 import org.junit.Assert.assertEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -186,5 +187,86 @@ class FavouritesScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Move The Smiths up").assertExists()
         composeTestRule.onNodeWithContentDescription("Move The Smiths down").assertExists()
+    }
+
+    // The grid: pictures only, so a lot more fit on the screen.
+
+    @Test
+    fun `in the grid each artist is a tile, described by the name, that opens the artist`() {
+        var selected: FavouriteArtistUiModel? = null
+        composeTestRule.setContent {
+            FavouritesScreen(
+                artists = twoArtists, onArtistSelected = { selected = it }, grid = true,
+                loadArtistImage = { picture() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_artist_1").assertExists()
+        composeTestRule.onNodeWithContentDescription("Roxy Music").assertExists()
+        composeTestRule.onNodeWithTag("favourite_artist_2").performClick()
+
+        assertEquals(twoArtists[1], selected)
+    }
+
+    @Test
+    fun `a tile with a picture shows no name, and one without a picture shows its name so it can be told apart`() {
+        composeTestRule.setContent {
+            FavouritesScreen(
+                artists = twoArtists, onArtistSelected = {}, grid = true,
+                loadArtistImage = { id -> if (id == "1") picture() else null }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Roxy Music").assertDoesNotExist()
+        composeTestRule.onNodeWithText("The Smiths").assertExists()
+    }
+
+    @Test
+    fun `the grid has no move buttons, and says where the order can be changed`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = twoArtists, onArtistSelected = {}, grid = true)
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertExists()
+    }
+
+    @Test
+    fun `the list has no such hint`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = twoArtists, onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the grid keeps the picture credit while a picture is shown`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = twoArtists, onArtistSelected = {}, grid = true, loadArtistImage = { picture() })
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Artist photos: Wikimedia Commons").assertExists()
+    }
+
+    @Test
+    fun `the grid holds many artists in a small space, several in each row`() {
+        val many = (1..40).map { FavouriteArtistUiModel("$it", "Artist $it") }
+        composeTestRule.setContent {
+            FavouritesScreen(artists = many, onArtistSelected = {}, grid = true)
+        }
+        composeTestRule.waitForIdle()
+
+        val first = composeTestRule.onNodeWithTag("favourite_artist_1").fetchSemanticsNode().positionInRoot
+        val second = composeTestRule.onNodeWithTag("favourite_artist_2").fetchSemanticsNode().positionInRoot
+        val third = composeTestRule.onNodeWithTag("favourite_artist_3").fetchSemanticsNode().positionInRoot
+
+        assertEquals(first.y, second.y, 0.5f)
+        assertEquals(first.y, third.y, 0.5f)
+        assertEquals(true, second.x > first.x && third.x > second.x)
     }
 }

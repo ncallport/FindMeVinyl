@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.ui.common
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -39,6 +40,8 @@ fun SquareImage(
     placeholderTag: String,
     modifier: Modifier = Modifier,
     size: Dp = 56.dp,
+    /** Fill the space given instead of being [size] wide, as a tile in a grid does. */
+    fillSize: Boolean = false,
     onShownChange: (Boolean) -> Unit = {}
 ) {
     val currentLoad by rememberUpdatedState(load)
@@ -48,8 +51,7 @@ fun SquareImage(
         picture = currentLoad(key)
     }
 
-    val shaped = modifier
-        .size(size)
+    val shaped = (if (fillSize) modifier.fillMaxSize() else modifier.size(size))
         .clip(RoundedCornerShape(4.dp))
 
     val loaded = picture

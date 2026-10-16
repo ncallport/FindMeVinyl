@@ -17,6 +17,7 @@ fun ArtistImage(
     loadImage: suspend (String) -> Bitmap?,
     modifier: Modifier = Modifier,
     size: Dp = 56.dp,
+    fillSize: Boolean = false,
     onShownChange: (Boolean) -> Unit = {}
 ) {
     SquareImage(
@@ -26,6 +27,7 @@ fun ArtistImage(
         placeholderTag = "artist_placeholder",
         modifier = modifier,
         size = size,
+        fillSize = fillSize,
         onShownChange = onShownChange
     )
 }

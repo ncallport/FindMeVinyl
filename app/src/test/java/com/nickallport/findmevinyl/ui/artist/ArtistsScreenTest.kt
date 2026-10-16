@@ -1,6 +1,11 @@
 package com.nickallport.findmevinyl.ui.artist
 
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.StateRestorationTester
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -81,5 +86,88 @@ class ArtistsScreenTest {
         composeTestRule.onNodeWithTag("favourites_link").assertDoesNotExist()
         composeTestRule.onNodeWithTag("want_list_link").assertDoesNotExist()
         composeTestRule.onNodeWithTag("find_shops_link").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the favourites are a list to begin with, with the list choice marked`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_view_list").assertIsSelected()
+        composeTestRule.onNodeWithTag("favourites_view_grid").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun `choosing the grid shows the grid and says so`() {
+        val changes = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    onGridChange = { changes.add(it) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_view_grid").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_view_grid").assertIsSelected()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertExists()
+        assertEquals(listOf(true), changes)
+    }
+
+    @Test
+    fun `choosing the list again goes back to the list and says so`() {
+        val changes = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    startInGrid = true, onGridChange = { changes.add(it) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_view_list").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
+        assertEquals(listOf(false), changes)
+    }
+
+    @Test
+    fun `opens in the grid when it was chosen before`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startInGrid = true)
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_view_grid").assertIsSelected()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `the grid is still chosen after the phone is turned`() = runComposeUiTest {
+        val restoration = StateRestorationTester(this)
+        restoration.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        waitForIdle()
+        onNodeWithTag("favourites_view_grid").performClick()
+        waitForIdle()
+
+        restoration.emulateSaveAndRestore()
+        waitForIdle()
+
+        onNodeWithTag("favourites_view_grid").assertIsSelected()
     }
 }

@@ -1,7 +1,23 @@
 package com.nickallport.findmevinyl.ui.favourites
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +58,9 @@ fun FavouritesScreen(
     modifier: Modifier = Modifier,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onMoveUp: (String) -> Unit = {},
-    onMoveDown: (String) -> Unit = {}
+    onMoveDown: (String) -> Unit = {},
+    /** Show pictures only, as a grid, instead of the list with names and move buttons. */
+    grid: Boolean = false
 ) {
     if (artists.isEmpty()) {
         Text(
@@ -53,7 +71,30 @@ fun FavouritesScreen(
         var picturesShown by remember { mutableIntStateOf(0) }
 
         Column(modifier = modifier) {
-            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+            if (grid) {
+                Text(
+                    text = "Pictures only. Switch to the list to change the order.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag("favourites_grid_hint")
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 76.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    items(artists, key = { it.id }) { artist ->
+                        ArtistTile(
+                            artist = artist,
+                            loadArtistImage = loadArtistImage,
+                            onClick = { onArtistSelected(artist) },
+                            onShownChange = { shown -> picturesShown += if (shown) 1 else -1 }
+                        )
+                    }
+                }
+            } else LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 itemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
                     Row(
                         modifier = Modifier
@@ -90,6 +131,55 @@ fun FavouritesScreen(
                 }
             }
             if (picturesShown > 0) PhotoCredit()
+        }
+    }
+}
+
+/**
+ * One artist in the grid: the picture, filling a square. The name is the description of the tile for a
+ * screen reader, and is written on the tile only while it has no picture, since a record on its own does
+ * not say who it is.
+ */
+@Composable
+private fun ArtistTile(
+    artist: FavouriteArtistUiModel,
+    loadArtistImage: suspend (String) -> Bitmap?,
+    onClick: () -> Unit,
+    onShownChange: (Boolean) -> Unit
+) {
+    var hasPicture by remember(artist.id) { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .testTag("favourite_artist_${artist.id}")
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = artist.name }
+    ) {
+        ArtistImage(
+            artistId = artist.id,
+            loadImage = loadArtistImage,
+            fillSize = true,
+            onShownChange = { shown ->
+                hasPicture = shown
+                onShownChange(shown)
+            }
+        )
+        if (!hasPicture) {
+            Text(
+                text = artist.name,
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }
