@@ -14,6 +14,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 </p>
 <p>
   <img src="docs/screenshots/wants.png" width="190" alt="The Wants page, grouped by artist, with buttons to reorder and remove">
+  <img src="docs/screenshots/shops.png" width="190" alt="The Shops page: record shops near a position, nearest first, with whether each is open now">
   <img src="docs/screenshots/settings.png" width="190" alt="The Settings page with switches for what to hide">
 </p>
 
@@ -23,13 +24,11 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 - See which formats each album came out on (LP, 12", 7", CD, cassette, digital), and filter by one.
 - Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Owned first switch groups what you own at the top, and the app remembers it for each artist.
 - Open an album for its pressings, label and catalogue numbers, tracklist by side, genres and rating.
-- Keep a list of favourite artists and a want list in the order you choose, and share the want list as text.
+- Keep a list of favourite artists and a want list in the order you choose, and share the want list as text. Before sharing you can add a message ("It's my birthday soon, here are some ideas") and choose how many albums to send, such as the top 10 or top 20, so the list is not too long.
 - Add your own photo for an artist when the one from the web is poor or missing.
 - Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account.
 - Hide what you do not want to see: live albums, compilations, singles, particular formats, bootlegs, promos, releases with an unknown status, charity shops and second-hand shops.
 - Back up your data to a zip file and restore it later, for example on a new phone.
-
-Not captured in the pictures above: the Shops page, because the shared map server was too busy when they were taken.
 
 ## Where the data comes from
 
@@ -75,7 +74,7 @@ You need Android Studio and the Android SDK. Gradle has to run on JDK 21: with a
    ./gradlew testDebugUnitTest
    ```
 
-   About 1100 tests run on the JVM with no device, using Robolectric for the screens and a local mock server for the network.
+   More than a thousand tests run on the JVM with no device, using Robolectric for the screens and a local mock server for the network.
 
 The app is written in Kotlin with Jetpack Compose, Room for storage, Retrofit and OkHttp for the network.
 
@@ -91,6 +90,7 @@ Contributions are welcome, whether that is a bug report, an idea, a fix or a fea
 - Be kind to the public services. Keep requests few, keep the User-Agent, and do not add anything that makes many requests at once. Read the notes on rate limits in `CLAUDE.md` before changing how requests are made.
 - A change to a database table needs a version bump and a migration, so nobody loses their collection when the app updates.
 - Never commit `local.properties`, keys or addresses.
+- If a change alters what a user or a contributor reads here (a feature, a setting, a web service, how to build or test), update this README in the same pull request. `CLAUDE.md` has the rule.
 - By contributing, you agree that your contribution is released under the MIT licence below.
 
 The conventions of the code, and the problems already met and solved, are written down in [`CLAUDE.md`](CLAUDE.md). It is the best place to start reading. The list of known gaps at the end of it is a good source of things to improve.
