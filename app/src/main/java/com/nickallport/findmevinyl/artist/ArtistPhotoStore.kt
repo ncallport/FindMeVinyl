@@ -2,6 +2,9 @@ package com.nickallport.findmevinyl.artist
 
 import java.io.File
 
+/** An artist id as a safe file name: an id is a UUID, but a file name must stay inside the photo folder whatever it is given. */
+internal fun safeFileName(artistId: String): String = artistId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+
 /** The folder where the photos the user chose for artists are kept, one file for each. */
 class ArtistPhotoStore(private val directory: File) {
 

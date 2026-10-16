@@ -14,6 +14,10 @@ interface ArtistUserPhotoDao {
     @Query("SELECT * FROM artist_user_photos WHERE artistId = :artistId")
     suspend fun get(artistId: String): ArtistUserPhotoEntity?
 
+    /** Every chosen photo, for a backup. */
+    @Query("SELECT * FROM artist_user_photos")
+    suspend fun getAll(): List<ArtistUserPhotoEntity>
+
     @Query("DELETE FROM artist_user_photos WHERE artistId = :artistId")
     suspend fun delete(artistId: String): Int
 }

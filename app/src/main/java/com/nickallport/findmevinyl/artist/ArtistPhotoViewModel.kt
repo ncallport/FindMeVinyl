@@ -48,6 +48,5 @@ class ArtistPhotoViewModel(
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     }
 
-    // An artist id is a UUID, but a file name must stay inside the photo folder whatever it is given.
-    private fun safeName(artistId: String): String = artistId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    private fun safeName(artistId: String): String = safeFileName(artistId)
 }
