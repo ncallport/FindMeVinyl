@@ -192,4 +192,18 @@ class ShopRowTest {
 
         composeTestRule.onNodeWithText("Open now, closes 17:00 (public holidays may differ)").assertExists()
     }
+
+    @Test
+    fun `a favourite shop has a heart on its row`() {
+        composeTestRule.setContent { ShopRow(shopWithHours(null), favourite = true) }
+
+        composeTestRule.onNodeWithTag("shop_favourite_heart", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `a shop that is not a favourite has no heart`() {
+        composeTestRule.setContent { ShopRow(shopWithHours(null)) }
+
+        composeTestRule.onNodeWithTag("shop_favourite_heart", useUnmergedTree = true).assertDoesNotExist()
+    }
 }

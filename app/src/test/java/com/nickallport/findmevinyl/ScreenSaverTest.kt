@@ -149,4 +149,21 @@ class ScreenSaverTest {
 
         assertEquals(Screen.Shops, Screen.ShopDetail(shop, null).backTarget())
     }
+
+    @Test
+    fun theFavouriteShopsPageRoundTripsAndGoesBackToTheShops() {
+        assertEquals(Screen.FavouriteShops, roundTrip(Screen.FavouriteShops))
+        assertEquals(Screen.Shops, Screen.FavouriteShops.backTarget())
+    }
+
+    @Test
+    fun aShopOpenedFromTheFavouritesGoesBackToThem() {
+        val shop = com.nickallport.findmevinyl.shops.Shop(
+            "node/9", "Carbono", com.nickallport.findmevinyl.shops.ShopCategory.RECORD_SHOP, 1.0, 2.0, null
+        )
+        val screen = Screen.ShopDetail(shop, null, backTo = Screen.FavouriteShops)
+
+        assertEquals(Screen.FavouriteShops, screen.backTarget())
+        assertEquals(screen, roundTrip(screen))
+    }
 }

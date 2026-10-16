@@ -145,4 +145,25 @@ class OverpassShopMapperTest {
 
         Assert.assertEquals(true, shop.secondHandOnly)
     }
+
+    @Test
+    fun `a shop id says what kind of element it is, since a node and a way can share a number`() {
+        val json = """
+            { "elements": [
+              { "type": "node", "id": 5, "lat": 1.0, "lon": 2.0, "tags": { "shop": "music", "name": "A" } },
+              { "type": "way", "id": 5, "center": { "lat": 1.0, "lon": 2.0 }, "tags": { "shop": "music", "name": "B" } }
+            ] }
+        """.trimIndent()
+
+        val ids = OverpassShopMapper.parseResponse(json).map { it.id }
+
+        Assert.assertEquals(listOf("node/5", "way/5"), ids)
+    }
+
+    @Test
+    fun `an element with no type keeps its plain number as its id`() {
+        val json = """{ "elements": [ { "id": 7, "lat": 1.0, "lon": 2.0, "tags": { "shop": "music", "name": "A" } } ] }"""
+
+        Assert.assertEquals("7", OverpassShopMapper.parseResponse(json).single().id)
+    }
 }

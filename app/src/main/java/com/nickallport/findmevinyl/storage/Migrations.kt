@@ -69,3 +69,16 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `statuses` TEXT")
     }
 }
+
+/** Adds a table for the user's favourite shops. It starts empty and nothing that was stored changes. */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `favourite_shops` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                "`category` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `openingHours` TEXT, " +
+                "`street` TEXT, `houseNumber` TEXT, `postcode` TEXT, `city` TEXT, `addressCountry` TEXT, `phone` TEXT, " +
+                "`website` TEXT, `email` TEXT, `secondHandOnly` INTEGER NOT NULL, `regionCountry` TEXT, " +
+                "`regionSubdivision` TEXT, `savedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+        )
+    }
+}

@@ -16,7 +16,8 @@ fun ShopListScreen(
     fromLon: Double,
     modifier: Modifier = Modifier,
     onShopSelected: ((Shop) -> Unit)? = null,
-    isPublicHoliday: ((LocalDate) -> Boolean)? = null
+    isPublicHoliday: ((LocalDate) -> Boolean)? = null,
+    favouriteIds: Set<String> = emptySet()
 ) {
     val sortedShops = ShopSorter.sortByDistance(shops, fromLat, fromLon)
 
@@ -26,6 +27,7 @@ fun ShopListScreen(
                 shop = shop,
                 modifier = Modifier.testTag("shop_row"),
                 isPublicHoliday = isPublicHoliday,
+                favourite = shop.id in favouriteIds,
                 onClick = onShopSelected?.let { select -> { select(shop) } }
             )
         }

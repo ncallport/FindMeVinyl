@@ -1,6 +1,13 @@
 package com.nickallport.findmevinyl.ui.shops
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import com.nickallport.findmevinyl.ui.brand.Glyphs
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +34,8 @@ fun ShopRow(
     modifier: Modifier = Modifier,
     now: LocalDateTime = LocalDateTime.now(),
     isPublicHoliday: ((LocalDate) -> Boolean)? = null,
+    /** The shop is one of the user's favourites, which is shown by a small heart. */
+    favourite: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     var hoursExpanded by rememberSaveable { mutableStateOf(false) }
@@ -41,7 +50,18 @@ fun ShopRow(
 
     ListCard(modifier = modifier, onClick = onClick) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Text(text = shop.name, style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = shop.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+            if (favourite) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    Glyphs.Heart,
+                    contentDescription = "Favourite shop",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(16.dp).testTag("shop_favourite_heart")
+                )
+            }
+        }
         Text(text = categoryLabel, style = MaterialTheme.typography.bodySmall)
 
         when {

@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,8 @@ import com.nickallport.findmevinyl.settings.AppSettings
 import com.nickallport.findmevinyl.settings.SettingsStore
 import com.nickallport.findmevinyl.ui.settings.SettingsRoute
 import com.nickallport.findmevinyl.shops.ShopSearchUiState
+import com.nickallport.findmevinyl.shops.FavouriteShopsViewModel
+import com.nickallport.findmevinyl.ui.shops.FavouriteShopsRoute
 import com.nickallport.findmevinyl.ui.shops.ShopDetailRoute
 import androidx.compose.runtime.collectAsState
 import com.nickallport.findmevinyl.artist.ArtistImageFinder
@@ -53,6 +56,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_4_5
 import com.nickallport.findmevinyl.storage.MIGRATION_5_6
 import com.nickallport.findmevinyl.storage.MIGRATION_6_7
 import com.nickallport.findmevinyl.storage.MIGRATION_7_8
+import com.nickallport.findmevinyl.storage.MIGRATION_8_9
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
@@ -197,9 +201,10 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
+        val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
         val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
@@ -395,7 +400,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is Screen.Shops -> {
+                            // Read again each time the page opens, so a shop kept or let go on its page shows here.
+                            var favouriteShopIds by remember { mutableStateOf(emptySet<String>()) }
+                            LaunchedEffect(Unit) { favouriteShopIds = favouriteShopsViewModel.favouriteIds() }
                             ShopSearchRoute(
+                                favouriteShopIds = favouriteShopIds,
+                                onOpenFavourites = { currentScreen = Screen.FavouriteShops },
                                 hideCharityShops = settings.hideCharityShops,
                                 hideSecondHandShops = settings.hideSecondHandShops,
                                 onOpenSettings = { currentScreen = Screen.Settings },
@@ -413,10 +423,23 @@ class MainActivity : ComponentActivity() {
                                 cache = SearchResultCache.shared
                             )
                         }
+                        is Screen.FavouriteShops -> {
+                            FavouriteShopsRoute(
+                                load = { favouriteShopsViewModel.loadAll() },
+                                onShopSelected = { favourite ->
+                                    currentScreen = Screen.ShopDetail(favourite.shop, favourite.region, backTo = Screen.FavouriteShops)
+                                }
+                            )
+                        }
                         is Screen.ShopDetail -> {
                             ShopDetailRoute(
                                 shop = screen.shop,
                                 region = screen.region,
+                                loadIsFavourite = { favouriteShopsViewModel.isFavourite(screen.shop.id) },
+                                onSetFavourite = { keep ->
+                                    if (keep) favouriteShopsViewModel.add(screen.shop, screen.region)
+                                    else favouriteShopsViewModel.remove(screen.shop.id)
+                                },
                                 loadPublicHolidays = { region -> publicHolidayCalendar.datesNear(region, LocalDate.now()) },
                                 onOpenMap = { openInMaps(screen.shop) },
                                 onCall = { uri -> openLink(Intent.ACTION_DIAL, uri, "No phone app found on this device") },

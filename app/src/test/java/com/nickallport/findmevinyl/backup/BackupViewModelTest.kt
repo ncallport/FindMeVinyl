@@ -485,4 +485,75 @@ class BackupViewModelTest {
         assertFalse(File(photoDir.parentFile.parentFile, "evil.jpg").exists())
         assertTrue(result.photos <= 1)
     }
+
+    // Favourite shops.
+
+    private val louie = com.nickallport.findmevinyl.storage.FavouriteShopEntity(
+        id = "node/1", name = "Louie Louie", category = "RECORD_SHOP", latitude = 38.71, longitude = -9.14,
+        openingHours = "Mo-Sa 11:00-19:30", street = "Escadinhas", houseNumber = "3", postcode = "1100-225",
+        city = "Lisboa", addressCountry = "PT", phone = "+351 213 472 232", website = "https://www.louielouie.biz/",
+        email = "a@b.pt", secondHandOnly = true, regionCountry = "PT", regionSubdivision = null, savedAt = 5
+    )
+
+    @Test
+    fun `favourite shops are saved in the backup and counted`() = runBlocking {
+        database.favouriteShopDao().save(louie)
+
+        val summary = viewModel().createBackup(ByteArrayOutputStream())
+
+        assertEquals(1, summary.shops)
+        assertTrue(String(entries(backup()).getValue("backup.json")).contains("Louie Louie"))
+    }
+
+    @Test
+    fun `restoring into an empty phone brings back the favourite shops, every part of them`() = runBlocking {
+        database.favouriteShopDao().save(louie)
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        val result = restore(saved, viewModel(fresh)) as RestoreResult.Done
+
+        assertEquals(1, result.shops)
+        assertEquals(louie, fresh.favouriteShopDao().get("node/1"))
+        fresh.close()
+    }
+
+    @Test
+    fun `a favourite shop already on the phone is kept as it is`() = runBlocking {
+        database.favouriteShopDao().save(louie)
+        val saved = backup()
+        database.favouriteShopDao().save(louie.copy(name = "Louie Louie (mine)", phone = "+351 111"))
+
+        val result = restore(saved) as RestoreResult.Done
+
+        assertEquals(0, result.shops)
+        assertEquals("Louie Louie (mine)", database.favouriteShopDao().get("node/1")?.name)
+    }
+
+    @Test
+    fun `a favourite shop with no id, or a position that is not one, is skipped`() = runBlocking {
+        val result = restore(
+            zipOf(
+                json(
+                    """{"app":"FindMeVinyl","version":1,"shops":[
+                    {"name":"No id","latitude":1.0,"longitude":2.0},
+                    {"id":"node/2","name":"No position"},
+                    {"id":"node/3","name":"Out of range","latitude":123.0,"longitude":2.0},
+                    {"id":"node/4","name":"Good","category":"RECORD_SHOP","latitude":38.7,"longitude":-9.1}]}"""
+                )
+            )
+        ) as RestoreResult.Done
+
+        assertEquals(1, result.shops)
+        assertEquals(listOf("node/4"), database.favouriteShopDao().getIds())
+    }
+
+    @Test
+    fun `a favourite shop of a kind the app does not know becomes a record shop`() = runBlocking {
+        restore(
+            zipOf(json("""{"app":"FindMeVinyl","version":1,"shops":[{"id":"node/5","name":"X","category":"MYSTERY","latitude":1.0,"longitude":2.0}]}"""))
+        )
+
+        assertEquals("RECORD_SHOP", database.favouriteShopDao().get("node/5")?.category)
+    }
 }
