@@ -11,6 +11,7 @@ A personal Android app (Kotlin, Jetpack Compose) for finding record shops, brows
 - Test reports are in `app/build/reports/tests/testDebugUnitTest/index.html`.
 - Ask before adding a dependency or changing a version. Several versions below were chosen to fix real problems.
 - Never stage `local.properties`.
+- Keep `README.md` up to date in the same pull request as the change that makes it out of date. Check it whenever a change adds, removes or alters a feature, a setting, a screen, a web service the app calls (the table of data sources, and the privacy section if what is sent changes), how to build or test, or what contributors are asked to do. Say what was checked, or changed, under Changes in the pull request. The README is a public page for people who have not read this file, so write what the app does, not how the code does it, and keep to the plain style used there. Do not put counts that change with every pull request in it (such as the number of tests). When a screen changes a lot, retake its picture in `docs/screenshots` on the emulator with the default settings and no personal data (cover art and artist photos from the app's own sources are fine).
 
 ## Layout
 
