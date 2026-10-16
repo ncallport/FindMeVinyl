@@ -32,7 +32,9 @@ fun ShopDetailRoute(
     /** Whether the shop is kept as a favourite. */
     loadIsFavourite: suspend () -> Boolean = { false },
     /** Keeps the shop (true) or lets it go (false). Without it the page has no favourite button. */
-    onSetFavourite: (suspend (Boolean) -> Unit)? = null
+    onSetFavourite: (suspend (Boolean) -> Unit)? = null,
+    /** Changes a shop that was added by hand. */
+    onEdit: (() -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     var favourite by remember(shop.id) { mutableStateOf(false) }
@@ -58,6 +60,7 @@ fun ShopDetailRoute(
         now = now,
         isPublicHoliday = known?.let { set -> { date: LocalDate -> date in set } },
         isFavourite = favourite,
+        onEdit = onEdit,
         onToggleFavourite = onSetFavourite?.let { set ->
             {
                 coroutineScope.launch {

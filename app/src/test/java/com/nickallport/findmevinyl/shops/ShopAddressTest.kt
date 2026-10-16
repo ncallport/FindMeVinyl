@@ -109,4 +109,26 @@ class ShopAddressTest {
 
         assertEquals(listOf("R. Raul Proença 56a", "2500 Caldas da Rainha"), address.lines(fallbackCountry = "PT"))
     }
+
+    @Test
+    fun `an address can be written back as one line, the way it was read`() {
+        val address = ShopAddress.fromText("R. Raul Proença 56a, 2500 Caldas da Rainha")
+
+        assertEquals("R. Raul Proença 56a, 2500 Caldas da Rainha", address.toText())
+    }
+
+    @Test
+    fun `a line written back has only the parts there are`() {
+        assertEquals("Rua do Telhal 6", ShopAddress(street = "Rua do Telhal 6").toText())
+        assertEquals("Lisboa", ShopAddress(city = "Lisboa").toText())
+        assertEquals("", ShopAddress().toText())
+    }
+
+    @Test
+    fun `a house number kept apart from the street is put back with it`() {
+        assertEquals(
+            "Escadinhas 3, 1100-225 Lisboa",
+            ShopAddress(street = "Escadinhas", houseNumber = "3", postcode = "1100-225", city = "Lisboa").toText()
+        )
+    }
 }

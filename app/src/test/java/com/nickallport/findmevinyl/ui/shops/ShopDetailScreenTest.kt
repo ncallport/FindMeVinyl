@@ -265,4 +265,42 @@ class ShopDetailScreenTest {
 
         composeTestRule.onNodeWithTag("shop_detail_approximate").assertDoesNotExist()
     }
+
+    @Test
+    fun `a shop added by hand has an Edit button`() {
+        var edited = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ShopDetailScreen(
+                    shop = louie.copy(id = "custom/abc"), now = monday, onOpenMap = {}, onCall = {}, onOpenWebsite = {},
+                    onSendEmail = {}, onEdit = { edited++ }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("shop_detail_edit").performScrollTo().performClick()
+
+        assertEquals(1, edited)
+    }
+
+    @Test
+    fun `a shop from OpenStreetMap cannot be edited`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ShopDetailScreen(
+                    shop = louie, now = monday, onOpenMap = {}, onCall = {}, onOpenWebsite = {}, onSendEmail = {},
+                    onEdit = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("shop_detail_edit").assertDoesNotExist()
+    }
+
+    @Test
+    fun `without a way to edit there is no button, even for a shop added by hand`() {
+        show(louie.copy(id = "custom/abc"))
+
+        composeTestRule.onNodeWithTag("shop_detail_edit").assertDoesNotExist()
+    }
 }

@@ -179,4 +179,16 @@ class ScreenSaverTest {
     fun theAddAShopPageGoesBackToTheFavouriteShops() {
         assertEquals(Screen.FavouriteShops, Screen.AddShop(null).backTarget())
     }
+
+    @Test
+    fun theEditPageKeepsTheShopBeingEdited() {
+        val shop = com.nickallport.findmevinyl.shops.Shop(
+            "custom/abc", "Silver Tentacle", com.nickallport.findmevinyl.shops.ShopCategory.RECORD_SHOP, 39.4, -9.1, "Tu-Sa 11:00-19:00",
+            address = com.nickallport.findmevinyl.shops.ShopAddress(street = "R. Raul Proença 56a", city = "Caldas da Rainha"),
+            approximatePosition = true, mapQuery = "Silver Tentacle, Caldas da Rainha"
+        )
+
+        assertEquals(Screen.AddShop(null, shop), roundTrip(Screen.AddShop(null, shop)))
+        assertEquals(Screen.FavouriteShops, Screen.AddShop(null, shop).backTarget())
+    }
 }
