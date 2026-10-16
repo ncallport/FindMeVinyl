@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import java.io.IOException
 
 data class PlaceCandidate(
     val name: String,
@@ -41,6 +42,8 @@ sealed class ShopSearchUiState {
 class ShopSearchViewModel(
     private val nominatimApi: NominatimApi,
     private val overpassApi: OverpassApi,
+    /** Other Overpass servers, asked in order when the first one fails or is too slow. */
+    private val fallbackOverpassApis: List<OverpassApi> = emptyList(),
     private val retryDelayMillis: Long = 1500
 ) {
     suspend fun searchTown(town: String, radiusMeters: Int = 5000): ShopSearchUiState {
@@ -160,21 +163,41 @@ class ShopSearchViewModel(
         )
     }
 
+    /**
+     * Asks the servers in turn, and returns the first complete answer. A server that fails, is too slow, or
+     * says its run hit a runtime error is passed over for the next one. When every server has failed and
+     * every failure was a quick "busy" answer (429, 502, 503, 504), they are all asked again after a short
+     * pause, up to [MAX_ROUNDS] rounds. A slow or other failure ends it after the one round, because
+     * another would take as long again. The last failure is the one reported.
+     */
     private suspend fun queryWithRetry(query: String): OverpassResponse {
-        var attempt = 1
+        val body = query.toRequestBody("text/plain".toMediaType())
+        val servers = listOf(overpassApi) + fallbackOverpassApis
+        var round = 1
         while (true) {
-            try {
-                return overpassApi.query(query.toRequestBody("text/plain".toMediaType()))
-            } catch (e: HttpException) {
-                if (attempt >= MAX_ATTEMPTS || e.code() !in BUSY_CODES) throw e
-                attempt++
-                delay(retryDelayMillis)
+            var lastFailure: Exception? = null
+            var allBusy = true
+            for (server in servers) {
+                try {
+                    val response = server.query(body)
+                    if (!response.failed) return response
+                    lastFailure = IOException("Overpass said: ${response.remark}")
+                    allBusy = false
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    lastFailure = e
+                    if (!(e is HttpException && e.code() in BUSY_CODES)) allBusy = false
+                }
             }
+            if (!allBusy || round >= MAX_ROUNDS) throw lastFailure!!
+            round++
+            delay(retryDelayMillis)
         }
     }
 
     private companion object {
-        const val MAX_ATTEMPTS = 3
+        const val MAX_ROUNDS = 3
         const val MAX_PLACE_MATCHES = 5
         const val MIN_ALTERNATIVE_DISTANCE_KM = 10.0
         const val DEFAULT_PLACE_NAME = "Your location"

@@ -5,8 +5,15 @@ import com.nickallport.findmevinyl.shops.Shop
 import com.nickallport.findmevinyl.shops.ShopCategory
 
 data class OverpassResponse(
-    val elements: List<OverpassElementDto>
-)
+    val elements: List<OverpassElementDto> = emptyList(),
+    /**
+     * What Overpass says about the run. A "runtime error" means the answer is not complete, for example
+     * "Query timed out", and comes with HTTP 200 and few or no elements.
+     */
+    val remark: String? = null
+) {
+    val failed: Boolean get() = remark?.trimStart()?.startsWith("runtime error", ignoreCase = true) == true
+}
 
 data class OverpassElementDto(
     val id: Long,

@@ -228,7 +228,8 @@ class MainActivity : ComponentActivity() {
         val wantListViewModel = WantListViewModel(database.albumDao())
         val shopSearchViewModel = ShopSearchViewModel(
             ShopApiFactory.createNominatim(),
-            ShopApiFactory.createOverpass()
+            ShopApiFactory.createOverpass(),
+            ShopApiFactory.createOverpassFallbacks()
         )
         val locationProvider = DeviceLocationProvider(applicationContext)
         val nearbyShopSearcher = NearbyShopSearcher(

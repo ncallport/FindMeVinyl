@@ -41,7 +41,7 @@ The app talks to these public services. None needs an account or a key. They are
 | [Cover Art Archive](https://coverartarchive.org) | The cover of each album, by MusicBrainz id. |
 | [Wikidata](https://www.wikidata.org) and [Wikimedia Commons](https://commons.wikimedia.org) | The picture of an artist. MusicBrainz gives the Wikidata item, Wikidata gives the file name of the picture, and Commons serves it. The app never matches an artist to a picture by name. The photos are credited on the screens that show them. |
 | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) | Turns a town name into a position, and a position into a region, which decides which public holidays apply. |
-| [Overpass API](https://overpass-api.de) (OpenStreetMap) | The shops: record, music, charity and second hand shops around a position, with their names and opening hours. The data is the work of OpenStreetMap contributors. |
+| [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) (OpenStreetMap) | The shops: record, music, charity and second hand shops around a position, with their names and opening hours. The app asks the server of [OpenStreetMap France](https://overpass.openstreetmap.fr) first, and [overpass-api.de](https://overpass-api.de) if that fails or is slow. The data is the work of OpenStreetMap contributors. |
 | [Nager.Date](https://date.nager.at) | Public holidays by country and year, used to judge whether a shop is open on a bank holiday. Only a country code and a year are sent. |
 | Google Play services location | The phone's position, for the Near me search. This is a library on the phone, not a web service. |
 
