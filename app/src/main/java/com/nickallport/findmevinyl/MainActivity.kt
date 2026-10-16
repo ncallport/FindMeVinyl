@@ -304,7 +304,9 @@ class MainActivity : ComponentActivity() {
                                 load = { id -> discographyViewModel.discography(id) },
                                 loadSaved = { id -> discographyViewModel.loadSaved(id) },
                                 onToggleOwned = { albumId, currentlyOwned ->
-                                    discographyViewModel.toggleOwned(albumId, currentlyOwned)
+                                    discographyViewModel.toggleOwned(
+                                        albumId, currentlyOwned, screen.artistId, screen.artistName
+                                    )
                                 },
                                 onToggleWanted = { albumId, currentlyWanted ->
                                     discographyViewModel.toggleWanted(
@@ -352,7 +354,9 @@ class MainActivity : ComponentActivity() {
                                 loadDetails = { id -> albumDetailsViewModel.load(id) },
                                 loadAlbum = { id -> discographyViewModel.loadAlbum(id) },
                                 onToggleOwned = { albumId, currentlyOwned ->
-                                    discographyViewModel.toggleOwned(albumId, currentlyOwned)
+                                    discographyViewModel.toggleOwned(
+                                        albumId, currentlyOwned, screen.artistId, screen.artistName
+                                    )
                                 },
                                 onToggleWanted = { albumId, currentlyWanted ->
                                     discographyViewModel.toggleWanted(

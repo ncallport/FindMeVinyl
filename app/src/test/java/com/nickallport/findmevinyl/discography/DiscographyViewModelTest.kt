@@ -625,7 +625,7 @@ class DiscographyViewModelTest {
     fun `marking a wanted album as owned clears its want`() = runBlocking {
         database.albumDao().insert(album("1", wanted = true))
 
-        viewModel.toggleOwned("1", currentlyOwned = false)
+        viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis")
 
         val saved = database.albumDao().getAlbumsForArtist("some-id")[0]
         assertTrue(saved.owned)
@@ -637,11 +637,43 @@ class DiscographyViewModelTest {
         database.albumDao().insert(album("1", wanted = true))
         database.albumDao().insert(album("2", wanted = true))
 
-        viewModel.toggleOwned("1", currentlyOwned = false)
+        viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis")
 
         val albums = database.albumDao().getAlbumsForArtist("some-id").sortedBy { it.id }
         assertEquals(false, albums[0].wanted)
         assertTrue(albums[1].wanted)
+    }
+
+    @Test
+    fun `marking an album as owned saves the artist as a favourite, as wanting one does`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        assertEquals(false, viewModel.isFavourite("some-id"))
+
+        viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis")
+
+        assertEquals(true, viewModel.isFavourite("some-id"))
+        assertEquals("Genesis", database.artistDao().getById("some-id")?.name)
+    }
+
+    @Test
+    fun `taking an album off owned does not save the artist`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+
+        viewModel.toggleOwned("1", currentlyOwned = true, artistId = "some-id", artistName = "Genesis")
+
+        assertEquals(false, viewModel.isFavourite("some-id"))
+    }
+
+    @Test
+    fun `marking an album as owned leaves an artist already saved where it is`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("some-id", "Genesis", null, null, position = 4))
+        database.albumDao().insert(album("1"))
+
+        viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis (other spelling)")
+
+        val artist = database.artistDao().getById("some-id")!!
+        assertEquals(4, artist.position)
+        assertEquals("Genesis", artist.name)
     }
 
     @Test
