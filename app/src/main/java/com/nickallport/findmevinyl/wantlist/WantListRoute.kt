@@ -10,13 +10,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.nickallport.findmevinyl.export.ShareOptions
 import com.nickallport.findmevinyl.wantlist.WantedAlbumUiModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun WantListRoute(
     load: suspend () -> List<WantedAlbumUiModel>,
-    exportText: suspend () -> String,
+    exportText: suspend (ShareOptions) -> String,
     onShareText: (String) -> Unit,
     modifier: Modifier = Modifier,
     onMoveUp: suspend (String) -> Unit = {},
@@ -36,9 +37,9 @@ fun WantListRoute(
     } else {
         WantListScreen(
             wanted = loaded,
-            onShare = {
+            onShare = { options ->
                 coroutineScope.launch {
-                    onShareText(exportText())
+                    onShareText(exportText(options))
                 }
             },
             modifier = modifier,

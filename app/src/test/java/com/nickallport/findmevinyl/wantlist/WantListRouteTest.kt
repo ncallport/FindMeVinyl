@@ -6,6 +6,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import com.nickallport.findmevinyl.export.ShareOptions
 import com.nickallport.findmevinyl.wantlist.WantedAlbumUiModel
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -97,23 +99,43 @@ class WantListRouteTest {
     }
 
     @Test
-    fun `tapping Share passes the export text to the share callback`() {
+    fun `choosing what to share, then confirming, passes the export text to the share callback`() {
         var sharedText: String? = null
+        var asked: ShareOptions? = null
         val text = "My vinyl want list:\n\nABC\n- Lexicon of Love"
 
         composeTestRule.setContent {
             WantListRoute(
                 load = { sample },
-                exportText = { text },
+                exportText = { asked = it; text },
                 onShareText = { sharedText = it }
             )
         }
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_intro").performTextInput("Hello")
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
         composeTestRule.waitForIdle()
 
+        assertEquals(ShareOptions("Hello", null), asked)
         assertEquals(text, sharedText)
+    }
+
+    @Test
+    fun `cancelling the options shares nothing`() {
+        var sharedText: String? = null
+
+        composeTestRule.setContent {
+            WantListRoute(load = { sample }, exportText = { "text" }, onShareText = { sharedText = it })
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_cancel").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(null, sharedText)
     }
 
     @Test
