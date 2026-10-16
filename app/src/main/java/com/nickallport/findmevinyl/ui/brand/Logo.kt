@@ -45,7 +45,7 @@ private const val NAME = "Find Me Vinyl"
  * The record from the app icon: a teal badge, a black disc with grooves and a sheen, and an
  * orange label with a spindle hole, centred at [center] and drawn inside [radius].
  */
-private fun DrawScope.drawRecord(center: Offset, radius: Float) {
+internal fun DrawScope.drawRecord(center: Offset, radius: Float) {
     drawCircle(BrandTeal, radius, center)
     val disc = radius * 0.80f
     drawCircle(RecordBlack, disc, center)

@@ -4,9 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -130,7 +131,7 @@ fun ShopSearchRoute(
                     )
                 }
                 is RouteState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp).testTag("loading_indicator"))
+                    RecordSpinner(modifier = Modifier.fillMaxWidth().padding(16.dp).testTag("loading_indicator"))
                 }
                 is RouteState.Result -> {
                     val shown = current.state

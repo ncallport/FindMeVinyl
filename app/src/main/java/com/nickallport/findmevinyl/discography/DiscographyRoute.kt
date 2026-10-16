@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.clickable
@@ -185,7 +185,7 @@ fun DiscographyRoute(
         Box(modifier = Modifier.weight(1f)) {
             when (val currentState = loadState) {
                 is LoadState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.testTag("loading_indicator"))
+                    RecordSpinner(modifier = Modifier.testTag("loading_indicator"))
                 }
                 is LoadState.Loaded -> {
                     when (val uiState = currentState.state) {

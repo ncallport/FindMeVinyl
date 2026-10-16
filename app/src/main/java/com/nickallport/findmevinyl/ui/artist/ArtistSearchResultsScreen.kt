@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
+import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +45,7 @@ fun ArtistSearchResultsScreen(
             )
         }
         is ArtistSearchUiState.Loading -> {
-            CircularProgressIndicator(modifier = modifier.testTag("loading_indicator"))
+            RecordSpinner(modifier = modifier.testTag("loading_indicator"))
         }
         is ArtistSearchUiState.Success -> {
             var picturesShown by remember { mutableIntStateOf(0) }
