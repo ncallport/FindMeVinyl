@@ -372,7 +372,7 @@ class MainActivity : ComponentActivity() {
                         is Screen.WantList -> {
                             WantListRoute(
                                 load = { wantListViewModel.loadWantList() },
-                                exportText = { wantListViewModel.exportText() },
+                                exportText = { options -> wantListViewModel.exportText(options) },
                                 onMoveUp = { id -> wantListViewModel.moveUp(id) },
                                 onMoveDown = { id -> wantListViewModel.moveDown(id) },
                                 onRemove = { id -> wantListViewModel.remove(id) },

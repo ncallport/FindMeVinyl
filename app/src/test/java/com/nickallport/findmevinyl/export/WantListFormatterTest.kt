@@ -35,4 +35,77 @@ class WantListFormatterTest {
 
         assertEquals("My vinyl want list:", result)
     }
+
+    private val five = listOf(
+        WantedAlbumExportItem("Genesis", "Foxtrot"),
+        WantedAlbumExportItem("Genesis", "Trespass"),
+        WantedAlbumExportItem("Pink Floyd", "Animals"),
+        WantedAlbumExportItem("Pink Floyd", "Meddle"),
+        WantedAlbumExportItem("Roxy Music", "Avalon")
+    )
+
+    @Test
+    fun `a message goes above the list, with a blank line between`() {
+        val result = WantListFormatter.format(
+            listOf(WantedAlbumExportItem("Genesis", "Foxtrot")),
+            intro = "It's my birthday soon, here are some ideas."
+        )
+
+        assertEquals(
+            "It's my birthday soon, here are some ideas.\n\nMy vinyl want list:\n\nGenesis\n- Foxtrot",
+            result
+        )
+    }
+
+    @Test
+    fun `a message is trimmed, and a blank one is left out`() {
+        val items = listOf(WantedAlbumExportItem("Genesis", "Foxtrot"))
+
+        assertEquals("Hello\n\nMy vinyl want list:\n\nGenesis\n- Foxtrot", WantListFormatter.format(items, intro = "  Hello  \n"))
+        assertEquals("My vinyl want list:\n\nGenesis\n- Foxtrot", WantListFormatter.format(items, intro = "   \n "))
+    }
+
+    @Test
+    fun `a message of several lines is kept as it was written`() {
+        val result = WantListFormatter.format(emptyList(), intro = "Line one\nLine two")
+
+        assertEquals("Line one\nLine two\n\nMy vinyl want list:", result)
+    }
+
+    @Test
+    fun `a limit takes the first albums in order and says how many of how many`() {
+        val result = WantListFormatter.format(five, limit = 3)
+
+        assertEquals(
+            "My vinyl want list (top 3 of 5):\n\nGenesis\n- Foxtrot\n- Trespass\n\nPink Floyd\n- Animals",
+            result
+        )
+    }
+
+    @Test
+    fun `a limit can stop in the middle of an artist`() {
+        val result = WantListFormatter.format(five, limit = 1)
+
+        assertEquals("My vinyl want list (top 1 of 5):\n\nGenesis\n- Foxtrot", result)
+    }
+
+    @Test
+    fun `a limit as big as the list, or bigger, changes nothing`() {
+        assertEquals(WantListFormatter.format(five), WantListFormatter.format(five, limit = 5))
+        assertEquals(WantListFormatter.format(five), WantListFormatter.format(five, limit = 50))
+    }
+
+    @Test
+    fun `no limit, or one that is not a positive number, shares everything`() {
+        assertEquals(WantListFormatter.format(five), WantListFormatter.format(five, limit = null))
+        assertEquals(WantListFormatter.format(five), WantListFormatter.format(five, limit = 0))
+        assertEquals(WantListFormatter.format(five), WantListFormatter.format(five, limit = -3))
+    }
+
+    @Test
+    fun `a message and a limit go together`() {
+        val result = WantListFormatter.format(five, intro = "Ideas:", limit = 2)
+
+        assertEquals("Ideas:\n\nMy vinyl want list (top 2 of 5):\n\nGenesis\n- Foxtrot\n- Trespass", result)
+    }
 }

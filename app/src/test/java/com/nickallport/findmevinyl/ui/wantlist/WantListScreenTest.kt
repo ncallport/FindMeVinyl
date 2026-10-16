@@ -1,6 +1,9 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.performTextInput
+import com.nickallport.findmevinyl.export.ShareOptions
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -71,16 +74,134 @@ class WantListScreenTest {
     }
 
     @Test
-    fun `tapping Share invokes the callback`() {
-        var shared = false
+    fun `tapping Share asks what to share before sharing anything`() {
+        var shared: ShareOptions? = null
 
         composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = { shared = true })
+            WantListScreen(wanted = sample, onShare = { shared = it })
         }
 
         composeTestRule.onNodeWithTag("share_button").performClick()
 
-        assertTrue(shared)
+        composeTestRule.onNodeWithTag("share_dialog").assertExists()
+        assertEquals(null, shared)
+    }
+
+    @Test
+    fun `confirming with nothing changed shares the whole list with no message`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = { shared = it })
+        }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
+
+        assertEquals(ShareOptions(intro = "", limit = null), shared)
+        composeTestRule.onNodeWithTag("share_dialog").assertDoesNotExist()
+    }
+
+    @Test
+    fun `cancelling shares nothing and closes the options`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = { shared = it })
+        }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_cancel").performClick()
+
+        assertEquals(null, shared)
+        composeTestRule.onNodeWithTag("share_dialog").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a message typed in the options is passed on`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent {
+            WantListScreen(wanted = sample, onShare = { shared = it })
+        }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_intro").performTextInput("It is my birthday soon")
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
+
+        assertEquals("It is my birthday soon", shared?.intro)
+    }
+
+    private val twentyFive = (1..25).map { WantedAlbumUiModel("$it", "Artist ${(it + 4) / 5}", "Album $it") }
+
+    @Test
+    fun `offers the top 10 and top 20 of a list of 25, and all of it`() {
+        composeTestRule.setContent { WantListScreen(wanted = twentyFive, onShare = {}) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+
+        composeTestRule.onNodeWithTag("share_limit_10").assertExists()
+        composeTestRule.onNodeWithTag("share_limit_20").assertExists()
+        composeTestRule.onNodeWithTag("share_limit_all").assertExists()
+        composeTestRule.onNodeWithTag("share_limit_30").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a list of 8 has nothing to choose between, so it shows no choices and says it shares all of it`() {
+        composeTestRule.setContent { WantListScreen(wanted = twentyFive.take(8), onShare = {}) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+
+        composeTestRule.onNodeWithTag("share_limit_10").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("share_limit_all").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("share_summary").assertTextEquals("Sharing all 8 albums")
+    }
+
+    @Test
+    fun `choosing top 10 passes the limit on, and the summary says how many`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent { WantListScreen(wanted = twentyFive, onShare = { shared = it }) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_summary").assertTextEquals("Sharing all 25 albums")
+
+        composeTestRule.onNodeWithTag("share_limit_10").performClick()
+        composeTestRule.onNodeWithTag("share_summary").assertTextEquals("Sharing the top 10 of 25 albums")
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
+
+        assertEquals(10, shared?.limit)
+    }
+
+    @Test
+    fun `the choice can be changed back to all`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent { WantListScreen(wanted = twentyFive, onShare = { shared = it }) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_limit_20").performClick()
+        composeTestRule.onNodeWithTag("share_limit_all").performClick()
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
+
+        assertEquals(null, shared?.limit)
+    }
+
+    @Test
+    fun `one album is summed up in the singular`() {
+        composeTestRule.setContent { WantListScreen(wanted = sample.take(1), onShare = {}) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+
+        composeTestRule.onNodeWithTag("share_summary").assertTextEquals("Sharing 1 album")
+    }
+
+    @Test
+    fun `the last choices are still there the next time the options are opened`() {
+        var shared: ShareOptions? = null
+
+        composeTestRule.setContent { WantListScreen(wanted = twentyFive, onShare = { shared = it }) }
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_intro").performTextInput("Birthday ideas")
+        composeTestRule.onNodeWithTag("share_limit_10").performClick()
+        composeTestRule.onNodeWithTag("share_cancel").performClick()
+
+        composeTestRule.onNodeWithTag("share_button").performClick()
+        composeTestRule.onNodeWithTag("share_confirm").performClick()
+
+        assertEquals(ShareOptions("Birthday ideas", 10), shared)
     }
 
     @Test

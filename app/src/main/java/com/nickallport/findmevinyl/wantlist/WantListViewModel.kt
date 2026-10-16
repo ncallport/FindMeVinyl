@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.wantlist
 
 import com.nickallport.findmevinyl.discography.ReleaseDates
+import com.nickallport.findmevinyl.export.ShareOptions
 import com.nickallport.findmevinyl.export.WantListFormatter
 import com.nickallport.findmevinyl.export.WantedAlbumExportItem
 import com.nickallport.findmevinyl.ordering.Reorder
@@ -34,9 +35,10 @@ class WantListViewModel(private val albumDao: AlbumDao) {
 
     suspend fun moveDown(albumId: String) = move(albumId, 1)
 
-    suspend fun exportText(): String {
+    /** The share text: the whole list unless [options] say otherwise, in the user's own order. */
+    suspend fun exportText(options: ShareOptions = ShareOptions()): String {
         val items = loadWantList().map { WantedAlbumExportItem(it.artistName, it.albumTitle) }
-        return WantListFormatter.format(items)
+        return WantListFormatter.format(items, options.intro, options.limit)
     }
 
     private suspend fun ordered(): List<WantedAlbumRow> {

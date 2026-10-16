@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.wantlist
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.nickallport.findmevinyl.export.ShareOptions
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.ArtistEntity
@@ -319,5 +320,38 @@ class WantListViewModelTest {
 
         assertEquals(listOf("One"), titles())
         assertEquals(true, database.albumDao().getById("9")?.owned)
+    }
+
+    @Test
+    fun `export text can start with a message`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "ABC", null, null))
+        wantedAlbum("1", "a", "Lexicon of Love", "1982-06-21")
+
+        val text = viewModel.exportText(ShareOptions(intro = "For my birthday", limit = null))
+
+        assertEquals("For my birthday\n\nMy vinyl want list:\n\nABC\n- Lexicon of Love", text)
+    }
+
+    @Test
+    fun `export text with a limit takes the top of the list in the user's own order`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("r", "Roxy Music", null, null, position = 0))
+        database.artistDao().insert(ArtistEntity("a", "ABC", null, null, position = 1))
+        wantedAlbum("1", "r", "Avalon", "1982-05-31")
+        wantedAlbum("2", "r", "Siren", "1975-10-24")
+        wantedAlbum("3", "a", "Lexicon of Love", "1982-06-21")
+        database.albumDao().setWantPosition("1", 0)
+        database.albumDao().setWantPosition("2", 1)
+
+        val text = viewModel.exportText(ShareOptions(limit = 2))
+
+        assertEquals("My vinyl want list (top 2 of 3):\n\nRoxy Music\n- Avalon\n- Siren", text)
+    }
+
+    @Test
+    fun `the default export is the whole list with no message`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "ABC", null, null))
+        wantedAlbum("1", "a", "Lexicon of Love", "1982-06-21")
+
+        assertEquals(viewModel.exportText(ShareOptions()), viewModel.exportText())
     }
 }
