@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
 import com.nickallport.findmevinyl.discography.OwnedFirstStore
+import com.nickallport.findmevinyl.favourites.FavouritesLayoutStore
 import com.nickallport.findmevinyl.backup.BackupMessages
 import com.nickallport.findmevinyl.backup.BackupViewModel
 import com.nickallport.findmevinyl.settings.AppSettings
@@ -196,6 +197,7 @@ class MainActivity : ComponentActivity() {
             "find-me-vinyl-db"
         ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
 
+        val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
@@ -280,6 +282,8 @@ class MainActivity : ComponentActivity() {
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
                                 onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
                                 onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
+                                startInGrid = favouritesLayoutStore.isGrid(),
+                                onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)

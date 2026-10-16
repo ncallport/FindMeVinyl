@@ -24,6 +24,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 - See which formats each album came out on (LP, 12", 7", CD, cassette, digital), and filter by one.
 - Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Owned first switch groups what you own at the top, and the app remembers it for each artist.
 - Open an album for its pressings, label and catalogue numbers, tracklist by side, genres and rating.
+- Show your favourite artists as a list, or as a grid of pictures when there are many, and the app remembers which you chose.
 - Keep a list of favourite artists and a want list in the order you choose, and share the want list as text. Before sharing you can add a message ("It's my birthday soon, here are some ideas") and choose how many albums to send, such as the top 10 or top 20, so the list is not too long.
 - Add your own photo for an artist when the one from the web is poor or missing.
 - Find record shops, charity shops and second hand shops near you or in a town you type, with their opening hours and whether they are open now, taking public holidays into account.
