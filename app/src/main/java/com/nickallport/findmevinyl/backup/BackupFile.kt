@@ -46,7 +46,10 @@ data class BackupAlbum(
     val wantPosition: Int? = null,
     /** Formats the user added for their copy, as labels joined with `|`. */
     val userFormats: String? = null,
-    val userNote: String? = null
+    val userNote: String? = null,
+    /** The MusicBrainz release the user chose as their copy, and a line that describes it. */
+    val myPressingId: String? = null,
+    val myPressingText: String? = null
 )
 
 /** A photo the user chose. The bytes are in the zip as `photos/{fileName}`. */

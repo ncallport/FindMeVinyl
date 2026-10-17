@@ -31,5 +31,12 @@ data class AlbumEntity(
      */
     val userFormats: String? = null,
     /** The user's own note about their copy, such as the country or the language of the sleeve. Null: none. */
-    val userNote: String? = null
+    val userNote: String? = null,
+    /** The MusicBrainz release the user says is their copy, chosen from the album's pressings. Null: none chosen. */
+    val myPressingId: String? = null,
+    /**
+     * A line that describes [myPressingId] (date, country, label, format), as it was when the user chose it, so the
+     * album can still say which pressing it is when MusicBrainz's list of pressings has changed.
+     */
+    val myPressingText: String? = null
 )

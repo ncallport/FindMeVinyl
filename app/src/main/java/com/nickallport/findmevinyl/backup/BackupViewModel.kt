@@ -69,7 +69,7 @@ class BackupViewModel(
             albums = albums.map {
                 BackupAlbum(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
-                    it.userFormats, it.userNote
+                    it.userFormats, it.userNote, it.myPressingId, it.myPressingText
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -184,7 +184,10 @@ class BackupViewModel(
             val copyFormats = ReleaseFormats.encodeUserOrNull(ReleaseFormats.decodeUser(album.userFormats))
             val copyNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
             val hasCopy = copyFormats != null || copyNote != null
-            if (!owned && !wanted && !hasCopy) continue
+            // A chosen pressing needs its id, and its line is cut to the length the app keeps.
+            val pressingId = album.myPressingId?.trim()?.takeIf { it.isNotEmpty() }
+            val pressingText = if (pressingId == null) null else album.myPressingText?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
+            if (!owned && !wanted && !hasCopy && pressingId == null) continue
 
             val existing = albumDao.getById(id)
             var changed = false
@@ -193,7 +196,8 @@ class BackupViewModel(
                     AlbumEntity(
                         id, artistId, album.title.orEmpty(), album.category ?: "OTHER", album.firstReleaseDate,
                         owned, wanted, wantPosition = album.wantPosition ?: 0,
-                        userFormats = copyFormats, userNote = copyNote
+                        userFormats = copyFormats, userNote = copyNote,
+                        myPressingId = pressingId, myPressingText = pressingText
                     )
                 )
                 changed = true
@@ -209,6 +213,10 @@ class BackupViewModel(
                 // Details already on the phone are kept: restoring only adds.
                 if (hasCopy && existing.userFormats == null && existing.userNote == null) {
                     albumDao.setCopy(id, copyFormats, copyNote)
+                    changed = true
+                }
+                if (pressingId != null && existing.myPressingId == null) {
+                    albumDao.setMyPressing(id, pressingId, pressingText)
                     changed = true
                 }
             }

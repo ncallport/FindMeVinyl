@@ -680,4 +680,103 @@ class BackupViewModelTest {
         assertEquals(0, second.albums)
         assertEquals("LP", database.albumDao().getById("1")!!.userFormats)
     }
+
+    // The pressing the user chose as theirs.
+
+    @Test
+    fun `the backup carries the chosen pressing`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
+
+        val text = String(entries(backup()).getValue("backup.json"))
+
+        assertTrue(text.contains("\"myPressingId\":\"release-9\""))
+        assertTrue(text.contains("\"myPressingText\":\"1989, Portugal\""))
+    }
+
+    @Test
+    fun `restoring into an empty phone brings the chosen pressing back`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("1")!!
+        assertEquals("release-9", restored.myPressingId)
+        assertEquals("1989, Portugal", restored.myPressingText)
+        fresh.close()
+    }
+
+    @Test
+    fun `an album that was sold but has a chosen pressing is kept by the backup`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals("release-9", fresh.albumDao().getById("1")!!.myPressingId)
+        assertFalse(fresh.albumDao().getById("1")!!.owned)
+        fresh.close()
+    }
+
+    @Test
+    fun `a pressing already chosen on the phone is not replaced by the one in the backup`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setMyPressing("1", "from-backup", "from the backup")
+        val saved = backup()
+        database.albumDao().setMyPressing("1", "on-phone", "on the phone")
+
+        restore(saved)
+
+        assertEquals("on-phone", database.albumDao().getById("1")!!.myPressingId)
+        assertEquals("on the phone", database.albumDao().getById("1")!!.myPressingText)
+    }
+
+    @Test
+    fun `an album on the phone with no pressing chosen takes it from the backup, whatever copy details it has`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
+        val saved = backup()
+        database.albumDao().setMyPressing("1", null, null)
+        database.albumDao().setCopy("1", "LP", "a note written on the phone")
+
+        val result = restore(saved) as RestoreResult.Done
+
+        val merged = database.albumDao().getById("1")!!
+        assertEquals("release-9", merged.myPressingId)
+        assertEquals("a note written on the phone", merged.userNote)
+        assertEquals(1, result.albums)
+    }
+
+    @Test
+    fun `restoring the same file again changes nothing about the pressing`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
+        val saved = backup()
+
+        val second = restore(saved) as RestoreResult.Done
+
+        assertEquals(0, second.albums)
+        assertEquals("release-9", database.albumDao().getById("1")!!.myPressingId)
+    }
+
+    @Test
+    fun `a pressing with no id in the file is not kept, and a long line is cut`() = runBlocking {
+        val line = "x".repeat(2000)
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[
+            {"id":"1","artistId":"a","title":"A","category":"STUDIO_ALBUM","owned":true,"myPressingText":"orphan"},
+            {"id":"2","artistId":"a","title":"B","category":"STUDIO_ALBUM","owned":true,"myPressingId":"r","myPressingText":"$line"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("1")!!.myPressingText)
+        assertEquals(500, fresh.albumDao().getById("2")!!.myPressingText!!.length)
+        fresh.close()
+    }
 }
+

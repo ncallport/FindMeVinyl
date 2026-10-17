@@ -108,3 +108,11 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `userNote` TEXT")
     }
 }
+
+/** Adds the pressing the user chose as their copy of an album, and a line that describes it. */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `myPressingId` TEXT")
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `myPressingText` TEXT")
+    }
+}

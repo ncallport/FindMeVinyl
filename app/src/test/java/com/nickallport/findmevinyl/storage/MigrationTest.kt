@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .allowMainThreadQueries()
             .build()
 
@@ -810,6 +810,33 @@ class MigrationTest {
         assertEquals("LP", foxtrot.userFormats)
         assertEquals("Portuguese pressing", foxtrot.userNote)
         assertEquals("CD", foxtrot.formats)
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database keeps its albums when they get the pressing columns`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        val foxtrot = database.albumDao().getById("1")!!
+
+        assertTrue(foxtrot.owned)
+        assertEquals("CD", foxtrot.formats)
+        assertNull(foxtrot.myPressingId)
+        assertNull(foxtrot.myPressingText)
+        database.close()
+    }
+
+    @Test
+    fun `an upgraded album can keep the pressing the user chose`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        database.albumDao().setMyPressing("1", "release-9", "1972, Portugal, Charisma")
+
+        val foxtrot = database.albumDao().getById("1")!!
+        assertEquals("release-9", foxtrot.myPressingId)
+        assertEquals("1972, Portugal, Charisma", foxtrot.myPressingText)
         database.close()
     }
 }

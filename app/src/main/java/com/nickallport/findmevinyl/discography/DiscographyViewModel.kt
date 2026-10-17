@@ -207,8 +207,18 @@ class DiscographyViewModel(
         formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false,
         statuses = album.statuses?.let(ReleaseStatuses::decode),
         userFormats = ReleaseFormats.decodeUser(album.userFormats),
-        note = album.userNote
+        note = album.userNote,
+        myPressingId = album.myPressingId,
+        myPressingText = album.myPressingText
     )
+
+    /**
+     * Keeps [pressing], one of the album's MusicBrainz pressings, as the user's own copy, with a line that
+     * describes it as it is now. Null takes it away.
+     */
+    suspend fun saveMyPressing(albumId: String, pressing: Pressing?) {
+        albumDao.setMyPressing(albumId, pressing?.releaseId, pressing?.let { PressingSummary.oneLine(it) })
+    }
 
     /**
      * Keeps what the user says about their own copy of an album: formats MusicBrainz does not list, and a
