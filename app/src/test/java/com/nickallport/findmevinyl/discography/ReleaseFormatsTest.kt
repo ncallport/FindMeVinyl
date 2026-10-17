@@ -97,4 +97,26 @@ class ReleaseFormatsTest {
         assertEquals("", ReleaseFormats.encode(emptyList()))
         assertEquals(emptyList<String>(), ReleaseFormats.decode(""))
     }
+
+    // The formats the user adds for their own copy.
+
+    @Test
+    fun `formats the user adds are kept as labels and read back in the usual order`() {
+        assertEquals("LP|CD", ReleaseFormats.encodeUser(listOf("CD", "LP")))
+        assertEquals(listOf("LP", "CD"), ReleaseFormats.decodeUser("CD|LP"))
+    }
+
+    @Test
+    fun `a label that is not a format is dropped and each is kept once`() {
+        assertEquals(listOf("LP"), ReleaseFormats.decodeUser("LP|nonsense|LP"))
+        assertEquals("LP", ReleaseFormats.encodeUser(listOf("LP", "LP", "nonsense")))
+    }
+
+    @Test
+    fun `nothing stored means no formats, and no formats store as null`() {
+        assertEquals(emptyList<String>(), ReleaseFormats.decodeUser(null))
+        assertEquals(emptyList<String>(), ReleaseFormats.decodeUser(""))
+        assertEquals(null, ReleaseFormats.encodeUserOrNull(emptyList()))
+        assertEquals("CD", ReleaseFormats.encodeUserOrNull(listOf("CD")))
+    }
 }

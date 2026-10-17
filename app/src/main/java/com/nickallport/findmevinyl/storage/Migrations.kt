@@ -100,3 +100,11 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE `favourite_shops` ADD COLUMN `mapsLink` TEXT")
     }
 }
+
+/** Adds what the user says about their own copy of an album: formats MusicBrainz does not list, and a note. */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userFormats` TEXT")
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userNote` TEXT")
+    }
+}

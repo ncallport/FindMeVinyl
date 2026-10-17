@@ -26,6 +26,19 @@ object ReleaseFormats {
 
     private val cdWord = Regex("""\bCD\b""")
 
+    /**
+     * The formats the user says their own copy is on, which are labels already, kept in the usual order, each
+     * once. Anything that is not a label is dropped.
+     */
+    fun encodeUser(labels: Collection<String>): String =
+        labels.filter { it in displayOrder }.distinct().sortedBy { displayOrder.indexOf(it) }.joinToString(SEPARATOR)
+
+    /** [encodeUser], or null when there is nothing to keep. */
+    fun encodeUserOrNull(labels: Collection<String>): String? = encodeUser(labels).ifEmpty { null }
+
+    fun decodeUser(stored: String?): List<String> =
+        stored.orEmpty().split(SEPARATOR).filter { it in displayOrder }.distinct().sortedBy { displayOrder.indexOf(it) }
+
     /** The raw names as one string for the database. A comma will not do: some names contain one. */
     fun encode(names: Collection<String>): String = names.distinct().sorted().joinToString(SEPARATOR)
 

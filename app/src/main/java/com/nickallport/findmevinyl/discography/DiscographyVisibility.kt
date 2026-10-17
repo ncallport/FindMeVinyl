@@ -54,12 +54,15 @@ object DiscographyVisibility {
     }
 
     private fun withDisplayFormats(album: AlbumUiModel, settings: Settings): AlbumUiModel {
-        val formats = album.formats ?: return album
-        return album.copy(formats = displayFormats(formats, settings))
+        val hidden = hiddenFormats(settings)
+        // The formats the user added are left out when hidden, with nothing kept in their place.
+        val userFormats = album.userFormats.filterNot { it in hidden }
+        val formats = album.formats ?: return album.copy(userFormats = userFormats)
+        return album.copy(formats = displayFormats(formats, settings), userFormats = userFormats)
     }
 
     private fun formatsHidden(album: AlbumUiModel, settings: Settings): Boolean {
-        val formats = album.formats?.takeIf { it.isNotEmpty() } ?: return false
+        val formats = album.shownFormats?.takeIf { it.isNotEmpty() } ?: return false
         val hidden = hiddenFormats(settings)
         return formats.all { it in hidden }
     }

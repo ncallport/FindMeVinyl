@@ -14,7 +14,7 @@ object FormatFilter {
 
     /** The formats found on the albums so far, in display order, each with the number of albums that have it. */
     fun options(albums: Collection<AlbumUiModel>): List<FormatOption> {
-        val counts = albums.flatMap { it.formats.orEmpty().distinct() }.groupingBy { it }.eachCount()
+        val counts = albums.flatMap { it.shownFormats.orEmpty() }.groupingBy { it }.eachCount()
         return ReleaseFormats.displayOrder.mapNotNull { label -> counts[label]?.let { FormatOption(label, it) } }
     }
 
@@ -31,7 +31,7 @@ object FormatFilter {
     ): Map<DiscographyCategory, List<AlbumUiModel>> {
         if (selected == null) return grouped
         return grouped
-            .mapValues { (_, albums) -> albums.filter { it.formats == null || selected in it.formats } }
+            .mapValues { (_, albums) -> albums.filter { it.formats == null || selected in it.shownFormats.orEmpty() } }
             .filterValues { it.isNotEmpty() }
     }
 }

@@ -23,5 +23,13 @@ data class AlbumEntity(
      * The statuses of the album's releases (`Official`, `Promotion`, `Bootleg`, `Other`), each once, sorted,
      * joined with `|`. Null: never fetched. Empty: fetched and no releases were listed.
      */
-    val statuses: String? = null
+    val statuses: String? = null,
+    /**
+     * The formats the user says their own copy is on, as labels (LP, CD, ...) joined with `|`, for when
+     * MusicBrainz does not list the release. Added to [formats], never replacing them, and never touched
+     * by a lookup. Null: none added.
+     */
+    val userFormats: String? = null,
+    /** The user's own note about their copy, such as the country or the language of the sleeve. Null: none. */
+    val userNote: String? = null
 )

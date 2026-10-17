@@ -297,7 +297,9 @@ private fun DiscographyUiState.Success.withSavedValuesFrom(saved: DiscographyUiS
                 wanted = savedAlbum.wanted,
                 formats = savedAlbum.formats ?: album.formats,
                 formatsStale = if (savedAlbum.formats != null) savedAlbum.formatsStale else album.formatsStale,
-                statuses = savedAlbum.statuses ?: album.statuses
+                statuses = savedAlbum.statuses ?: album.statuses,
+                userFormats = savedAlbum.userFormats,
+                note = savedAlbum.note
             )
         } ?: album
     }

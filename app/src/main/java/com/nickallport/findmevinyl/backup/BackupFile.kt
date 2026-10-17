@@ -31,7 +31,10 @@ data class BackupArtist(
     val position: Int? = null
 )
 
-/** An album the user owns or wants. Albums that are neither are not saved: the discography brings them back. */
+/**
+ * An album the user owns or wants, or has recorded details of a copy for. Other albums are not saved: the
+ * discography brings them back.
+ */
 data class BackupAlbum(
     val id: String? = null,
     val artistId: String? = null,
@@ -40,7 +43,10 @@ data class BackupAlbum(
     val firstReleaseDate: String? = null,
     val owned: Boolean? = null,
     val wanted: Boolean? = null,
-    val wantPosition: Int? = null
+    val wantPosition: Int? = null,
+    /** Formats the user added for their copy, as labels joined with `|`. */
+    val userFormats: String? = null,
+    val userNote: String? = null
 )
 
 /** A photo the user chose. The bytes are in the zip as `photos/{fileName}`. */

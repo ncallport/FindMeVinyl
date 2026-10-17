@@ -205,8 +205,23 @@ class DiscographyViewModel(
         wanted = album.wanted,
         formats = album.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
         formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false,
-        statuses = album.statuses?.let(ReleaseStatuses::decode)
+        statuses = album.statuses?.let(ReleaseStatuses::decode),
+        userFormats = ReleaseFormats.decodeUser(album.userFormats),
+        note = album.userNote
     )
+
+    /**
+     * Keeps what the user says about their own copy of an album: formats MusicBrainz does not list, and a
+     * note. The formats are added to MusicBrainz's and never replace them, and a lookup never touches them.
+     * Labels that are not formats are dropped, a blank note is not kept, and no formats and no note clear it.
+     */
+    suspend fun saveCopy(albumId: String, formats: List<String>, note: String) {
+        albumDao.setCopy(
+            albumId,
+            ReleaseFormats.encodeUserOrNull(formats),
+            note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null }
+        )
+    }
 
     /**
      * The final state of [discography]: the whole discography once every page has loaded.
@@ -339,3 +354,6 @@ class DiscographyViewModel(
         artistDao.deleteById(artistId)
     }
 }
+
+/** The longest note about a copy that is kept. */
+const val MAX_NOTE_LENGTH = 500
