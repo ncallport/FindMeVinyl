@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.ReleaseFormats
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,7 +16,7 @@ import androidx.compose.ui.platform.testTag
 /**
  * The formats an album came out on, such as "LP · CD · MC". Stored formats show at once. When there
  * are none, or they are stale, the formats are looked up. A failed lookup shows nothing new and is
- * tried again the next time the row scrolls into view, not in a loop. With [checkingWhenUnknown],
+ * tried again the next time the row scrolls into view, not in a loop. [userFormats] are added to what is found. With [checkingWhenUnknown],
  * an album that has no stored formats says "Checking formats…" while its lookup runs.
  */
 @Composable
@@ -25,7 +26,9 @@ fun FormatLabels(
     stale: Boolean,
     loadFormats: suspend (String) -> List<String>?,
     modifier: Modifier = Modifier,
-    checkingWhenUnknown: Boolean = false
+    checkingWhenUnknown: Boolean = false,
+    /** Formats the user added for their own copy. They are shown with the others, and are not looked up. */
+    userFormats: List<String> = emptyList()
 ) {
     val currentLoadFormats by rememberUpdatedState(loadFormats)
     var found by remember(albumId) { mutableStateOf<List<String>?>(null) }
@@ -39,8 +42,9 @@ fun FormatLabels(
         }
     }
 
-    val shown = found ?: formats
-    if (!shown.isNullOrEmpty()) {
+    val shown = ((found ?: formats).orEmpty() + userFormats).distinct()
+        .sortedBy { ReleaseFormats.displayOrder.indexOf(it) }
+    if (shown.isNotEmpty()) {
         Text(
             text = shown.joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,

@@ -584,4 +584,100 @@ class BackupViewModelTest {
         assertEquals("https://maps.app.goo.gl/Q4Xy2CQNv29QYFyCA", fresh.favouriteShopDao().get("custom/abc")?.mapsLink)
         fresh.close()
     }
+
+    // Details of the user's own copy of an album.
+
+    @Test
+    fun `the backup carries the formats and note of a copy`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setCopy("1", "LP", "BMG vinyl")
+
+        val text = String(entries(backup()).getValue("backup.json"))
+
+        assertTrue(text.contains("\"userFormats\":\"LP\""))
+        assertTrue(text.contains("\"userNote\":\"BMG vinyl\""))
+    }
+
+    @Test
+    fun `restoring into an empty phone brings the copy details back`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setCopy("1", "LP|CD", "BMG vinyl")
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("1")!!
+        assertEquals("LP|CD", restored.userFormats)
+        assertEquals("BMG vinyl", restored.userNote)
+        fresh.close()
+    }
+
+    @Test
+    fun `an album that was sold but has details of a copy is kept by the backup`() = runBlocking {
+        database.albumDao().insert(album("1"))
+        database.albumDao().setCopy("1", null, "Sold in 2020")
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("1")!!
+        assertEquals("Sold in 2020", restored.userNote)
+        assertFalse(restored.owned)
+        fresh.close()
+    }
+
+    @Test
+    fun `copy details already on the phone are not replaced by the ones in the backup`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setCopy("1", "LP", "from the backup")
+        val saved = backup()
+        database.albumDao().setCopy("1", "CD", "written on the phone")
+
+        restore(saved)
+
+        val kept = database.albumDao().getById("1")!!
+        assertEquals("CD", kept.userFormats)
+        assertEquals("written on the phone", kept.userNote)
+    }
+
+    @Test
+    fun `an album on the phone with no copy details takes them from the backup`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setCopy("1", "LP", "from the backup")
+        val saved = backup()
+        database.albumDao().setCopy("1", null, null)
+
+        val result = restore(saved) as RestoreResult.Done
+
+        assertEquals("LP", database.albumDao().getById("1")!!.userFormats)
+        assertEquals(1, result.albums)
+    }
+
+    @Test
+    fun `formats that are not formats are dropped and a long note is cut when restoring`() = runBlocking {
+        val note = "x".repeat(2000)
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"userFormats":"LP|nonsense","userNote":"$note"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("1")!!
+        assertEquals("LP", restored.userFormats)
+        assertEquals(500, restored.userNote!!.length)
+        fresh.close()
+    }
+
+    @Test
+    fun `restoring the same file again changes nothing about the copy`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        database.albumDao().setCopy("1", "LP", "BMG vinyl")
+        val saved = backup()
+
+        val second = restore(saved) as RestoreResult.Done
+
+        assertEquals(0, second.albums)
+        assertEquals("LP", database.albumDao().getById("1")!!.userFormats)
+    }
 }

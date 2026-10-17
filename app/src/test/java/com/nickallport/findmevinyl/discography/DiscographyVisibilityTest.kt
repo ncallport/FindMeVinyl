@@ -360,4 +360,40 @@ class DiscographyVisibilityTest {
 
         assertEquals(1, result.hiddenCount)
     }
+
+    // Formats the user added for their own copy.
+
+    private fun copyAlbum(id: String, formats: List<String>?, userFormats: List<String>) =
+        AlbumUiModel(id = id, title = "Album $id", owned = false, wanted = false, formats = formats, userFormats = userFormats)
+
+    @Test
+    fun `an album only on a hidden format is shown when the user added a format that is not hidden`() {
+        val cdOnly = copyAlbum("1", listOf("CD"), listOf("LP"))
+        val settings = Settings.ShowEverything.copy(hideCds = true)
+
+        val result = DiscographyVisibility.apply(grouped(studio to listOf(cdOnly)), settings)
+
+        assertEquals(listOf("1"), ids(result, studio))
+    }
+
+    @Test
+    fun `an album whose formats are all hidden, the added ones too, is hidden`() {
+        val cds = copyAlbum("1", listOf("CD"), listOf("CD"))
+        val settings = Settings.ShowEverything.copy(hideCds = true)
+
+        val result = DiscographyVisibility.apply(grouped(studio to listOf(cds)), settings)
+
+        assertEquals(emptyList<String>(), ids(result, studio))
+    }
+
+    @Test
+    fun `a hidden format is also taken out of the formats the user added`() {
+        val both = copyAlbum("1", listOf("LP"), listOf("CD", "7\""))
+        val settings = Settings.ShowEverything.copy(hideCds = true)
+
+        val shown = DiscographyVisibility.apply(grouped(studio to listOf(both)), settings).shown.getValue(studio).single()
+
+        assertEquals(listOf("7\""), shown.userFormats)
+        assertEquals(listOf("LP"), shown.formats)
+    }
 }

@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.backup
 
+import com.nickallport.findmevinyl.discography.ReleaseFormats
+import com.nickallport.findmevinyl.discography.MAX_NOTE_LENGTH
 import android.graphics.BitmapFactory
 import androidx.room.withTransaction
 import com.google.gson.Gson
@@ -65,7 +67,10 @@ class BackupViewModel(
             exportedAt = clock(),
             favourites = artists.map { BackupArtist(it.id, it.name, it.type, it.country, it.position) },
             albums = albums.map {
-                BackupAlbum(it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition)
+                BackupAlbum(
+                    it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
+                    it.userFormats, it.userNote
+                )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
             shops = shops.map {
@@ -175,25 +180,39 @@ class BackupViewModel(
             val artistId = album.artistId?.takeIf { it.isNotBlank() } ?: continue
             val owned = album.owned == true
             val wanted = album.wanted == true && !owned
-            if (!owned && !wanted) continue
+            // The details of a copy are checked as they are when the user saves them, whatever the file says.
+            val copyFormats = ReleaseFormats.encodeUserOrNull(ReleaseFormats.decodeUser(album.userFormats))
+            val copyNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
+            val hasCopy = copyFormats != null || copyNote != null
+            if (!owned && !wanted && !hasCopy) continue
 
             val existing = albumDao.getById(id)
+            var changed = false
             if (existing == null) {
                 albumDao.insertIfNotExists(
                     AlbumEntity(
                         id, artistId, album.title.orEmpty(), album.category ?: "OTHER", album.firstReleaseDate,
-                        owned, wanted, wantPosition = album.wantPosition ?: 0
+                        owned, wanted, wantPosition = album.wantPosition ?: 0,
+                        userFormats = copyFormats, userNote = copyNote
                     )
                 )
-                albums++
-            } else if (owned && !existing.owned) {
-                albumDao.setOwned(id, true)
-                if (existing.wanted) albumDao.setWanted(id, false)
-                albums++
-            } else if (wanted && !existing.owned && !existing.wanted) {
-                albumDao.setWantedAt(id, album.wantPosition ?: 0)
-                albums++
+                changed = true
+            } else {
+                if (owned && !existing.owned) {
+                    albumDao.setOwned(id, true)
+                    if (existing.wanted) albumDao.setWanted(id, false)
+                    changed = true
+                } else if (wanted && !existing.owned && !existing.wanted) {
+                    albumDao.setWantedAt(id, album.wantPosition ?: 0)
+                    changed = true
+                }
+                // Details already on the phone are kept: restoring only adds.
+                if (hasCopy && existing.userFormats == null && existing.userNote == null) {
+                    albumDao.setCopy(id, copyFormats, copyNote)
+                    changed = true
+                }
             }
+            if (changed) albums++
         }
 
         var photos = 0

@@ -69,7 +69,9 @@ fun AlbumDetailScreen(
     onToggleWanted: () -> Unit,
     loadCover: suspend (String) -> Bitmap?,
     modifier: Modifier = Modifier,
-    onSelectPressing: (String) -> Unit = {}
+    onSelectPressing: (String) -> Unit = {},
+    /** Saves the formats and the note the user gives for their own copy of an album they own. */
+    onSaveCopy: (formats: List<String>, note: String) -> Unit = { _, _ -> }
 ) {
     Column(
         modifier = modifier
@@ -113,6 +115,10 @@ fun AlbumDetailScreen(
                         Text(if (album.wanted) "Wanted" else "+ Want")
                     }
                 }
+            }
+            if (album.owned) {
+                Spacer(Modifier.height(16.dp))
+                MyCopySection(album = album, onSave = onSaveCopy)
             }
         }
 

@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .allowMainThreadQueries()
             .build()
 
@@ -781,6 +781,35 @@ class MigrationTest {
         database.favouriteShopDao().save(database.favouriteShopDao().get("node/1")!!.copy(mapsLink = "https://maps.app.goo.gl/x"))
 
         assertEquals("https://maps.app.goo.gl/x", database.favouriteShopDao().get("node/1")?.mapsLink)
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database keeps its albums when they get the copy columns`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        val foxtrot = database.albumDao().getById("1")!!
+
+        assertTrue(foxtrot.owned)
+        assertEquals("CD", foxtrot.formats)
+        assertEquals("Official", foxtrot.statuses)
+        assertNull(foxtrot.userFormats)
+        assertNull(foxtrot.userNote)
+        database.close()
+    }
+
+    @Test
+    fun `an upgraded album can keep details of the user's copy`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        database.albumDao().setCopy("1", "LP", "Portuguese pressing")
+
+        val foxtrot = database.albumDao().getById("1")!!
+        assertEquals("LP", foxtrot.userFormats)
+        assertEquals("Portuguese pressing", foxtrot.userNote)
+        assertEquals("CD", foxtrot.formats)
         database.close()
     }
 }

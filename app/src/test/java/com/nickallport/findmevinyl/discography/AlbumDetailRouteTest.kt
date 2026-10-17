@@ -206,4 +206,32 @@ class AlbumDetailRouteTest {
 
         assertEquals(1, loads)
     }
+
+    @Test
+    fun `saving the copy hands it over and the page then shows what is stored`() {
+        album = AlbumUiModel("1", "Trespass", owned = true, wanted = false)
+        val saves = mutableListOf<Triple<String, List<String>, String>>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailRoute(
+                    albumId = "1", title = "Trespass", artistName = "Genesis",
+                    loadDetails = { details }, loadAlbum = { album },
+                    onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
+                    saveCopy = { id, formats, note ->
+                        saves.add(Triple(id, formats, note))
+                        album = album.copy(userFormats = formats, note = note)
+                    }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("my_copy_format_LP").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("my_copy_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf(Triple("1", listOf("LP"), "")), saves)
+        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextEquals("Formats you added: LP")
+    }
 }

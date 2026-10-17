@@ -106,4 +106,39 @@ class FormatFilterTest {
 
         assertEquals(emptyMap<DiscographyCategory, List<AlbumUiModel>>(), FormatFilter.apply(grouped, "MC"))
     }
+
+    // Formats the user added for their own copy count like the others.
+
+    private fun copyAlbum(id: String, formats: List<String>?, userFormats: List<String>) =
+        AlbumUiModel(id = id, title = "Album $id", owned = true, wanted = false, formats = formats, userFormats = userFormats)
+
+    @Test
+    fun `a format the user added is counted with the ones MusicBrainz lists`() {
+        val albums = listOf(copyAlbum("1", listOf("CD"), listOf("LP")), album("2", listOf("LP", "CD")))
+
+        assertEquals(listOf(FormatOption("LP", 2), FormatOption("CD", 2)), FormatFilter.options(albums))
+    }
+
+    @Test
+    fun `a format the user added is counted even before MusicBrainz has been asked, and the album is still unchecked`() {
+        val albums = listOf(copyAlbum("1", null, listOf("LP")))
+
+        assertEquals(listOf(FormatOption("LP", 1)), FormatFilter.options(albums))
+        assertEquals(1, FormatFilter.unchecked(albums))
+    }
+
+    @Test
+    fun `choosing a format keeps an album that has it only because the user added it`() {
+        val grouped = mapOf(
+            studio to listOf(
+                copyAlbum("1", listOf("CD"), listOf("LP")),
+                copyAlbum("2", listOf("CD"), emptyList()),
+                copyAlbum("3", null, emptyList())
+            )
+        )
+
+        val kept = FormatFilter.apply(grouped, selected = "LP").getValue(studio).map { it.id }
+
+        assertEquals(listOf("1", "3"), kept)
+    }
 }

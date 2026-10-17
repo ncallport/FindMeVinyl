@@ -33,7 +33,9 @@ fun AlbumDetailRoute(
     onToggleWanted: suspend (albumId: String, currentlyWanted: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     loadCover: suspend (String) -> Bitmap? = { null },
-    loadPressing: suspend (albumId: String, releaseId: String) -> AlbumDetails? = { _, _ -> null }
+    loadPressing: suspend (albumId: String, releaseId: String) -> AlbumDetails? = { _, _ -> null },
+    /** Keeps the formats and the note the user gives for their copy. The album is read again after it. */
+    saveCopy: suspend (albumId: String, formats: List<String>, note: String) -> Unit = { _, _, _ -> }
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -83,6 +85,12 @@ fun AlbumDetailRoute(
             val current = album ?: return@AlbumDetailScreen
             coroutineScope.launch {
                 onToggleWanted(albumId, current.wanted)
+                album = loadAlbum(albumId)
+            }
+        },
+        onSaveCopy = { formats, note ->
+            coroutineScope.launch {
+                saveCopy(albumId, formats, note)
                 album = loadAlbum(albumId)
             }
         },

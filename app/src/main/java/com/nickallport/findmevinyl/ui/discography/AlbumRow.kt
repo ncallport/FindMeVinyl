@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.ReleaseFormats
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,8 +33,23 @@ data class AlbumUiModel(
     /** The stored formats are old enough to look up again. They are still shown meanwhile. */
     val formatsStale: Boolean = false,
     /** The statuses of the album's releases (see `ReleaseStatuses`). Null: not looked up yet. Empty: none listed. */
-    val statuses: List<String>? = null
-)
+    val statuses: List<String>? = null,
+    /** Formats the user says their own copy is on, added to [formats]. Labels, in the usual order. */
+    val userFormats: List<String> = emptyList(),
+    /** The user's own note about their copy. */
+    val note: String? = null
+) {
+    /**
+     * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.
+     * Null while neither is known. [formats] alone says whether the album has been looked up.
+     */
+    val shownFormats: List<String>?
+        get() = if (formats == null && userFormats.isEmpty()) {
+            null
+        } else {
+            (formats.orEmpty() + userFormats).distinct().sortedBy { ReleaseFormats.displayOrder.indexOf(it) }
+        }
+}
 
 @Composable
 fun AlbumRow(
@@ -69,6 +85,7 @@ fun AlbumRow(
                 FormatLabels(
                     albumId = album.id,
                     formats = album.formats,
+                    userFormats = album.userFormats,
                     stale = album.formatsStale,
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats

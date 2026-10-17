@@ -223,4 +223,48 @@ class FormatLabelsTest {
         assertEquals(listOf("1"), asked)
         composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP")
     }
+
+    // Formats the user added for their own copy.
+
+    @Test
+    fun `shows the formats the user added after the stored ones, once each, in the usual order`() {
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = listOf("CD"), stale = false, loadFormats = { null },
+                userFormats = listOf("LP", "CD")
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP${dot}CD")
+    }
+
+    @Test
+    fun `shows an added format while the stored ones are not known yet, and still asks for them`() {
+        val asked = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = null, stale = false,
+                loadFormats = { id -> asked.add(id); null }, userFormats = listOf("LP")
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP")
+        assertEquals(listOf("1"), asked)
+    }
+
+    @Test
+    fun `an added format joins what a lookup finds`() {
+        composeTestRule.setContent {
+            FormatLabels(
+                albumId = "1", formats = null, stale = false, loadFormats = { listOf("CD") },
+                userFormats = listOf("LP")
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("format_labels").assertTextEquals("LP${dot}CD")
+    }
 }
