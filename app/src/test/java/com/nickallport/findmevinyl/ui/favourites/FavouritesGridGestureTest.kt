@@ -68,25 +68,13 @@ class FavouritesGridGestureTest {
     }
 
     @Test
-    fun `holding a picture shows the name of the artist, which a picture does not show on its own`() {
-        show()
-        rule.onNodeWithText("Roxy Music").assertDoesNotExist()
-
-        hold("1")
-
-        rule.onNodeWithText("Roxy Music").assertExists()
-        rule.onNodeWithTag("favourite_artist_1").performTouchInput { up() }
-    }
-
-    @Test
-    fun `the name goes again when the finger is lifted, and the artist is not opened or moved`() {
+    fun `holding a picture and lifting the finger in the same place does not open the artist or move it`() {
         show()
 
         hold("1")
         rule.onNodeWithTag("favourite_artist_1").performTouchInput { up() }
         rule.waitForIdle()
 
-        rule.onNodeWithText("Roxy Music").assertDoesNotExist()
         assertNull(selected)
         assertNull(reordered)
     }
@@ -135,11 +123,11 @@ class FavouritesGridGestureTest {
     }
 
     @Test
-    fun `the hint tells how to see the name and to move a picture`() {
+    fun `the hint tells how to move a picture`() {
         show()
 
         rule.onNodeWithTag("favourites_grid_hint").assertExists()
-        rule.onNodeWithText("Touch and hold a picture to see its name. Keep holding and drag it to move it.").assertExists()
+        rule.onNodeWithText("Touch and hold a picture, then drag it to move it.").assertExists()
     }
 
     @Test
@@ -161,5 +149,31 @@ class FavouritesGridGestureTest {
 
         assertEquals(listOf(listOf("2", "3", "1")), passed)
         assertEquals(true, xOf("1") > xOf("3"))
+    }
+
+    @Test
+    fun `a second drag still moves the other pictures aside while the finger is down`() {
+        var stored = three
+        rule.setContent {
+            FavouritesRoute(
+                load = { stored }, onArtistSelected = {}, grid = true, loadArtistImage = { picture() },
+                onReorder = { ids -> stored = ids.map { id -> three.first { it.id == id } } }
+            )
+        }
+        rule.waitForIdle()
+
+        // First drag: 1 to the end, and the route reads the list again.
+        hold("1")
+        rule.onNodeWithTag("favourite_artist_1").performTouchInput { moveBy(Offset(xOf("3") - xOf("1"), 0f)); up() }
+        rule.waitForIdle()
+
+        // Second drag: 2 (now first) to the end. Before the finger is lifted, 3 must already have moved to its place.
+        val third = xOf("1")
+        hold("2")
+        rule.onNodeWithTag("favourite_artist_2").performTouchInput { moveBy(Offset(third - xOf("2"), 0f)) }
+        rule.waitForIdle()
+
+        assertEquals(true, xOf("2") > xOf("3"))
+        rule.onNodeWithTag("favourite_artist_2").performTouchInput { up() }
     }
 }

@@ -93,7 +93,7 @@ fun FavouritesScreen(
         Column(modifier = modifier) {
             if (grid) {
                 Text(
-                    text = "Touch and hold a picture to see its name. Keep holding and drag it to move it.",
+                    text = "Touch and hold a picture, then drag it to move it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag("favourites_grid_hint")
@@ -163,8 +163,12 @@ private fun ArtistGrid(
     modifier: Modifier = Modifier
 ) {
     val gridState = rememberLazyGridState()
-    var order by remember(artists) { mutableStateOf(artists) }
+    // One state for the life of the grid: the gesture below is set up once and keeps the state it first saw,
+    // so a state made anew for each reloaded list would leave it moving pictures nobody sees.
+    var order by remember { mutableStateOf(artists) }
     var liftedId by remember { mutableStateOf<String?>(null) }
+    // A list read again (after a drop, or a favourite added) replaces the order, but never under a held picture.
+    LaunchedEffect(artists) { if (liftedId == null) order = artists }
     var finger by remember { mutableStateOf(Offset.Zero) }
     val currentOnReorder by rememberUpdatedState(onReorder)
     val edge = with(LocalDensity.current) { 56.dp.toPx() }
@@ -272,9 +276,8 @@ private fun ArtistGrid(
 }
 
 /**
- * One artist in the grid: the picture, filling a square. The name is the description of the tile for a
- * screen reader, and is written on the tile while it has no picture, since a record on its own does
- * not say who it is, and while it is held.
+ * One artist in the grid: the picture, filling a square, with the name along the bottom on a dark bar, cut
+ * to one line with an ellipsis when it is long. The name is also the description of the tile for a screen reader.
  */
 @Composable
 private fun ArtistTile(
@@ -288,8 +291,6 @@ private fun ArtistTile(
     onShownChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var hasPicture by remember(artist.id) { mutableStateOf(false) }
-
     Box(
         modifier = modifier
             .testTag("favourite_artist_${artist.id}")
@@ -311,25 +312,20 @@ private fun ArtistTile(
             artistId = artist.id,
             loadImage = loadArtistImage,
             fillSize = true,
-            onShownChange = { shown ->
-                hasPicture = shown
-                onShownChange(shown)
-            }
+            onShownChange = onShownChange
         )
-        if (!hasPicture || lifted) {
-            Text(
-                text = artist.name,
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-        }
+        Text(
+            text = artist.name,
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        )
     }
 }

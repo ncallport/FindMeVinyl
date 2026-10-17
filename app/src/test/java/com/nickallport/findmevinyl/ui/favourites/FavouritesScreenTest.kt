@@ -210,7 +210,7 @@ class FavouritesScreenTest {
     }
 
     @Test
-    fun `a tile with a picture shows no name, and one without a picture shows its name so it can be told apart`() {
+    fun `every tile shows the name of its artist, whether or not it has a picture`() {
         composeTestRule.setContent {
             FavouritesScreen(
                 artists = twoArtists, onArtistSelected = {}, grid = true,
@@ -219,7 +219,7 @@ class FavouritesScreenTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Roxy Music").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Roxy Music").assertExists()
         composeTestRule.onNodeWithText("The Smiths").assertExists()
     }
 
