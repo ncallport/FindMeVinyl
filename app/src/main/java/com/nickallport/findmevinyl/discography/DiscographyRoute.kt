@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -185,7 +186,7 @@ fun DiscographyRoute(
         Box(modifier = Modifier.weight(1f)) {
             when (val currentState = loadState) {
                 is LoadState.Loading -> {
-                    RecordSpinner(modifier = Modifier.testTag("loading_indicator"))
+                    RecordSpinner(modifier = Modifier.fillMaxWidth().padding(16.dp).testTag("loading_indicator"))
                 }
                 is LoadState.Loaded -> {
                     when (val uiState = currentState.state) {
