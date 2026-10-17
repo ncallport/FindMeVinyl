@@ -20,7 +20,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 
 ## What it does
 
-- Search for an artist and see their whole discography, grouped into studio albums, EPs, singles, live albums, compilations and others, with a cover for each.
+- Search for an artist, with suggestions as you type (your favourites first), and see their whole discography, grouped into studio albums, EPs, singles, live albums, compilations and others, with a cover for each.
 - See which formats each album came out on (LP, 12", 7", CD, cassette, digital), and filter by one.
 - Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Owned first switch groups what you own at the top, and the app remembers it for each artist.
 - Open an album for its pressings, label and catalogue numbers, tracklist by side, genres and rating.
@@ -37,7 +37,7 @@ The app talks to these public services. None needs an account or a key. They are
 
 | Service | What the app uses it for |
 | --- | --- |
-| [MusicBrainz](https://musicbrainz.org) | Artist search, discographies, the formats, status, label and release date of each release, tracklists, genres, ratings, and the link to an artist's Wikidata item. It asks for about one request a second, and the app stays under that. Its User-Agent includes a contact address, which MusicBrainz asks for. |
+| [MusicBrainz](https://musicbrainz.org) | Artist search (including the suggestions while you type: asked once typing pauses, after three letters, five artists, and kept until the app closes), discographies, the formats, status, label and release date of each release, tracklists, genres, ratings, and the link to an artist's Wikidata item. It asks for about one request a second, and the app stays under that. Its User-Agent includes a contact address, which MusicBrainz asks for. |
 | [Cover Art Archive](https://coverartarchive.org) | The cover of each album, by MusicBrainz id. |
 | [Wikidata](https://www.wikidata.org) and [Wikimedia Commons](https://commons.wikimedia.org) | The picture of an artist. MusicBrainz gives the Wikidata item, Wikidata gives the file name of the picture, and Commons serves it. The app never matches an artist to a picture by name. The photos are credited on the screens that show them. |
 | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) | Turns a town name into a position, and a position into a region, which decides which public holidays apply. |
@@ -51,7 +51,7 @@ Answers are kept on the phone for a while (formats for 30 days, album pages and 
 
 ## Privacy
 
-The app has no analytics and no server of its own. Your favourites (artists and shops), owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Adding a shop from a Google Maps link sends that link to Google, and nothing else, so the app can read the name and address. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else. What you type in the Shops search is sent to Photon while you type (once you pause, after three letters) to suggest places, along with the app's User-Agent, which includes the contact address from your `local.properties`.
+The app has no analytics and no server of its own. Your favourites (artists and shops), owned and wanted albums, photos and settings are stored on the phone only, and leave it only when you make a backup or share the want list. Adding a shop from a Google Maps link sends that link to Google, and nothing else, so the app can read the name and address. Your position is used when you search for shops: it is sent to the OpenStreetMap services above to find them. It is not stored anywhere else. What you type in the artist search is also sent to MusicBrainz while you type, to suggest artists. What you type in the Shops search is sent to Photon while you type (once you pause, after three letters) to suggest places, along with the app's User-Agent, which includes the contact address from your `local.properties`.
 
 ## Building it
 

@@ -11,6 +11,8 @@ interface MusicBrainzApi {
     suspend fun searchArtists(
         @Query("query") query: String,
         @Query("fmt") format: String = "json",
+        /** How many artists to ask for. MusicBrainz sends 25 when this is left out. */
+        @Query("limit") limit: Int? = null,
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzArtistSearchResponse
 

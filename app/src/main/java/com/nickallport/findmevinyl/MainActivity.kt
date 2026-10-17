@@ -50,6 +50,7 @@ import com.nickallport.findmevinyl.discography.AlbumDetailsViewModel
 import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
 import com.nickallport.findmevinyl.favourites.FavouritesViewModel
+import com.nickallport.findmevinyl.artist.ArtistSuggester
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
@@ -243,6 +244,7 @@ class MainActivity : ComponentActivity() {
 
         val api = MusicBrainzApiFactory.create()
         val searchViewModel = ArtistSearchViewModel(api)
+        val artistSuggester = ArtistSuggester(api)
         val artistImageViewModel = ArtistImageViewModel(
             ArtistImageFinder(api, WikidataApiFactory.create()),
             database.artistImageDao()
@@ -322,6 +324,7 @@ class MainActivity : ComponentActivity() {
                         is Screen.Search -> {
                             ArtistsScreen(
                                 onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
+                                suggestArtists = { text -> artistSuggester.suggest(text) },
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
                                 onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
                                 onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
