@@ -2,6 +2,24 @@ package com.nickallport.findmevinyl.ui.favourites
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.withTimeoutOrNull
+import com.nickallport.findmevinyl.ordering.Reorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,7 +78,9 @@ fun FavouritesScreen(
     onMoveUp: (String) -> Unit = {},
     onMoveDown: (String) -> Unit = {},
     /** Show pictures only, as a grid, instead of the list with names and move buttons. */
-    grid: Boolean = false
+    grid: Boolean = false,
+    /** The ids in their new order, after a picture in the grid was dragged to a new place. */
+    onReorder: (List<String>) -> Unit = {}
 ) {
     if (artists.isEmpty()) {
         Text(
@@ -73,27 +93,19 @@ fun FavouritesScreen(
         Column(modifier = modifier) {
             if (grid) {
                 Text(
-                    text = "Pictures only. Switch to the list to change the order.",
+                    text = "Touch and hold a picture to see its name. Keep holding and drag it to move it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag("favourites_grid_hint")
                 )
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 76.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ArtistGrid(
+                    artists = artists,
+                    loadArtistImage = loadArtistImage,
+                    onArtistSelected = onArtistSelected,
+                    onReorder = onReorder,
+                    onShownChange = { shown -> picturesShown += if (shown) 1 else -1 },
                     modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    items(artists, key = { it.id }) { artist ->
-                        ArtistTile(
-                            artist = artist,
-                            loadArtistImage = loadArtistImage,
-                            onClick = { onArtistSelected(artist) },
-                            onShownChange = { shown -> picturesShown += if (shown) 1 else -1 }
-                        )
-                    }
-                }
+                )
             } else LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 itemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
                     Row(
@@ -136,26 +148,164 @@ fun FavouritesScreen(
 }
 
 /**
+ * The grid of pictures. A quick touch opens the artist. Holding a picture lifts it and shows its name, and
+ * dragging it on moves it through the grid, the others making room. Lifting the finger keeps the new order
+ * ([onReorder]). The gesture is read once for the whole grid, because a tile that has moved to a new place
+ * cannot follow a finger that began on it.
+ */
+@Composable
+private fun ArtistGrid(
+    artists: List<FavouriteArtistUiModel>,
+    loadArtistImage: suspend (String) -> Bitmap?,
+    onArtistSelected: (FavouriteArtistUiModel) -> Unit,
+    onReorder: (List<String>) -> Unit,
+    onShownChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val gridState = rememberLazyGridState()
+    var order by remember(artists) { mutableStateOf(artists) }
+    var liftedId by remember { mutableStateOf<String?>(null) }
+    var finger by remember { mutableStateOf(Offset.Zero) }
+    val currentOnReorder by rememberUpdatedState(onReorder)
+    val edge = with(LocalDensity.current) { 56.dp.toPx() }
+    val scrollStep = with(LocalDensity.current) { 12.dp.toPx() }
+
+    fun idAt(at: Offset): String? = gridState.layoutInfo.visibleItemsInfo.firstOrNull {
+        at.x >= it.offset.x && at.x < it.offset.x + it.size.width &&
+            at.y >= it.offset.y && at.y < it.offset.y + it.size.height
+    }?.key as? String
+
+    // Moves the lifted picture to the place under [at], if there is another picture there.
+    fun moveLiftedTo(at: Offset) {
+        val id = liftedId ?: return
+        val over = idAt(at) ?: return
+        if (over == id) return
+        val target = order.indexOfFirst { it.id == over }
+        val moving = order.firstOrNull { it.id == id } ?: return
+        order = order.toMutableList().also { it.remove(moving); it.add(target, moving) }
+    }
+
+    // A finger held near the top or bottom edge scrolls the grid, so a picture can be taken a long way.
+    val scrollDirection = if (liftedId == null) 0 else {
+        val height = gridState.layoutInfo.viewportSize.height
+        when {
+            finger.y < edge -> -1
+            finger.y > height - edge -> 1
+            else -> 0
+        }
+    }
+    LaunchedEffect(scrollDirection) {
+        if (scrollDirection == 0) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            gridState.scrollBy(scrollDirection * scrollStep)
+            moveLiftedTo(finger)
+        }
+    }
+
+    LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Adaptive(minSize = 76.dp),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                // A touch lifted or moved on before the long press time is a tap or a scroll, which the tile and
+                // the grid handle themselves. Waiting in the first pass sees the touch before they take it.
+                val cancelled = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+                        if (change.changedToUp() || (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                            return@withTimeoutOrNull true
+                        }
+                    }
+                    @Suppress("UNREACHABLE_CODE")
+                    false
+                }
+                if (cancelled == true) return@awaitEachGesture
+                val startedAt = idAt(down.position) ?: return@awaitEachGesture
+                val before = order
+                liftedId = startedAt
+                finger = down.position
+                var dropped = false
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        // Taken here, so the grid does not scroll and the tile does not count it as a tap.
+                        event.changes.forEach { it.consume() }
+                        finger = change.position
+                        if (!change.pressed) {
+                            dropped = true
+                            break
+                        }
+                        moveLiftedTo(change.position)
+                    }
+                } finally {
+                    liftedId = null
+                    val ids = order.map { it.id }
+                    if (dropped && ids != before.map { it.id }) currentOnReorder(ids) else order = before
+                }
+            }
+        }
+    ) {
+        items(order, key = { it.id }) { artist ->
+            val index = order.indexOfFirst { it.id == artist.id }
+            ArtistTile(
+                artist = artist,
+                loadArtistImage = loadArtistImage,
+                lifted = artist.id == liftedId,
+                onClick = { onArtistSelected(artist) },
+                onMove = { delta ->
+                    Reorder.swapped(order.map { it.id }, artist.id, delta)?.let { currentOnReorder(it) }
+                },
+                canMoveEarlier = index > 0,
+                canMoveLater = index < order.lastIndex,
+                onShownChange = onShownChange,
+                modifier = Modifier.animateItem()
+            )
+        }
+    }
+}
+
+/**
  * One artist in the grid: the picture, filling a square. The name is the description of the tile for a
- * screen reader, and is written on the tile only while it has no picture, since a record on its own does
- * not say who it is.
+ * screen reader, and is written on the tile while it has no picture, since a record on its own does
+ * not say who it is, and while it is held.
  */
 @Composable
 private fun ArtistTile(
     artist: FavouriteArtistUiModel,
     loadArtistImage: suspend (String) -> Bitmap?,
+    lifted: Boolean,
     onClick: () -> Unit,
-    onShownChange: (Boolean) -> Unit
+    onMove: (Int) -> Unit,
+    canMoveEarlier: Boolean,
+    canMoveLater: Boolean,
+    onShownChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var hasPicture by remember(artist.id) { mutableStateOf(false) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .testTag("favourite_artist_${artist.id}")
+            .zIndex(if (lifted) 1f else 0f)
+            .scale(if (lifted) 1.1f else 1f)
             .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .semantics { contentDescription = artist.name }
+            .semantics {
+                contentDescription = artist.name
+                // A screen reader cannot drag, so it moves a picture a place at a time.
+                customActions = listOfNotNull(
+                    if (canMoveEarlier) CustomAccessibilityAction("Move earlier") { onMove(-1); true } else null,
+                    if (canMoveLater) CustomAccessibilityAction("Move later") { onMove(1); true } else null
+                )
+            }
     ) {
         ArtistImage(
             artistId = artist.id,
@@ -166,7 +316,7 @@ private fun ArtistTile(
                 onShownChange(shown)
             }
         )
-        if (!hasPicture) {
+        if (!hasPicture || lifted) {
             Text(
                 text = artist.name,
                 color = Color.White,

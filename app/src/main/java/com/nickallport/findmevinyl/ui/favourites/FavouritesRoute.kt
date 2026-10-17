@@ -24,7 +24,8 @@ fun FavouritesRoute(
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onMoveUp: suspend (String) -> Unit = {},
     onMoveDown: suspend (String) -> Unit = {},
-    grid: Boolean = false
+    grid: Boolean = false,
+    onReorder: suspend (List<String>) -> Unit = {}
 ) {
     var artists by remember { mutableStateOf<List<FavouriteArtistUiModel>?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -45,7 +46,8 @@ fun FavouritesRoute(
             grid = grid,
             // After a move the list is read again, so it shows what is stored.
             onMoveUp = { id -> coroutineScope.launch { onMoveUp(id); artists = load() } },
-            onMoveDown = { id -> coroutineScope.launch { onMoveDown(id); artists = load() } }
+            onMoveDown = { id -> coroutineScope.launch { onMoveDown(id); artists = load() } },
+            onReorder = { ids -> coroutineScope.launch { onReorder(ids); artists = load() } }
         )
     }
 }
