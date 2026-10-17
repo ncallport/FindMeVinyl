@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.PressingSummary
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +72,9 @@ fun AlbumDetailScreen(
     modifier: Modifier = Modifier,
     onSelectPressing: (String) -> Unit = {},
     /** Saves the formats and the note the user gives for their own copy of an album they own. */
-    onSaveCopy: (formats: List<String>, note: String) -> Unit = { _, _ -> }
+    onSaveCopy: (formats: List<String>, note: String) -> Unit = { _, _ -> },
+    /** Chooses a pressing as the user's own copy, or takes the choice away with null. */
+    onMarkMyPressing: (Pressing?) -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -118,7 +121,13 @@ fun AlbumDetailScreen(
             }
             if (album.owned) {
                 Spacer(Modifier.height(16.dp))
-                MyCopySection(album = album, onSave = onSaveCopy)
+                val details = (state as? AlbumDetailState.Loaded)?.details
+                MyCopySection(
+                    album = album,
+                    onSave = onSaveCopy,
+                    shownPressing = details?.pressings?.firstOrNull { it.releaseId == details.pressingId },
+                    onMarkPressing = onMarkMyPressing
+                )
             }
         }
 
@@ -132,14 +141,14 @@ fun AlbumDetailScreen(
                     Text("Try again")
                 }
             }
-            is AlbumDetailState.Loaded -> LoadedDetails(state, onSelectPressing)
+            is AlbumDetailState.Loaded -> LoadedDetails(state, onSelectPressing, myPressingId = album?.takeIf { it.owned }?.myPressingId)
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (String) -> Unit) {
+private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (String) -> Unit, myPressingId: String? = null) {
     val details = state.details
     if (!details.hasContent) {
         Text(
@@ -258,6 +267,7 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
                 PressingRow(
                     pressing = pressing,
                     shown = pressing.releaseId == details.pressingId,
+                    mine = pressing.releaseId == myPressingId,
                     loading = pressing.releaseId == state.switchingTo,
                     canChoose = state.switchingTo == null,
                     onChoose = { onSelectPressing(pressing.releaseId) }
@@ -268,17 +278,13 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
 }
 
 @Composable
-private fun PressingRow(pressing: Pressing, shown: Boolean, loading: Boolean, canChoose: Boolean, onChoose: () -> Unit) {
+private fun PressingRow(pressing: Pressing, shown: Boolean, mine: Boolean, loading: Boolean, canChoose: Boolean, onChoose: () -> Unit) {
     val container = if (shown) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
     val content = if (shown) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     val id = pressing.releaseId
 
-    val title = listOfNotNull(pressing.date, pressing.country?.let { CountryNames.of(it) })
-        .joinToString(", ").ifEmpty { "Date unknown" }
-    val detail = listOfNotNull(
-        listOfNotNull(pressing.label, pressing.catalogNumber).joinToString(", ").ifEmpty { null },
-        pressing.format
-    ).joinToString(", ").ifEmpty { null }
+    val title = PressingSummary.title(pressing)
+    val detail = PressingSummary.detail(pressing)
 
     Row(
         modifier = Modifier
@@ -307,15 +313,26 @@ private fun PressingRow(pressing: Pressing, shown: Boolean, loading: Boolean, ca
                 )
             }
         }
-        if (loading) {
-            RecordSpinner(modifier = Modifier.testTag("pressing_loading_$id"), size = 20.dp)
-        } else if (shown) {
-            Text(
-                text = "Showing",
-                style = MaterialTheme.typography.labelLarge,
-                color = content,
-                modifier = Modifier.testTag("pressing_shown_$id")
-            )
+        Column(horizontalAlignment = Alignment.End) {
+            if (loading) {
+                RecordSpinner(modifier = Modifier.testTag("pressing_loading_$id"), size = 20.dp)
+            } else if (shown) {
+                Text(
+                    text = "Showing",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = content,
+                    modifier = Modifier.testTag("pressing_shown_$id")
+                )
+            }
+            // The pressing the user chose as their own copy.
+            if (mine) {
+                Text(
+                    text = "Mine",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (shown) content else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.testTag("pressing_mine_$id")
+                )
+            }
         }
     }
 }

@@ -130,4 +130,51 @@ class DiscographyViewModelCopyTest {
 
         assertEquals(500, database.albumDao().getById("1")!!.userNote!!.length)
     }
+
+    // The pressing the user chose as theirs.
+
+    private val portuguese = Pressing("release-9", "1989-05-01", "PT", "Charisma", "CHA 1", "12\" Vinyl")
+
+    @Test
+    fun `an album comes with the pressing the user chose`() = runBlocking {
+        saveAlbum()
+        database.albumDao().setMyPressing("1", "release-9", "1989-05-01, Portugal")
+
+        val album = viewModel.loadAlbum("1")!!
+
+        assertEquals("release-9", album.myPressingId)
+        assertEquals("1989-05-01, Portugal", album.myPressingText)
+    }
+
+    @Test
+    fun `choosing a pressing keeps its id and a line that describes it`() = runBlocking {
+        saveAlbum()
+
+        viewModel.saveMyPressing("1", portuguese)
+
+        val saved = database.albumDao().getById("1")!!
+        assertEquals("release-9", saved.myPressingId)
+        assertEquals("1989-05-01, Portugal, Charisma, CHA 1, 12\" Vinyl", saved.myPressingText)
+    }
+
+    @Test
+    fun `choosing no pressing takes it away again`() = runBlocking {
+        saveAlbum()
+        viewModel.saveMyPressing("1", portuguese)
+
+        viewModel.saveMyPressing("1", null)
+
+        assertNull(database.albumDao().getById("1")!!.myPressingId)
+        assertNull(database.albumDao().getById("1")!!.myPressingText)
+    }
+
+    @Test
+    fun `the discography list carries the chosen pressing too`() = runBlocking {
+        saveAlbum()
+        viewModel.saveMyPressing("1", portuguese)
+
+        val album = viewModel.loadSaved("artist-1").groupedAlbums.getValue(DiscographyCategory.STUDIO_ALBUM).single()
+
+        assertEquals("release-9", album.myPressingId)
+    }
 }

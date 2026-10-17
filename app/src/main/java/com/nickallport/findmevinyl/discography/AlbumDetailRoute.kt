@@ -35,7 +35,9 @@ fun AlbumDetailRoute(
     loadCover: suspend (String) -> Bitmap? = { null },
     loadPressing: suspend (albumId: String, releaseId: String) -> AlbumDetails? = { _, _ -> null },
     /** Keeps the formats and the note the user gives for their copy. The album is read again after it. */
-    saveCopy: suspend (albumId: String, formats: List<String>, note: String) -> Unit = { _, _, _ -> }
+    saveCopy: suspend (albumId: String, formats: List<String>, note: String) -> Unit = { _, _, _ -> },
+    /** Keeps the pressing the user chose as their copy, or takes it away with null. The album is read again after it. */
+    saveMyPressing: suspend (albumId: String, pressing: Pressing?) -> Unit = { _, _ -> }
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -54,6 +56,21 @@ fun AlbumDetailRoute(
 
     LaunchedEffect(albumId) {
         album = loadAlbum(albumId)
+    }
+
+    // The page opens on the pressing the user chose as theirs, if it is one of those listed and not the first.
+    // It is tried once for each load, so a pressing the user then looks at is not switched back, and a pressing
+    // that cannot be loaded leaves the first one showing without a complaint.
+    var triedMine by remember(albumId, attempt) { mutableStateOf<String?>(null) }
+    LaunchedEffect(state, album) {
+        val loaded = (state as? AlbumDetailState.Loaded)?.details ?: return@LaunchedEffect
+        val mine = album?.takeIf { it.owned }?.myPressingId ?: return@LaunchedEffect
+        if (triedMine == mine || switchingTo != null) return@LaunchedEffect
+        if (loaded.pressingId == mine || loaded.pressings.none { it.releaseId == mine }) return@LaunchedEffect
+        triedMine = mine
+        switchingTo = mine
+        loadPressing(albumId, mine)?.let { state = AlbumDetailState.Loaded(it) }
+        switchingTo = null
     }
 
     AlbumDetailScreen(
@@ -91,6 +108,12 @@ fun AlbumDetailRoute(
         onSaveCopy = { formats, note ->
             coroutineScope.launch {
                 saveCopy(albumId, formats, note)
+                album = loadAlbum(albumId)
+            }
+        },
+        onMarkMyPressing = { pressing ->
+            coroutineScope.launch {
+                saveMyPressing(albumId, pressing)
                 album = loadAlbum(albumId)
             }
         },

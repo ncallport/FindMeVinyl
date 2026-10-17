@@ -44,3 +44,21 @@ data class Rating(val value: Double, val votes: Int) {
             if (value != null && votes != null && value > 0 && votes > 0) Rating(value, votes) else null
     }
 }
+
+/** How a pressing reads: on the page's list, and as the line kept when the user chooses it as theirs. */
+object PressingSummary {
+    /** The date and the country by name, or "Date unknown" when neither is known. */
+    fun title(pressing: Pressing): String =
+        listOfNotNull(pressing.date, pressing.country?.let { CountryNames.of(it) })
+            .joinToString(", ").ifEmpty { "Date unknown" }
+
+    /** The label, the catalogue number and the format, or null when none is known. */
+    fun detail(pressing: Pressing): String? = listOfNotNull(
+        listOfNotNull(pressing.label, pressing.catalogNumber).joinToString(", ").ifEmpty { null },
+        pressing.format
+    ).joinToString(", ").ifEmpty { null }
+
+    /** [title] and [detail] on one line. */
+    fun oneLine(pressing: Pressing): String = listOfNotNull(title(pressing), detail(pressing)).joinToString(", ")
+}
+

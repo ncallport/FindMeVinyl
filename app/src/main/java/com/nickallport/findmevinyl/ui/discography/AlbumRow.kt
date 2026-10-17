@@ -37,7 +37,10 @@ data class AlbumUiModel(
     /** Formats the user says their own copy is on, added to [formats]. Labels, in the usual order. */
     val userFormats: List<String> = emptyList(),
     /** The user's own note about their copy. */
-    val note: String? = null
+    val note: String? = null,
+    /** The MusicBrainz release the user chose as their copy, and a line that describes it. */
+    val myPressingId: String? = null,
+    val myPressingText: String? = null
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.

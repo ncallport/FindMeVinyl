@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.Pressing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -31,11 +32,21 @@ import com.nickallport.findmevinyl.discography.ReleaseFormats
  * Olympia vinyl is on no MusicBrainz release), and a note such as the country or the language of the sleeve.
  * The formats are added to MusicBrainz's, never replacing them. [onSave] gets the chosen formats and the note.
  *
+ * The page's own pressing can be chosen as the copy here too ("This is my pressing"), and the choice cleared.
+ *
  * Whether the editor is open, and what has been chosen and typed in it, are kept over a rotation.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MyCopySection(album: AlbumUiModel, onSave: (formats: List<String>, note: String) -> Unit, modifier: Modifier = Modifier) {
+fun MyCopySection(
+    album: AlbumUiModel,
+    onSave: (formats: List<String>, note: String) -> Unit,
+    modifier: Modifier = Modifier,
+    /** The pressing the page is showing, which "This is my pressing" would choose. Null when it is not known. */
+    shownPressing: Pressing? = null,
+    /** Chooses [Pressing] as the user's own copy, or takes the choice away with null. */
+    onMarkPressing: (Pressing?) -> Unit = {}
+) {
     var editing by rememberSaveable(album.id) { mutableStateOf(false) }
     // The chosen formats are kept as the text the database uses, which a rotation can keep.
     var chosen by rememberSaveable(album.id) { mutableStateOf("") }
@@ -54,15 +65,36 @@ fun MyCopySection(album: AlbumUiModel, onSave: (formats: List<String>, note: Str
                 Text(text = summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("my_copy_summary"))
                 Spacer(Modifier.height(8.dp))
             }
-            OutlinedButton(
-                onClick = {
-                    chosen = ReleaseFormats.encodeUser(album.userFormats)
-                    note = album.note.orEmpty()
-                    editing = true
-                },
-                modifier = Modifier.testTag("my_copy_edit")
-            ) {
-                Text(if (summary.isEmpty()) "Add details of my copy" else "Edit my copy")
+            if (album.myPressingId != null) {
+                Text(
+                    text = "My pressing: ${album.myPressingText ?: "chosen"}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag("my_pressing_text")
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        chosen = ReleaseFormats.encodeUser(album.userFormats)
+                        note = album.note.orEmpty()
+                        editing = true
+                    },
+                    modifier = Modifier.testTag("my_copy_edit")
+                ) {
+                    Text(if (summary.isEmpty()) "Add details of my copy" else "Edit my copy")
+                }
+                // The pressing the page shows, if it is not the one already chosen.
+                if (shownPressing != null && shownPressing.releaseId != album.myPressingId) {
+                    OutlinedButton(onClick = { onMarkPressing(shownPressing) }, modifier = Modifier.testTag("my_pressing_mark")) {
+                        Text("This is my pressing")
+                    }
+                }
+                if (album.myPressingId != null) {
+                    TextButton(onClick = { onMarkPressing(null) }, modifier = Modifier.testTag("my_pressing_clear")) {
+                        Text("Clear my pressing")
+                    }
+                }
             }
         } else {
             val chosenFormats = ReleaseFormats.decodeUser(chosen)

@@ -33,7 +33,8 @@ class AlbumDetailRouteTest {
         loadDetails: suspend (String) -> AlbumDetails?,
         onToggleOwned: suspend (String, Boolean) -> Unit = { _, _ -> },
         onToggleWanted: suspend (String, Boolean) -> Unit = { _, _ -> },
-        loadPressing: suspend (String, String) -> AlbumDetails? = { _, _ -> null }
+        loadPressing: suspend (String, String) -> AlbumDetails? = { _, _ -> null },
+        saveMyPressing: suspend (String, Pressing?) -> Unit = { _, _ -> }
     ) {
         composeTestRule.setContent {
             FindMeVinylTheme {
@@ -43,7 +44,8 @@ class AlbumDetailRouteTest {
                     loadAlbum = { album },
                     onToggleOwned = onToggleOwned,
                     onToggleWanted = onToggleWanted,
-                    loadPressing = loadPressing
+                    loadPressing = loadPressing,
+                    saveMyPressing = saveMyPressing
                 )
             }
         }
@@ -234,4 +236,101 @@ class AlbumDetailRouteTest {
         assertEquals(listOf(Triple("1", listOf("LP"), "")), saves)
         composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextEquals("Formats you added: LP")
     }
+
+    // The pressing the user chose as theirs.
+
+    private val ownedWithPressing2 = AlbumUiModel(
+        "1", "Trespass", owned = true, wanted = false, myPressingId = "r2", myPressingText = "1972, Germany, Buddah"
+    )
+
+    @Test
+    fun `the page opens on the pressing the user chose`() {
+        album = ownedWithPressing2
+        val asked = mutableListOf<Pair<String, String>>()
+        show(
+            loadDetails = { twoPressings },
+            loadPressing = { id, release -> asked.add(id to release); secondPressing }
+        )
+
+        assertEquals(listOf("1" to "r2"), asked)
+        composeTestRule.onNodeWithText("Another Take").assertExists()
+    }
+
+    @Test
+    fun `it is not loaded again when it is the one the page opened on`() {
+        album = ownedWithPressing2.copy(myPressingId = "r1")
+        val asked = mutableListOf<String>()
+        show(loadDetails = { twoPressings }, loadPressing = { _, release -> asked.add(release); secondPressing })
+
+        assertEquals(emptyList<String>(), asked)
+        composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+    }
+
+    @Test
+    fun `a chosen pressing that is not among the listed ones is left alone`() {
+        album = ownedWithPressing2.copy(myPressingId = "gone")
+        val asked = mutableListOf<String>()
+        show(loadDetails = { twoPressings }, loadPressing = { _, release -> asked.add(release); secondPressing })
+
+        assertEquals(emptyList<String>(), asked)
+        composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+    }
+
+    @Test
+    fun `an album that is not owned does not open on a pressing`() {
+        album = ownedWithPressing2.copy(owned = false)
+        val asked = mutableListOf<String>()
+        show(loadDetails = { twoPressings }, loadPressing = { _, release -> asked.add(release); secondPressing })
+
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `if the chosen pressing cannot be loaded the page stays on the first and does not complain`() {
+        album = ownedWithPressing2
+        show(loadDetails = { twoPressings }, loadPressing = { _, _ -> null })
+
+        composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+        composeTestRule.onNodeWithTag("pressing_failed").assertDoesNotExist()
+    }
+
+    @Test
+    fun `choosing the pressing shown hands it over and the page then says which is chosen`() {
+        album = AlbumUiModel("1", "Trespass", owned = true, wanted = false)
+        val saved = mutableListOf<Pair<String, Pressing?>>()
+        show(
+            loadDetails = { twoPressings },
+            saveMyPressing = { id, pressing ->
+                saved.add(id to pressing)
+                album = album.copy(myPressingId = pressing?.releaseId, myPressingText = pressing?.let { "text for ${it.releaseId}" })
+            }
+        )
+
+        composeTestRule.onNodeWithTag("my_pressing_mark").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("1" to pressings[0]), saved)
+        composeTestRule.onNodeWithTag("my_pressing_text").performScrollTo().assertTextEquals("My pressing: text for r1")
+        composeTestRule.onNodeWithTag("pressing_mine_r1", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `clearing the choice hands over nothing and the page forgets it`() {
+        album = AlbumUiModel("1", "Trespass", owned = true, wanted = false, myPressingId = "r1", myPressingText = "text")
+        val saved = mutableListOf<Pair<String, Pressing?>>()
+        show(
+            loadDetails = { twoPressings },
+            saveMyPressing = { id, pressing ->
+                saved.add(id to pressing)
+                album = album.copy(myPressingId = null, myPressingText = null)
+            }
+        )
+
+        composeTestRule.onNodeWithTag("my_pressing_clear").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf<Pair<String, Pressing?>>("1" to null), saved)
+        composeTestRule.onNodeWithTag("my_pressing_text").assertDoesNotExist()
+    }
 }
+

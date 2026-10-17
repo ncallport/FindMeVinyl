@@ -94,4 +94,50 @@ class AlbumCopyDaoTest {
 
         assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
     }
+
+    // The pressing the user chose as theirs.
+
+    @Test
+    fun `saves the pressing the user chose and a line that describes it`() = runBlocking {
+        dao.insert(album())
+
+        dao.setMyPressing("1", "release-9", "1972, Portugal, Charisma")
+
+        assertEquals("release-9", dao.getById("1")!!.myPressingId)
+        assertEquals("1972, Portugal, Charisma", dao.getById("1")!!.myPressingText)
+    }
+
+    @Test
+    fun `saving null for both takes the pressing away`() = runBlocking {
+        dao.insert(album())
+        dao.setMyPressing("1", "release-9", "1972, Portugal, Charisma")
+
+        dao.setMyPressing("1", null, null)
+
+        assertNull(dao.getById("1")!!.myPressingId)
+        assertNull(dao.getById("1")!!.myPressingText)
+    }
+
+    @Test
+    fun `the pressing is kept apart from the copy details and from syncs and lookups`() = runBlocking {
+        dao.insert(album())
+        dao.setMyPressing("1", "release-9", "1972, Portugal, Charisma")
+
+        dao.setCopy("1", "LP", "note")
+        dao.insertAllIfNotExist(listOf(album()))
+        dao.setChecked("1", "CD", "Official", 5L)
+
+        val saved = dao.getById("1")!!
+        assertEquals("release-9", saved.myPressingId)
+        assertEquals("LP", saved.userFormats)
+    }
+
+    @Test
+    fun `an album with only a pressing chosen is in the backup even when it is not owned`() = runBlocking {
+        dao.insert(album("1").copy(owned = false))
+        dao.insert(album("2").copy(owned = false))
+        dao.setMyPressing("1", "release-9", "text")
+
+        assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
+    }
 }
