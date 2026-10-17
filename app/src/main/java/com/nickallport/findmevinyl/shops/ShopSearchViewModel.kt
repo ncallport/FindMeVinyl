@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import com.nickallport.findmevinyl.photon.PlaceSuggestion
 import java.io.IOException
 
 data class PlaceCandidate(
@@ -82,6 +83,26 @@ class ShopSearchViewModel(
             val result = findShops(latitude, longitude, radiusMeters, placeName = DEFAULT_PLACE_NAME)
             val place = lookUpPlace(latitude, longitude)
             result.copy(placeName = place?.displayName ?: DEFAULT_PLACE_NAME, region = regionOf(place?.address))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ShopSearchUiState.Error(e.message ?: "Something went wrong")
+        }
+    }
+
+    /**
+     * Searches around a place the user picked from the suggestions while typing. Photon has already given its
+     * name and position, so Nominatim is not asked for the town again. It is asked once, for the region
+     * (the part of the country, which some public holidays depend on), and if that fails the region is the
+     * country Photon gave.
+     */
+    suspend fun searchSuggestion(suggestion: PlaceSuggestion, radiusMeters: Int = 5000): ShopSearchUiState {
+        return try {
+            val result = findShops(suggestion.latitude, suggestion.longitude, radiusMeters, suggestion.label)
+            val place = lookUpPlace(suggestion.latitude, suggestion.longitude)
+            val region = regionOf(place?.address)
+                ?: suggestion.countryCode?.let { HolidayRegion(it.uppercase(), null) }
+            result.copy(region = region)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -599,4 +599,56 @@ class ShopSearchViewModelTest {
         assertNull(state.region)
         assertEquals(2, state.shops.size)
     }
+
+    private val caldas = com.nickallport.findmevinyl.photon.PlaceSuggestion("Caldas da Rainha, Leiria, Portugal", 39.4071857, -9.1346004, "PT")
+
+    @Test
+    fun `searching a suggestion uses its label and position and does not look the town up again`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        server.enqueue(MockResponse().setBody(leiriaReverseResponse))
+
+        val state = viewModel.searchSuggestion(caldas) as ShopSearchUiState.Success
+
+        assertEquals("Caldas da Rainha, Leiria, Portugal", state.placeName)
+        assertEquals(39.4071857, state.centerLatitude, 0.00001)
+        assertEquals(-9.1346004, state.centerLongitude, 0.00001)
+        assertEquals(listOf("Near Records", "Far Records"), state.shops.map { it.name })
+        assertEquals("POST", server.takeRequest(5, TimeUnit.SECONDS)!!.method)
+        assertTrue(server.takeRequest(5, TimeUnit.SECONDS)!!.path!!.startsWith("/reverse"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `the region of a suggestion comes from the reverse lookup, with its part of the country`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        server.enqueue(
+            MockResponse().setBody(
+                """{ "display_name": "x", "address": { "country_code": "gb", "ISO3166-2-lvl4": "GB-SCT" } }"""
+            )
+        )
+
+        val state = viewModel.searchSuggestion(caldas.copy(countryCode = "GB")) as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("GB", "GB-SCT"), state.region)
+    }
+
+    @Test
+    fun `when the reverse lookup fails the region is the country Photon gave`() = runBlocking {
+        server.enqueue(MockResponse().setBody(twoShopsFarthestFirst))
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val state = viewModel.searchSuggestion(caldas) as ShopSearchUiState.Success
+
+        assertEquals(com.nickallport.findmevinyl.holidays.HolidayRegion("PT", null), state.region)
+        assertEquals("Caldas da Rainha, Leiria, Portugal", state.placeName)
+    }
+
+    @Test
+    fun `searching a suggestion returns an error when the shop query fails`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        assertTrue(viewModel.searchSuggestion(caldas) is ShopSearchUiState.Error)
+    }
 }

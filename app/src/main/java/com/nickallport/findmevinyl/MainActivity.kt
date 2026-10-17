@@ -69,6 +69,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import android.content.Intent
 import com.nickallport.findmevinyl.ui.wantlist.WantListRoute
 import com.nickallport.findmevinyl.wantlist.WantListViewModel
+import com.nickallport.findmevinyl.photon.PlaceSuggester
 import com.nickallport.findmevinyl.shops.ShopApiFactory
 import com.nickallport.findmevinyl.shops.ShopSearchViewModel
 import com.nickallport.findmevinyl.ui.shops.ShopSearchRoute
@@ -260,6 +261,7 @@ class MainActivity : ComponentActivity() {
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao())
         val wantListViewModel = WantListViewModel(database.albumDao())
+        val placeSuggester = PlaceSuggester(ShopApiFactory.createPhoton())
         val shopSearchViewModel = ShopSearchViewModel(
             ShopApiFactory.createNominatim(),
             ShopApiFactory.createOverpass(),
@@ -446,6 +448,8 @@ class MainActivity : ComponentActivity() {
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 search = { town -> shopSearchViewModel.searchTown(town) },
                                 searchNearby = { nearbyShopSearcher.findNearby() },
+                                suggestPlaces = { text -> placeSuggester.suggest(text) },
+                                searchSuggestion = { suggestion -> shopSearchViewModel.searchSuggestion(suggestion) },
                                 onShopSelected = { shop ->
                                     // The region of the search, for the public holidays and the layout of the address.
                                     val region = (SearchResultCache.shared.shop as? ShopSearchUiState.Success)?.region

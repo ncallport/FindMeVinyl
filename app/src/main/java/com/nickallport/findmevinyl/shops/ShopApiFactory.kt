@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.shops
 
 import com.nickallport.findmevinyl.nominatim.NominatimApi
 import com.nickallport.findmevinyl.overpass.OverpassApi
+import com.nickallport.findmevinyl.photon.PhotonApi
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -14,6 +15,14 @@ object ShopApiFactory {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(NominatimApi::class.java)
+    }
+
+    fun createPhoton(): PhotonApi {
+        return Retrofit.Builder()
+            .baseUrl("https://photon.komoot.io/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(PhotonApi::class.java)
     }
 
     // The first server is OpenStreetMap France's, which answered in a few seconds when overpass-api.de took
