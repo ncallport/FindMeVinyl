@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.Grouping
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,34 +29,34 @@ class DiscographyScreenScrollTest {
         }
     )
 
-    private var ownedFirst by mutableStateOf(false)
+    private var grouping by mutableStateOf(Grouping.None)
 
     private fun show() {
         composeTestRule.setContent {
-            DiscographyScreen(groupedAlbums = many, onToggleOwned = {}, ownedFirst = ownedFirst)
+            DiscographyScreen(groupedAlbums = many, onToggleOwned = {}, grouping = grouping)
         }
     }
 
     @Test
-    fun `switching owned first on brings the list back to the top, where the owned section is`() {
+    fun `grouping owned on brings the list back to the top, where the owned section is`() {
         show()
         composeTestRule.onNodeWithTag("discography_list").performScrollToIndex(30)
         composeTestRule.waitForIdle()
 
-        ownedFirst = true
+        grouping = Grouping(owned = true)
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("owned_section_header").assertIsDisplayed()
     }
 
     @Test
-    fun `switching owned first off brings the list back to the top too`() {
-        ownedFirst = true
+    fun `grouping owned off brings the list back to the top too`() {
+        grouping = Grouping(owned = true)
         show()
         composeTestRule.onNodeWithTag("discography_list").performScrollToIndex(30)
         composeTestRule.waitForIdle()
 
-        ownedFirst = false
+        grouping = Grouping.None
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Studio Albums").assertIsDisplayed()

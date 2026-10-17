@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.Grouping
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,8 +23,8 @@ import com.nickallport.findmevinyl.discography.FormatOption
  * choice. While a format is chosen, a line says how many albums have not been looked up yet, since
  * those stay in the list until their lookup tells whether they match.
  *
- * When [ownedFirst] is given, an "Owned first" chip leads the row. It is a way of looking at the list,
- * not a format, so it is there even while no format is known. It is off or on as [ownedFirst] says.
+ * When [grouping] is given, a "Group owned" and a "Group wanted" chip lead the row. They are ways of looking
+ * at the list, not formats, so they are there even while no format is known. Each is off or on as [grouping] says.
  */
 @Composable
 fun FormatFilterBar(
@@ -32,12 +33,13 @@ fun FormatFilterBar(
     unchecked: Int,
     onSelect: (String?) -> Unit,
     modifier: Modifier = Modifier,
-    ownedFirst: Boolean? = null,
-    onToggleOwnedFirst: () -> Unit = {}
+    grouping: Grouping? = null,
+    onToggleGroupOwned: () -> Unit = {},
+    onToggleGroupWanted: () -> Unit = {}
 ) {
     // With no format known yet there is nothing to filter by.
     val hasFormats = options.isNotEmpty() || selected != null
-    if (!hasFormats && ownedFirst == null) return
+    if (!hasFormats && grouping == null) return
 
     // A chosen format that no album has any more still gets a chip, so the choice can be cleared.
     val chips = if (selected != null && options.none { it.label == selected }) {
@@ -51,12 +53,18 @@ fun FormatFilterBar(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (ownedFirst != null) {
+            if (grouping != null) {
                 FilterChip(
-                    selected = ownedFirst,
-                    onClick = onToggleOwnedFirst,
-                    label = { Text("Owned first") },
-                    modifier = Modifier.testTag("owned_first_toggle")
+                    selected = grouping.owned,
+                    onClick = onToggleGroupOwned,
+                    label = { Text("Group owned") },
+                    modifier = Modifier.testTag("group_owned_toggle")
+                )
+                FilterChip(
+                    selected = grouping.wanted,
+                    onClick = onToggleGroupWanted,
+                    label = { Text("Group wanted") },
+                    modifier = Modifier.testTag("group_wanted_toggle")
                 )
             }
             if (hasFormats) {

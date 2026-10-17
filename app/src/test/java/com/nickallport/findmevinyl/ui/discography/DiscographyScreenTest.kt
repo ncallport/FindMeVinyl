@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.Grouping
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -191,9 +192,9 @@ class DiscographyScreenTest {
     private fun top(text: String) = composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
 
     @Test
-    fun `with owned first, the owned albums are in a section at the top`() {
+    fun `with owned grouped, the owned albums are in a section at the top`() {
         composeTestRule.setContent {
-            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, grouping = Grouping(owned = true))
         }
 
         composeTestRule.onNodeWithTag("owned_section_header").assertExists()
@@ -207,7 +208,7 @@ class DiscographyScreenTest {
     @Test
     fun `an owned album is in the owned section and not in its category as well`() {
         composeTestRule.setContent {
-            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, grouping = Grouping(owned = true))
         }
 
         composeTestRule.onAllNodesWithText("Studio Owned").assertCountEquals(1)
@@ -219,7 +220,7 @@ class DiscographyScreenTest {
     @Test
     fun `a category whose albums are all owned disappears while owned come first`() {
         composeTestRule.setContent {
-            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, ownedFirst = true)
+            DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, grouping = Grouping(owned = true))
         }
 
         composeTestRule.onNodeWithText("EPs").assertDoesNotExist()
@@ -228,7 +229,7 @@ class DiscographyScreenTest {
     }
 
     @Test
-    fun `without owned first, there is no owned section and each album stays in its category`() {
+    fun `without grouping, there is no owned section and each album stays in its category`() {
         composeTestRule.setContent {
             DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {})
         }
@@ -239,12 +240,12 @@ class DiscographyScreenTest {
     }
 
     @Test
-    fun `with owned first but nothing owned, there is no owned section`() {
+    fun `with owned grouped but nothing owned, there is no owned section`() {
         val none = mapOf(
             DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "Studio Other", owned = false, wanted = false))
         )
         composeTestRule.setContent {
-            DiscographyScreen(groupedAlbums = none, onToggleOwned = {}, ownedFirst = true)
+            DiscographyScreen(groupedAlbums = none, onToggleOwned = {}, grouping = Grouping(owned = true))
         }
 
         composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
@@ -257,7 +258,7 @@ class DiscographyScreenTest {
         var toggled: String? = null
         composeTestRule.setContent {
             DiscographyScreen(
-                groupedAlbums = mixed, onToggleOwned = { toggled = it }, onOpenAlbum = { opened = it }, ownedFirst = true
+                groupedAlbums = mixed, onToggleOwned = { toggled = it }, onOpenAlbum = { opened = it }, grouping = Grouping(owned = true)
             )
         }
 
