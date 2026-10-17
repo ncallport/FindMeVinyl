@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import com.nickallport.findmevinyl.ui.brand.Masthead
 import com.nickallport.findmevinyl.ui.home.HomeScreen
-import com.nickallport.findmevinyl.discography.OwnedFirstStore
+import com.nickallport.findmevinyl.discography.GroupingStore
 import com.nickallport.findmevinyl.favourites.FavouritesLayoutStore
 import com.nickallport.findmevinyl.backup.BackupMessages
 import com.nickallport.findmevinyl.backup.BackupViewModel
@@ -232,7 +232,8 @@ class MainActivity : ComponentActivity() {
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
         val mapsLinkResolver = MapsLinkResolver()
         val shopPositionFinder = ShopPositionFinder(ShopApiFactory.createNominatim())
-        val ownedFirstStore = OwnedFirstStore(getSharedPreferences("owned_first", MODE_PRIVATE))
+        // The file keeps its old name, "owned_first", so artists that had Owned first on keep it.
+        val groupingStore = GroupingStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
         val backupViewModel = BackupViewModel(
@@ -369,8 +370,8 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
-                                startWithOwnedFirst = ownedFirstStore.isOn(screen.artistId),
-                                onOwnedFirstChange = { ownedFirstStore.set(screen.artistId, it) },
+                                startWithGrouping = groupingStore.get(screen.artistId),
+                                onGroupingChange = { groupingStore.set(screen.artistId, it) },
                                 settings = settings,
                                 onOpenSettings = { currentScreen = Screen.Settings },
                                 loadArtistImage = { id -> artistPictures.load(id) },

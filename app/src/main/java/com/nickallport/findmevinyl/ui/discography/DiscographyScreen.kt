@@ -1,5 +1,9 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.ui.brand.Glyphs
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import com.nickallport.findmevinyl.discography.Grouping
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +31,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 
+private enum class GroupSection(val key: String, val title: String) {
+    OWNED("owned", "Owned"),
+    WANTED("wanted", "Wanted")
+}
+
 private val categoryDisplayOrder = listOf(
     DiscographyCategory.STUDIO_ALBUM to "Studio Albums",
     DiscographyCategory.LIVE_ALBUM to "Live Albums",
@@ -37,9 +46,11 @@ private val categoryDisplayOrder = listOf(
 )
 
 /**
- * With [ownedFirst], the albums you own are taken out of their categories and shown together in an
- * Owned section at the top, in the order of the categories. Every row has a key, so when albums are added above what is on screen as more pages load, the
- * list stays where it is. [loadingMore] adds a footer while pages are still arriving, and
+ * With [grouping], the albums you own and the ones you want are taken out of their categories and shown
+ * together in an Owned and a Wanted section at the top, each in the order of the categories. With both on,
+ * the section that is not first has an arrow that puts it first ([onWantedFirstChange]). An album you own
+ * is never in the Wanted section. Every row has a key, so when albums are added above what is on screen as
+ * more pages load, the list stays where it is. [loadingMore] adds a footer while pages are still arriving, and
  * [loadError] a footer saying some albums could not be loaded, with a button to try again.
  */
 @Composable
@@ -49,7 +60,9 @@ fun DiscographyScreen(
     modifier: Modifier = Modifier,
     onToggleWanted: (String) -> Unit = {},
     onOpenAlbum: (String) -> Unit = {},
-    ownedFirst: Boolean = false,
+    grouping: Grouping = Grouping.None,
+    /** Tells that the Wanted section (true) or the Owned section (false) was put first. */
+    onWantedFirstChange: (Boolean) -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
     loadingMore: Boolean = false,
@@ -57,41 +70,60 @@ fun DiscographyScreen(
     onRetry: () -> Unit = {},
     checkingFormats: Boolean = false
 ) {
-    val owned = if (ownedFirst) {
-        categoryDisplayOrder.flatMap { (category, _) -> groupedAlbums[category].orEmpty().filter { it.owned } }
-    } else {
-        emptyList()
+    fun isGroupedOwned(album: AlbumUiModel) = grouping.owned && album.owned
+    fun isGroupedWanted(album: AlbumUiModel) = grouping.wanted && album.wanted && !album.owned
+
+    val inCategoryOrder = categoryDisplayOrder.flatMap { (category, _) -> groupedAlbums[category].orEmpty() }
+    val owned = inCategoryOrder.filter { isGroupedOwned(it) }
+    val wanted = inCategoryOrder.filter { isGroupedWanted(it) }
+    val categorised = groupedAlbums.mapValues { (_, albums) ->
+        albums.filterNot { isGroupedOwned(it) || isGroupedWanted(it) }
     }
-    val categorised = if (ownedFirst) {
-        groupedAlbums.mapValues { (_, albums) -> albums.filterNot { it.owned } }
-    } else {
-        groupedAlbums
-    }
+    // The sections that have something in them, in the order they are shown.
+    val sections = listOf(GroupSection.OWNED to owned, GroupSection.WANTED to wanted)
+        .let { if (grouping.wantedFirst) it.reversed() else it }
+        .filter { (_, albums) -> albums.isNotEmpty() }
 
     // The list keeps its place by item, so a section added at the top would be out of sight above it.
-    // Switching owned first on or off starts from the top. A list that is only restored (a rotation) stays.
+    // Changing the grouping starts from the top. A list that is only restored (a rotation) stays.
     val listState = rememberLazyListState()
-    var shownOwnedFirst by remember { mutableStateOf(ownedFirst) }
-    LaunchedEffect(ownedFirst) {
-        if (ownedFirst != shownOwnedFirst) {
-            shownOwnedFirst = ownedFirst
+    var shownGrouping by remember { mutableStateOf(grouping) }
+    LaunchedEffect(grouping) {
+        if (grouping != shownGrouping) {
+            shownGrouping = grouping
             listState.scrollToItem(0)
         }
     }
 
     LazyColumn(state = listState, modifier = modifier.testTag("discography_list")) {
-        if (owned.isNotEmpty()) {
-            item(key = "header-owned") {
-                Text(
-                    text = "Owned",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .testTag("owned_section_header")
-                        .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)
-                )
+        sections.forEachIndexed { position, (section, albums) ->
+            item(key = "header-${section.key}") {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 20.dp, bottom = 4.dp)
+                ) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.testTag("${section.key}_section_header")
+                    )
+                    // Only the second of two sections can be put first.
+                    if (position == 1) {
+                        IconButton(
+                            onClick = { onWantedFirstChange(section == GroupSection.WANTED) },
+                            modifier = Modifier.testTag("group_first_${section.key}").size(40.dp)
+                        ) {
+                            Icon(
+                                Glyphs.ArrowUp,
+                                contentDescription = "Move ${section.title} to the top",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
-            items(owned, key = { it.id }) { album ->
+            items(albums, key = { it.id }) { album ->
                 AlbumRow(
                     album = album,
                     onOpen = { onOpenAlbum(album.id) },

@@ -3,6 +3,7 @@ package com.nickallport.findmevinyl.discography
 import android.graphics.Bitmap
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.StateRestorationTester
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -682,7 +683,7 @@ class DiscographyRouteTest {
         assertEquals(1, loads)
     }
 
-    // The view options: owned first, and the way to the favourite artists.
+    // The view options: group owned, and the way to the favourite artists.
 
     private fun twoOwned() = success(
         album("A", formats = listOf("LP"), owned = true),
@@ -691,7 +692,7 @@ class DiscographyRouteTest {
     )
 
     @Test
-    fun `has an Owned first chip, off to begin with`() {
+    fun `has a Group owned chip, off to begin with`() {
         composeTestRule.setContent {
             DiscographyRoute(
                 artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
@@ -699,12 +700,12 @@ class DiscographyRouteTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").assertExists()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertExists()
         composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
     }
 
     @Test
-    fun `the Owned first chip groups the owned albums at the top, and again takes the grouping away`() {
+    fun `the Group owned chip groups the owned albums at the top, and again takes the grouping away`() {
         composeTestRule.setContent {
             DiscographyRoute(
                 artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
@@ -712,21 +713,21 @@ class DiscographyRouteTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("owned_section_header").assertExists()
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
     }
 
     @Test
-    fun `starts with Owned first on when it was chosen before for this artist`() {
+    fun `starts with Group owned on when it was chosen before for this artist`() {
         composeTestRule.setContent {
             DiscographyRoute(
                 artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
-                startWithOwnedFirst = true
+                startWithGrouping = Grouping(owned = true)
             )
         }
         composeTestRule.waitForIdle()
@@ -735,20 +736,20 @@ class DiscographyRouteTest {
     }
 
     @Test
-    fun `tells the caller each time Owned first is switched`() {
-        val changes = mutableListOf<Boolean>()
+    fun `tells the caller each time Group owned is switched`() {
+        val changes = mutableListOf<Grouping>()
         composeTestRule.setContent {
             DiscographyRoute(
                 artistId = "a", artistName = "Genesis", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
-                onOwnedFirstChange = { changes.add(it) }
+                onGroupingChange = { changes.add(it) }
             )
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
 
-        assertEquals(listOf(true, false), changes)
+        assertEquals(listOf(Grouping(owned = true), Grouping.None), changes)
     }
 
     @Test
@@ -759,7 +760,7 @@ class DiscographyRouteTest {
             )
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
         composeTestRule.onNodeWithTag("format_chip_LP").performClick()
         composeTestRule.waitForIdle()
 
@@ -775,7 +776,7 @@ class DiscographyRouteTest {
             )
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("LP 2").assertExists()
@@ -799,7 +800,7 @@ class DiscographyRouteTest {
     }
 
     @Test
-    fun `marking an album as owned while owned first is on moves it into the owned section`() {
+    fun `marking an album as owned while group owned is on moves it into the owned section`() {
         var owned = false
         val state = { success(album("A", owned = owned), album("B")) }
 
@@ -811,7 +812,7 @@ class DiscographyRouteTest {
             )
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
 
@@ -819,5 +820,112 @@ class DiscographyRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("owned_section_header").assertExists()
+    }
+
+    // Grouping the wanted albums too.
+
+    private fun ownedAndWanted() = success(
+        album("A", owned = true),
+        album("B", wanted = true),
+        album("C")
+    )
+
+    private fun showWithGrouping(
+        start: Grouping = Grouping.None,
+        changes: MutableList<Grouping> = mutableListOf()
+    ) {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(ownedAndWanted()), onToggleOwned = { _, _ -> },
+                startWithGrouping = start, onGroupingChange = { changes.add(it) }
+            )
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `the Group wanted chip groups the wanted albums at the top, and takes the grouping away again`() {
+        showWithGrouping()
+        composeTestRule.onNodeWithTag("wanted_section_header").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("group_wanted_toggle").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("wanted_section_header").assertExists()
+        composeTestRule.onNodeWithTag("owned_section_header").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("group_wanted_toggle").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("wanted_section_header").assertDoesNotExist()
+    }
+
+    @Test
+    fun `tells the caller the whole grouping each time a chip is switched`() {
+        val changes = mutableListOf<Grouping>()
+        showWithGrouping(changes = changes)
+
+        composeTestRule.onNodeWithTag("group_wanted_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_wanted_toggle").performClick()
+
+        assertEquals(
+            listOf(Grouping(wanted = true), Grouping(owned = true, wanted = true), Grouping(owned = true)),
+            changes
+        )
+    }
+
+    @Test
+    fun `the arrow on the wanted section puts it first and tells the caller`() {
+        val changes = mutableListOf<Grouping>()
+        showWithGrouping(Grouping(owned = true, wanted = true), changes)
+
+        composeTestRule.onNodeWithTag("group_first_wanted").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf(Grouping(owned = true, wanted = true, wantedFirst = true)), changes)
+        composeTestRule.onNodeWithTag("group_first_owned").assertExists()
+        composeTestRule.onNodeWithTag("group_first_wanted").assertDoesNotExist()
+    }
+
+    @Test
+    fun `starts with the grouping and order chosen before for this artist`() {
+        showWithGrouping(Grouping(owned = true, wanted = true, wantedFirst = true))
+
+        composeTestRule.onNodeWithTag("group_first_owned").assertExists()
+        composeTestRule.onNodeWithTag("group_wanted_toggle").assertIsSelected()
+    }
+
+    @Test
+    fun `the order stays when one of the groups is switched off and on again`() {
+        showWithGrouping(Grouping(owned = true, wanted = true, wantedFirst = true))
+
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("group_first_owned").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `keeps the grouping and its order after the state is restored`() = runComposeUiTest {
+        val restorationTester = StateRestorationTester(this)
+
+        restorationTester.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Genesis", load = loading(ownedAndWanted()), onToggleOwned = { _, _ -> }
+            )
+        }
+        waitForIdle()
+        onNodeWithTag("group_owned_toggle").performClick()
+        onNodeWithTag("group_wanted_toggle").performClick()
+        waitForIdle()
+        onNodeWithTag("group_first_wanted").performClick()
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+        waitForIdle()
+
+        onNodeWithTag("group_wanted_toggle").assertIsSelected()
+        onNodeWithTag("group_first_owned").assertExists()
     }
 }

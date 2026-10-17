@@ -72,9 +72,9 @@ fun DiscographyRoute(
     onOpenArtists: (() -> Unit)? = null,
     settings: Settings = Settings.ShowEverything,
     /** Owned first was on the last time this artist was open. */
-    startWithOwnedFirst: Boolean = false,
+    startWithGrouping: Grouping = Grouping.None,
     /** Told each time Owned first is switched, so it can be kept for the artist. */
-    onOwnedFirstChange: ((Boolean) -> Unit)? = null,
+    onGroupingChange: ((Grouping) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     onChoosePhoto: (suspend (artistId: String) -> Boolean)? = null,
@@ -88,7 +88,13 @@ fun DiscographyRoute(
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
-    var ownedFirst by rememberSaveable(artistId) { mutableStateOf(startWithOwnedFirst) }
+    // Kept over a rotation as the text the store uses.
+    var groupingText by rememberSaveable(artistId) { mutableStateOf(GroupingText.write(startWithGrouping)) }
+    val grouping = GroupingText.read(groupingText)
+    fun changeGrouping(changed: Grouping) {
+        groupingText = GroupingText.write(changed)
+        onGroupingChange?.invoke(changed)
+    }
     // Counts the changes to the artist's photo. Each one loads the picture again.
     var photoVersion by remember { mutableStateOf(0) }
     var formatCheck by remember { mutableStateOf<FormatCheckState>(FormatCheckState.Idle) }
@@ -199,14 +205,12 @@ fun DiscographyRoute(
                             val shownAlbums = FormatFilter.apply(visibility.shown, chosenFormat)
 
                             Column(modifier = Modifier.fillMaxSize()) {
-                                // Owned first is a way to look at the collection: the owned albums together at
-                                // the top, for showing a friend. It is not kept when you leave the artist.
+                                // Grouping is a way to look at the collection: the owned albums, and the wanted
+                                // ones, together at the top, for showing a friend. It is kept for each artist.
                                 FormatFilterBar(
-                                    ownedFirst = ownedFirst,
-                                    onToggleOwnedFirst = {
-                                        ownedFirst = !ownedFirst
-                                        onOwnedFirstChange?.invoke(ownedFirst)
-                                    },
+                                    grouping = grouping,
+                                    onToggleGroupOwned = { changeGrouping(grouping.copy(owned = !grouping.owned)) },
+                                    onToggleGroupWanted = { changeGrouping(grouping.copy(wanted = !grouping.wanted)) },
                                     options = FormatFilter.options(visibleAlbums),
                                     selected = chosenFormat,
                                     unchecked = FormatFilter.unchecked(visibleAlbums),
@@ -247,7 +251,8 @@ fun DiscographyRoute(
                                             refreshSaved()
                                         }
                                     },
-                                    ownedFirst = ownedFirst,
+                                    grouping = grouping,
+                                    onWantedFirstChange = { wantedFirst -> changeGrouping(grouping.copy(wantedFirst = wantedFirst)) },
                                     onOpenAlbum = { albumId ->
                                         allAlbums.find { it.id == albumId }?.let { onOpenAlbum(it.id, it.title) }
                                     },

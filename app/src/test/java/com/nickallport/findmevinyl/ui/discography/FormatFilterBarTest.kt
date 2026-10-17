@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.Grouping
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -138,99 +139,144 @@ class FormatFilterBarTest {
         composeTestRule.onNodeWithTag("format_chip_all").assertExists()
     }
 
-    // The Owned first chip, which leads the row when the bar is given it.
+    // The Group owned chip, which leads the row when the bar is given it.
 
     @Test
-    fun `has no Owned first chip unless it is given one`() {
+    fun `has no Group owned chip unless it is given one`() {
         composeTestRule.setContent {
             FormatFilterBar(options = options, selected = null, unchecked = 0, onSelect = {})
         }
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertDoesNotExist()
     }
 
     @Test
-    fun `shows the Owned first chip even while no formats are known`() {
+    fun `shows the Group owned chip even while no formats are known`() {
         composeTestRule.setContent {
             FormatFilterBar(
                 options = emptyList(), selected = null, unchecked = 40, onSelect = {},
-                ownedFirst = false, onToggleOwnedFirst = {}
+                grouping = Grouping.None
             )
         }
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").assertExists()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertExists()
         composeTestRule.onNodeWithText("All").assertDoesNotExist()
     }
 
     @Test
-    fun `the Owned first chip is selected when owned first is on`() {
+    fun `the Group owned chip is selected when group owned is on`() {
         composeTestRule.setContent {
             FormatFilterBar(
                 options = options, selected = null, unchecked = 0, onSelect = {},
-                ownedFirst = true, onToggleOwnedFirst = {}
+                grouping = Grouping(owned = true)
             )
         }
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").assertIsSelected()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertIsSelected()
     }
 
     @Test
-    fun `the Owned first chip is not selected when owned first is off`() {
+    fun `the Group owned chip is not selected when group owned is off`() {
         composeTestRule.setContent {
             FormatFilterBar(
                 options = options, selected = null, unchecked = 0, onSelect = {},
-                ownedFirst = false, onToggleOwnedFirst = {}
+                grouping = Grouping.None
             )
         }
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertIsNotSelected()
     }
 
     @Test
-    fun `tapping the Owned first chip asks to switch it, and does not choose a format`() {
+    fun `tapping the Group owned chip asks to switch it, and does not choose a format`() {
         var toggled = 0
         val chosen = mutableListOf<String?>()
         composeTestRule.setContent {
             FormatFilterBar(
                 options = options, selected = null, unchecked = 0, onSelect = { chosen.add(it) },
-                ownedFirst = false, onToggleOwnedFirst = { toggled++ }
+                grouping = Grouping.None, onToggleGroupOwned = { toggled++ }
             )
         }
 
-        composeTestRule.onNodeWithTag("owned_first_toggle").performClick()
+        composeTestRule.onNodeWithTag("group_owned_toggle").performClick()
 
         assertEquals(1, toggled)
         assertEquals(emptyList<String?>(), chosen)
     }
 
     @Test
-    fun `the Owned first chip comes before All, on the same line`() {
+    fun `the Group owned chip comes before All, on the same line`() {
         composeTestRule.setContent {
             FormatFilterBar(
                 options = options, selected = null, unchecked = 0, onSelect = {},
-                ownedFirst = false, onToggleOwnedFirst = {}
+                grouping = Grouping.None
             )
         }
 
-        val owned = composeTestRule.onNodeWithTag("owned_first_toggle").fetchSemanticsNode().positionInRoot
+        val owned = composeTestRule.onNodeWithTag("group_owned_toggle").fetchSemanticsNode().positionInRoot
         val all = composeTestRule.onNodeWithTag("format_chip_all").fetchSemanticsNode().positionInRoot
 
-        assertTrue("Owned first is left of All", owned.x < all.x)
+        assertTrue("Group owned is left of All", owned.x < all.x)
         assertEquals(owned.y, all.y, 1f)
     }
 
     @Test
-    fun `choosing a format works as before with the Owned first chip there`() {
+    fun `choosing a format works as before with the Group owned chip there`() {
         val chosen = mutableListOf<String?>()
         composeTestRule.setContent {
             FormatFilterBar(
                 options = options, selected = null, unchecked = 0, onSelect = { chosen.add(it) },
-                ownedFirst = true, onToggleOwnedFirst = {}
+                grouping = Grouping(owned = true)
             )
         }
 
         composeTestRule.onNodeWithTag("format_chip_LP").performClick()
 
         assertEquals(listOf<String?>("LP"), chosen)
+    }
+
+    // The Group wanted chip, next to Group owned.
+
+    @Test
+    fun `has a Group wanted chip after Group owned and before All, and says so`() {
+        composeTestRule.setContent {
+            FormatFilterBar(options = options, selected = null, unchecked = 0, onSelect = {}, grouping = Grouping.None)
+        }
+
+        composeTestRule.onNodeWithText("Group wanted").assertExists()
+        val owned = composeTestRule.onNodeWithTag("group_owned_toggle").fetchSemanticsNode().positionInRoot
+        val wanted = composeTestRule.onNodeWithTag("group_wanted_toggle").fetchSemanticsNode().positionInRoot
+        val all = composeTestRule.onNodeWithTag("format_chip_all").fetchSemanticsNode().positionInRoot
+        assertTrue(owned.x < wanted.x && wanted.x < all.x)
+    }
+
+    @Test
+    fun `the Group wanted chip is selected only when wanted is grouped`() {
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = {},
+                grouping = Grouping(wanted = true)
+            )
+        }
+
+        composeTestRule.onNodeWithTag("group_wanted_toggle").assertIsSelected()
+        composeTestRule.onNodeWithTag("group_owned_toggle").assertIsNotSelected()
+    }
+
+    @Test
+    fun `tapping the Group wanted chip asks to switch it and nothing else`() {
+        var owned = 0
+        var wanted = 0
+        composeTestRule.setContent {
+            FormatFilterBar(
+                options = options, selected = null, unchecked = 0, onSelect = {},
+                grouping = Grouping.None, onToggleGroupOwned = { owned++ }, onToggleGroupWanted = { wanted++ }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("group_wanted_toggle").performClick()
+
+        assertEquals(0, owned)
+        assertEquals(1, wanted)
     }
 }

@@ -22,7 +22,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 
 - Search for an artist, with suggestions as you type (your favourites first), and see their whole discography, grouped into studio albums, EPs, singles, live albums, compilations and others, with a cover for each.
 - See which formats each album came out on (LP, 12", 7", CD, cassette, digital), and filter by one.
-- Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Owned first switch groups what you own at the top, and the app remembers it for each artist.
+- Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Group owned and Group wanted switches put those albums in sections at the top of an artist's discography, Owned first by default. With both on, an arrow on the lower heading moves it to the top. The app remembers the choice for each artist.
 - Open an album for its pressings, label and catalogue numbers, tracklist by side, genres and rating.
 - Show your favourite artists as a list, or as a grid of pictures when there are many, and the app remembers which you chose. In the grid, each picture has the artist's name under it, a touch opens the artist, and holding a picture then dragging it changes the order.
 - Keep a list of favourite artists and a want list in the order you choose, and share the want list as text. Before sharing you can add a message ("It's my birthday soon, here are some ideas") and choose how many albums to send, such as the top 10 or top 20, so the list is not too long.
