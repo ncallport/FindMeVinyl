@@ -230,7 +230,6 @@ class AlbumDetailRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().performClick()
-        composeTestRule.onNodeWithTag("my_copy_add").performScrollTo().performClick()
         composeTestRule.onNodeWithTag("my_copy_save").performScrollTo().performClick()
         composeTestRule.waitForIdle()
 

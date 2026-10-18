@@ -1,6 +1,5 @@
 package com.nickallport.findmevinyl.ui.discography
 
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.FilterChip
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import com.nickallport.findmevinyl.discography.PressingSummary
@@ -107,7 +106,6 @@ fun AlbumDetailScreen(
             text = artistName,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.secondary,
-            textDecoration = if (onOpenArtist != null) TextDecoration.Underline else null,
             modifier = Modifier
                 .then(if (onOpenArtist != null) Modifier.clickable(onClick = onOpenArtist) else Modifier)
                 .testTag("detail_artist")

@@ -77,13 +77,14 @@ fun MyCopySection(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        drafts = CopyDrafts.encode(album.copies)
+                        // With no copies yet the editor opens with one ready to fill in, its formats to choose from.
+                        drafts = CopyDrafts.encode(album.copies.ifEmpty { listOf(AlbumCopy(ReleaseFormats.LP)) })
                         note = album.note.orEmpty()
                         editing = true
                     },
                     modifier = Modifier.testTag("my_copy_edit")
                 ) {
-                    Text(if (summary.isEmpty()) "Add my copies" else "Edit my copies")
+                    Text(if (summary.isEmpty()) "Add a copy" else "Edit my copies")
                 }
                 // The pressing the page shows, if it is not the one already chosen.
                 if (shownPressing != null && shownPressing.releaseId != album.myPressingId) {

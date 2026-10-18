@@ -337,4 +337,51 @@ class AlbumRowTest {
 
         composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).assertTextEquals("Wanted on LP")
     }
+
+    // The copies the user owns, one to a line.
+
+    @Test
+    fun `each copy is on its own line, as format, a colon and the description`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(
+                    id = "1", title = "The Crossing", owned = true, wanted = false, userFormats = listOf("LP"),
+                    copies = listOf(AlbumCopy("LP", "Green cover"), AlbumCopy("LP", "Blue cover, torn spine"), AlbumCopy("CD"))
+                ),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("album_copy_0", useUnmergedTree = true).assertTextEquals("LP: Green cover")
+        composeTestRule.onNodeWithTag("album_copy_1", useUnmergedTree = true).assertTextEquals("LP: Blue cover, torn spine")
+        composeTestRule.onNodeWithTag("album_copy_2", useUnmergedTree = true).assertTextEquals("CD")
+    }
+
+    @Test
+    fun `an album with no copies has no copy lines`() {
+        composeTestRule.setContent {
+            AlbumRow(album = AlbumUiModel(id = "1", title = "The Crossing", owned = true, wanted = false), onToggleOwned = {})
+        }
+
+        composeTestRule.onNodeWithTag("album_copy_0", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the copies come under the formats, and the want under the copies`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(
+                    id = "1", title = "The Crossing", owned = true, wanted = true, wantFormat = "CD",
+                    formats = listOf("LP"), copies = listOf(AlbumCopy("LP", "Green cover"))
+                ),
+                onToggleOwned = {}
+            )
+        }
+
+        val formats = composeTestRule.onNodeWithTag("format_labels", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
+        val copy = composeTestRule.onNodeWithTag("album_copy_0", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
+        val wanted = composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
+        assertTrue(formats < copy)
+        assertTrue(copy < wanted)
+    }
 }
