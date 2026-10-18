@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.backup
 
+import com.nickallport.findmevinyl.genre.GenreNames
 import com.nickallport.findmevinyl.storage.ArtistGroupMemberEntity
 import com.nickallport.findmevinyl.storage.ArtistGroupEntity
 import com.nickallport.findmevinyl.favourites.GroupMember
@@ -72,7 +73,7 @@ class BackupViewModel(
             app = BackupFile.APP,
             version = BackupFile.VERSION,
             exportedAt = clock(),
-            favourites = artists.map { BackupArtist(it.id, it.name, it.type, it.country, it.position) },
+            favourites = artists.map { BackupArtist(it.id, it.name, it.type, it.country, it.position, it.genre) },
             albums = albums.map {
                 BackupAlbum(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
@@ -90,7 +91,8 @@ class BackupViewModel(
             groups = groups.map { group ->
                 BackupGroup(
                     group.id, group.name, group.position,
-                    groupMembers[group.id].orEmpty().sortedBy { it.ordinal }.map { BackupGroupMember(it.artistId, it.name) }
+                    groupMembers[group.id].orEmpty().sortedBy { it.ordinal }.map { BackupGroupMember(it.artistId, it.name) },
+                    group.genre
                 )
             },
             settings = currentSettings()
@@ -182,8 +184,14 @@ class BackupViewModel(
         var artists = 0
         for (artist in file.favourites.orEmpty()) {
             val id = artist.id?.takeIf { it.isNotBlank() } ?: continue
-            if (artistDao.getById(id) != null) continue
-            artistDao.insert(ArtistEntity(id, artist.name.orEmpty(), artist.type, artist.country, artist.position ?: 0))
+            val genre = GenreNames.normalise(artist.genre)
+            val onPhone = artistDao.getById(id)
+            if (onPhone != null) {
+                // An artist on the phone is kept as it is, but takes the genre from the file when it has none.
+                if (onPhone.genre == null && genre != null) artistDao.setGenre(id, genre)
+                continue
+            }
+            artistDao.insert(ArtistEntity(id, artist.name.orEmpty(), artist.type, artist.country, artist.position ?: 0, genre))
             artists++
         }
 
@@ -242,14 +250,19 @@ class BackupViewModel(
         val groupDao = database.artistGroupDao()
         for (group in file.groups.orEmpty()) {
             val id = group.id?.takeIf { ArtistGroupViewModel.isGroupId(it) } ?: continue
-            if (groupDao.getGroup(id) != null) continue
+            val genre = GenreNames.normalise(group.genre)
+            val onPhone = groupDao.getGroup(id)
+            if (onPhone != null) {
+                if (onPhone.genre == null && genre != null) groupDao.setGenre(id, genre)
+                continue
+            }
             val members = group.members.orEmpty()
                 .mapNotNull { m -> m.artistId?.trim()?.takeIf { it.isNotEmpty() }?.let { GroupMember(it, m.name.orEmpty()) } }
                 .distinctBy { it.artistId }
                 .filter { groupDao.groupIdOf(it.artistId) == null }
             if (members.size < 2) continue
             val name = group.name?.trim()?.takeIf { it.isNotEmpty() }?.take(MAX_GROUP_NAME) ?: members.first().name
-            groupDao.insertGroup(ArtistGroupEntity(id, name, group.position ?: 0))
+            groupDao.insertGroup(ArtistGroupEntity(id, name, group.position ?: 0, genre))
             groupDao.insertMembers(members.mapIndexed { i, m -> ArtistGroupMemberEntity(m.artistId, id, m.name, i) })
             groups++
         }

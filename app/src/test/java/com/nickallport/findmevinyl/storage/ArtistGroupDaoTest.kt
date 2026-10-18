@@ -134,4 +134,27 @@ class ArtistGroupDaoTest {
     fun `with no favourites and no groups there is no lowest position`() = runBlocking {
         assertNull(database.artistDao().minPosition())
     }
+
+    @Test
+    fun `a group has no genre to begin with, and one can be chosen and taken away`() = runBlocking {
+        dao.insertGroup(group)
+        assertNull(dao.getGroup("group/1")!!.genre)
+
+        dao.setGenre("group/1", "post-punk")
+        assertEquals("post-punk", dao.getGroup("group/1")!!.genre)
+
+        dao.setGenre("group/1", null)
+        assertNull(dao.getGroup("group/1")!!.genre)
+    }
+
+    @Test
+    fun `changing the name or the position of a group keeps its genre`() = runBlocking {
+        dao.insertGroup(group)
+        dao.setGenre("group/1", "post-punk")
+
+        dao.setName("group/1", "Renamed")
+        dao.setPosition("group/1", 9)
+
+        assertEquals("post-punk", dao.getGroup("group/1")!!.genre)
+    }
 }

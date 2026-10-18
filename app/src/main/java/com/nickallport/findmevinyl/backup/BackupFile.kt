@@ -29,7 +29,9 @@ data class BackupArtist(
     val name: String? = null,
     val type: String? = null,
     val country: String? = null,
-    val position: Int? = null
+    val position: Int? = null,
+    /** The genre the user chose. */
+    val genre: String? = null
 )
 
 /**
@@ -58,7 +60,8 @@ data class BackupGroup(
     val id: String? = null,
     val name: String? = null,
     val position: Int? = null,
-    val members: List<BackupGroupMember>? = null
+    val members: List<BackupGroupMember>? = null,
+    val genre: String? = null
 )
 
 data class BackupGroupMember(val artistId: String? = null, val name: String? = null)

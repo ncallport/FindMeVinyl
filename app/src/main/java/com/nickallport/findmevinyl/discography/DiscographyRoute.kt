@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import com.nickallport.findmevinyl.ui.discography.GenreSection
 import androidx.compose.foundation.layout.fillMaxWidth
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
@@ -76,6 +77,8 @@ fun DiscographyRoute(
     inGroup: Boolean = false,
     /** [artistId] is a group of artists: its albums are every member's, and it has no Save button, being always kept. */
     isGroup: Boolean = false,
+    /** How to show and change the genre of the artist or group. Without it there is no genre line. */
+    genreControls: GenreControls? = null,
     settings: Settings = Settings.ShowEverything,
     /** Owned first was on the last time this artist was open. */
     startWithGrouping: Grouping = Grouping.None,
@@ -91,6 +94,7 @@ fun DiscographyRoute(
 ) {
     var loadState by remember { mutableStateOf<LoadState>(LoadState.Loading) }
     var isFavourite by remember { mutableStateOf(false) }
+    var genre by remember(artistId) { mutableStateOf<String?>(null) }
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
@@ -146,6 +150,9 @@ fun DiscographyRoute(
         }
     }
 
+    // The genre the user chose, if there is one.
+    LaunchedEffect(artistId) { genre = genreControls?.load?.invoke() }
+
     LaunchedEffect(artistId, attempt) {
         isFavourite = loadIsFavourite()
         load(artistId).collect { loadState = LoadState.Loaded(it) }
@@ -197,6 +204,16 @@ fun DiscographyRoute(
                 }
             }
         )
+
+        // The genre can be chosen for a favourite artist, which has somewhere to keep it, unless it is in a group, whose
+        // genre counts instead, and for a group.
+        if (genreControls != null && isFavourite && (isGroup || !inGroup)) {
+            GenreSection(
+                genre = genre,
+                loadOptions = genreControls.options,
+                onSet = { chosen -> coroutineScope.launch { genreControls.set(chosen); genre = genreControls.load() } }
+            )
+        }
 
         Box(modifier = Modifier.weight(1f)) {
             when (val currentState = loadState) {

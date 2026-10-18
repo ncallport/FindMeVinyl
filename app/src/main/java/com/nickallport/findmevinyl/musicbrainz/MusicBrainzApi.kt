@@ -70,6 +70,15 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzArtistLinksResponse
 
+    /** The genres of one artist, each with the number of votes for it. */
+    @GET("artist/{id}")
+    suspend fun getArtistGenres(
+        @Path("id") artistId: String,
+        @Query("inc") include: String = "genres",
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzArtistGenresResponse
+
     /**
      * The releases of one release group with their media, which say whether it came on vinyl, CD and so on.
      * `media+labels` adds each release's label and catalogue number. The `inc` list is sent as it is,
