@@ -69,6 +69,8 @@ data class FavouriteArtistUiModel(
     val name: String,
     val isGroup: Boolean = false,
     val memberIds: List<String> = emptyList(),
+    /** The names of the members, in the same order as [memberIds], so a group can be found by them. */
+    val memberNames: List<String> = emptyList(),
     val imageId: String = id
 )
 

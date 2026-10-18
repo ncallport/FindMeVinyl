@@ -4,7 +4,7 @@ package com.nickallport.findmevinyl.backup
 object BackupMessages {
 
     fun backedUp(summary: BackupSummary): String {
-        val things = counts(summary.artists, summary.albums, summary.photos, summary.shops)
+        val things = counts(summary.artists, summary.groups, summary.albums, summary.photos, summary.shops)
         return if (things.isEmpty()) {
             "Backed up your settings. There were no artists, albums, photos or shops yet."
         } else {
@@ -15,7 +15,7 @@ object BackupMessages {
     fun restored(result: RestoreResult): String = when (result) {
         is RestoreResult.Failed -> result.reason
         is RestoreResult.Done -> {
-            val things = counts(result.artists, result.albums, result.photos, result.shops)
+            val things = counts(result.artists, result.groups, result.albums, result.photos, result.shops)
             when {
                 things.isEmpty() && !result.settingsRestored ->
                     "Nothing new to restore. This phone already has everything in the file."
@@ -26,8 +26,9 @@ object BackupMessages {
         }
     }
 
-    private fun counts(artists: Int, albums: Int, photos: Int, shops: Int): List<String> = buildList {
+    private fun counts(artists: Int, groups: Int, albums: Int, photos: Int, shops: Int): List<String> = buildList {
         if (artists > 0) add(count(artists, "artist"))
+        if (groups > 0) add(count(groups, "group"))
         if (albums > 0) add(count(albums, "album"))
         if (photos > 0) add(count(photos, "photo"))
         if (shops > 0) add(count(shops, "shop"))

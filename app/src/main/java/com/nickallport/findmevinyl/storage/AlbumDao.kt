@@ -75,18 +75,27 @@ interface AlbumDao {
     @Query("UPDATE albums SET wanted = 0 WHERE artistId = :artistId")
     suspend fun clearWantedForArtist(artistId: String): Int
 
+    /**
+     * The albums on the want list, each with the name and place of whom it is listed under: its artist, or
+     * the group of artists the artist is in, so a group's wanted albums come together under its name. An
+     * album of an artist that is neither a favourite nor in a group is not listed. [WantedAlbumRow.artistId]
+     * is the id of the group, or of the artist.
+     */
     @Query(
         """
         SELECT albums.id AS albumId,
-               albums.artistId AS artistId,
-               favourite_artists.name AS artistName,
+               COALESCE(artist_groups.id, albums.artistId) AS artistId,
+               COALESCE(artist_groups.name, favourite_artists.name) AS artistName,
                albums.title AS albumTitle,
                albums.firstReleaseDate AS firstReleaseDate,
-               favourite_artists.position AS artistPosition,
+               COALESCE(artist_groups.position, favourite_artists.position) AS artistPosition,
                albums.wantPosition AS wantPosition
         FROM albums
-        INNER JOIN favourite_artists ON albums.artistId = favourite_artists.id
+        LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
+        LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId
+        LEFT JOIN favourite_artists ON albums.artistId = favourite_artists.id
         WHERE albums.wanted = 1 AND albums.owned = 0
+          AND (artist_groups.id IS NOT NULL OR favourite_artists.id IS NOT NULL)
         """
     )
     suspend fun getWantedAlbums(): List<WantedAlbumRow>

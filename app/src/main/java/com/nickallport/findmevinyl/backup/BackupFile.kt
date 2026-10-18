@@ -15,6 +15,7 @@ data class BackupFile(
     val albums: List<BackupAlbum>? = null,
     val photos: List<BackupPhoto>? = null,
     val shops: List<BackupShop>? = null,
+    val groups: List<BackupGroup>? = null,
     val settings: Settings? = null
 ) {
     companion object {
@@ -52,6 +53,16 @@ data class BackupAlbum(
     val myPressingText: String? = null
 )
 
+/** Artists the user keeps together under a name of their own. The first member is first. */
+data class BackupGroup(
+    val id: String? = null,
+    val name: String? = null,
+    val position: Int? = null,
+    val members: List<BackupGroupMember>? = null
+)
+
+data class BackupGroupMember(val artistId: String? = null, val name: String? = null)
+
 /** A photo the user chose. The bytes are in the zip as `photos/{fileName}`. */
 data class BackupPhoto(
     val artistId: String? = null,
@@ -83,7 +94,7 @@ data class BackupShop(
     val mapsLink: String? = null
 )
 
-data class BackupSummary(val artists: Int, val albums: Int, val photos: Int, val shops: Int = 0)
+data class BackupSummary(val artists: Int, val albums: Int, val photos: Int, val shops: Int = 0, val groups: Int = 0)
 
 sealed class RestoreResult {
     /** What was added to the phone. Things it already had are not counted. */
@@ -92,7 +103,8 @@ sealed class RestoreResult {
         val albums: Int,
         val photos: Int,
         val settingsRestored: Boolean,
-        val shops: Int = 0
+        val shops: Int = 0,
+        val groups: Int = 0
     ) : RestoreResult()
 
     /** The file was not used, and nothing on the phone was changed. */

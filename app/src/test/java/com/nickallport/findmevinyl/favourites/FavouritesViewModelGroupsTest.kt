@@ -157,4 +157,11 @@ class FavouritesViewModelGroupsTest {
 
         assertEquals(listOf("x"), ids())
     }
+
+    @Test
+    fun `a group lists the names of its members, in order`() = runBlocking {
+        group("group/1", "G", 0, "b" to "Second name", "a" to "First name")
+
+        assertEquals(listOf("Second name", "First name"), viewModel.loadFavourites().single().memberNames)
+    }
 }
