@@ -31,15 +31,17 @@ import com.nickallport.findmevinyl.genre.GenreOption
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 
 /**
- * The genre of an artist or a group: a line saying which is chosen, and a button that opens the genres to choose
- * from ([loadOptions] fetches them when it opens). [onSet] is told the choice, or null to take the genre away.
+ * The genre of an artist or a group: a line saying which is chosen, or else which is [suggested] (the genre with the most
+ * votes), and a button that opens the genres to choose from ([loadOptions] fetches them when it opens). [onSet] is told
+ * the choice, or null to take the user's choice away, which goes back to the suggestion.
  */
 @Composable
 fun GenreSection(
     genre: String?,
     loadOptions: suspend () -> List<GenreOption>?,
     onSet: (String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    suggested: String? = null
 ) {
     var choosing by rememberSaveable { mutableStateOf(false) }
 
@@ -48,18 +50,23 @@ fun GenreSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Genre: " + if (genre == null) "none chosen" else GenreNames.display(genre),
+            text = "Genre: " + when {
+                genre != null -> GenreNames.display(genre)
+                suggested != null -> GenreNames.display(suggested) + " (suggested)"
+                else -> "none chosen"
+            },
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f).testTag("genre_line")
         )
         TextButton(onClick = { choosing = true }, modifier = Modifier.testTag("genre_change")) {
-            Text(if (genre == null) "Choose" else "Change")
+            Text(if (genre == null && suggested == null) "Choose" else "Change")
         }
     }
 
     if (choosing) {
         GenreChooser(
             genre = genre,
+            suggested = suggested,
             loadOptions = loadOptions,
             onSet = {
                 choosing = false
@@ -73,6 +80,7 @@ fun GenreSection(
 @Composable
 private fun GenreChooser(
     genre: String?,
+    suggested: String?,
     loadOptions: suspend () -> List<GenreOption>?,
     onSet: (String?) -> Unit,
     onCancel: () -> Unit
@@ -114,7 +122,12 @@ private fun GenreChooser(
                         ) {
                             Text(GenreNames.display(option.name), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                text = if (option.name == genre) "Chosen" else if (option.votes == 1) "1 vote" else "${option.votes} votes",
+                                text = when {
+                                    option.name == genre -> "Chosen"
+                                    genre == null && option.name == suggested -> "Suggested"
+                                    option.votes == 1 -> "1 vote"
+                                    else -> "${option.votes} votes"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -138,7 +151,9 @@ private fun GenreChooser(
         },
         confirmButton = {
             if (genre != null) {
-                TextButton(onClick = { onSet(null) }, modifier = Modifier.testTag("genre_clear")) { Text("Clear genre") }
+                TextButton(onClick = { onSet(null) }, modifier = Modifier.testTag("genre_clear")) {
+                    Text(if (suggested != null) "Use the suggested genre" else "Clear genre")
+                }
             }
         },
         dismissButton = {

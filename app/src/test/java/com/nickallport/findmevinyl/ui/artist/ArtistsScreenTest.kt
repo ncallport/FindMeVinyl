@@ -254,4 +254,96 @@ class ArtistsScreenTest {
 
         onNodeWithTag("favourites_group_by_genre").assertIsSelected()
     }
+
+    // Finding the suggested genres in the background.
+
+    @Test
+    fun `finding the genres starts when the page opens`() {
+        var started = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    fillGenreDefaults = { started++ }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(1, started)
+    }
+
+    @Test
+    fun `each genre found makes the favourites load again, so the grouping follows`() {
+        var loads = 0
+        var found = false
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {},
+                    loadFavourites = {
+                        loads++
+                        if (found) listOf(FavouriteArtistUiModel("1", "Roxy Music", genre = "art rock")) else favourites
+                    },
+                    onArtistSelected = {},
+                    startGroupedByGenre = true,
+                    fillGenreDefaults = { onFound -> found = true; onFound() }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("genre_header_art rock").assertExists()
+        assertEquals(true, loads >= 2)
+    }
+
+    @Test
+    fun `while the genres are being found a line says so, and it goes when they are`() {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    startGroupedByGenre = true,
+                    fillGenreDefaults = { gate.await() }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_genres_finding").assertExists()
+
+        gate.complete(Unit)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the line about finding genres is only there when the favourites are grouped by genre`() {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    fillGenreDefaults = { gate.await() }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
+    }
+
+    @Test
+    fun `without a way to find genres nothing is started and no line shows`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true)
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
+    }
 }

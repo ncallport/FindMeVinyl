@@ -58,10 +58,10 @@ class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao
         val members = groupDao.getAllMembers()
         val inGroup = members.map { it.artistId }.toSet()
         val membersByGroup = members.groupBy { it.groupId }.mapValues { (_, list) -> list.sortedBy { it.ordinal } }
-        val artists = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Entry(it.id, it.name, it.position, genre = it.genre) }
+        val artists = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Entry(it.id, it.name, it.position, genre = it.genre ?: it.autoGenre) }
         val groups = groupDao.getGroups().mapNotNull { group ->
             membersByGroup[group.id]?.takeIf { it.isNotEmpty() }?.let { list ->
-                Entry(group.id, group.name, group.position, list.map { it.artistId }, list.map { it.name }, group.genre)
+                Entry(group.id, group.name, group.position, list.map { it.artistId }, list.map { it.name }, group.genre ?: group.autoGenre)
             }
         }
         return (artists + groups).sortedWith(compareBy<Entry> { it.position }.thenBy { it.name.lowercase() })

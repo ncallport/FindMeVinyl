@@ -72,6 +72,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_11_12
 import com.nickallport.findmevinyl.storage.MIGRATION_12_13
 import com.nickallport.findmevinyl.storage.MIGRATION_13_14
 import com.nickallport.findmevinyl.storage.MIGRATION_14_15
+import com.nickallport.findmevinyl.storage.MIGRATION_15_16
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -236,7 +237,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -351,6 +352,7 @@ class MainActivity : ComponentActivity() {
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 startGroupedByGenre = favouritesLayoutStore.isGroupedByGenre(),
                                 onGroupedByGenreChange = { favouritesLayoutStore.setGroupedByGenre(it) },
+                                fillGenreDefaults = { onFound -> artistGenreViewModel.fillDefaults(onFound) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     // A group opens on the discography of all its artists, under the group's name.
@@ -398,6 +400,7 @@ class MainActivity : ComponentActivity() {
                                 genreControls = remember(screen.artistId) {
                                     GenreControls(
                                         load = { artistGenreViewModel.genreOf(screen.artistId) },
+                                        suggested = { artistGenreViewModel.autoGenreOf(screen.artistId) },
                                         options = { artistGenreViewModel.options(screen.artistId) },
                                         set = { genre -> artistGenreViewModel.setGenre(screen.artistId, genre) }
                                     )

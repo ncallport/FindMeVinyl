@@ -292,4 +292,148 @@ class ArtistGenreViewModelTest {
         assertNull(viewModel.genreOf("stranger"))
         assertNull(viewModel.genreOf("group/none"))
     }
+
+    // Suggesting the genre with the most votes.
+
+    private suspend fun favourite(id: String, name: String, position: Int, genre: String? = null) =
+        database.artistDao().insert(ArtistEntity(id, name, null, null, position, genre))
+
+    @Test
+    fun `each favourite artist is given the genre with the most votes as its suggestion`() = runBlocking {
+        favourite("cave", "Nick Cave", 0)
+        favourite("minds", "Simple Minds", 1)
+        answers["cave"] = genres("post-punk" to 11, "rock" to 2)
+        answers["minds"] = genres("new wave" to 5, "synth-pop" to 7)
+
+        viewModel.fillDefaults()
+
+        assertEquals("post-punk", database.artistDao().getById("cave")!!.autoGenre)
+        assertEquals("synth-pop", database.artistDao().getById("minds")!!.autoGenre)
+        assertEquals("post-punk", viewModel.autoGenreOf("cave"))
+    }
+
+    @Test
+    fun `with votes level the first in alphabetical order is suggested`() = runBlocking {
+        favourite("cave", "Nick Cave", 0)
+        answers["cave"] = genres("post-punk" to 11, "alternative rock" to 11)
+
+        viewModel.fillDefaults()
+
+        assertEquals("alternative rock", viewModel.autoGenreOf("cave"))
+    }
+
+    @Test
+    fun `the favourites are asked about in the order they are listed, one request each`() = runBlocking {
+        favourite("b", "Beta", 1)
+        favourite("a", "Alpha", 0)
+        answers["a"] = genres("rock" to 1)
+        answers["b"] = genres("rock" to 1)
+
+        viewModel.fillDefaults()
+
+        assertEquals(listOf("/artist/a?inc=genres&fmt=json", "/artist/b?inc=genres&fmt=json"), requests)
+    }
+
+    @Test
+    fun `an artist that already has a suggestion is not asked about again`() = runBlocking {
+        favourite("a", "Alpha", 0)
+        database.artistDao().setAutoGenre("a", "folk")
+
+        viewModel.fillDefaults()
+
+        assertEquals(emptyList<String>(), requests)
+        assertEquals("folk", viewModel.autoGenreOf("a"))
+    }
+
+    @Test
+    fun `an artist the user chose a genre for is given a suggestion too, and the chosen genre stays`() = runBlocking {
+        favourite("a", "Alpha", 0, genre = "jazz")
+        answers["a"] = genres("rock" to 3)
+
+        viewModel.fillDefaults()
+
+        assertEquals("rock", viewModel.autoGenreOf("a"))
+        assertEquals("jazz", viewModel.genreOf("a"))
+    }
+
+    @Test
+    fun `a group is given the genre with the most votes among all its members`() = runBlocking {
+        group("group/1", "cave", "seeds")
+        answers["cave"] = genres("rock" to 3, "singer-songwriter" to 2)
+        answers["seeds"] = genres("rock" to 4, "post-punk" to 6)
+
+        viewModel.fillDefaults()
+
+        assertEquals("rock", viewModel.autoGenreOf("group/1"))
+        assertEquals("rock", database.artistGroupDao().getGroup("group/1")!!.autoGenre)
+    }
+
+    @Test
+    fun `an artist in a group is not asked about on its own`() = runBlocking {
+        favourite("cave", "Nick Cave", 0)
+        group("group/1", "cave", "seeds")
+        answers["cave"] = genres("rock" to 1)
+        answers["seeds"] = genres("rock" to 1)
+
+        viewModel.fillDefaults()
+
+        assertEquals(listOf("/artist/cave?inc=genres&fmt=json", "/artist/seeds?inc=genres&fmt=json"), requests)
+        assertNull(database.artistDao().getById("cave")!!.autoGenre)
+    }
+
+    @Test
+    fun `an artist MusicBrainz lists no genres for has no suggestion, and is not asked about twice`() = runBlocking {
+        favourite("a", "Alpha", 0)
+        answers["a"] = """{ "id": "a" }"""
+
+        viewModel.fillDefaults()
+        viewModel.fillDefaults()
+
+        assertNull(viewModel.autoGenreOf("a"))
+        assertEquals(1, requests.size)
+    }
+
+    @Test
+    fun `an artist that could not be asked about is left for next time, and the others carry on`() = runBlocking {
+        favourite("a", "Alpha", 0)
+        favourite("b", "Beta", 1)
+        answers["b"] = genres("folk" to 2)
+
+        viewModel.fillDefaults()
+
+        assertNull(viewModel.autoGenreOf("a"))
+        assertEquals("folk", viewModel.autoGenreOf("b"))
+
+        answers["a"] = genres("rock" to 1)
+        viewModel.fillDefaults()
+        assertEquals("rock", viewModel.autoGenreOf("a"))
+    }
+
+    @Test
+    fun `it says after each suggestion that was found`() = runBlocking {
+        favourite("a", "Alpha", 0)
+        favourite("b", "Beta", 1)
+        favourite("c", "Gamma", 2)
+        answers["a"] = genres("rock" to 1)
+        answers["b"] = """{ "id": "b" }"""
+        answers["c"] = genres("folk" to 1)
+        var told = 0
+
+        viewModel.fillDefaults { told++ }
+
+        assertEquals(2, told)
+    }
+
+    @Test
+    fun `with no favourites nothing is asked`() = runBlocking {
+        viewModel.fillDefaults()
+
+        assertEquals(emptyList<String>(), requests)
+    }
+
+    @Test
+    fun `an unknown artist or group has no suggestion`() = runBlocking {
+        assertNull(viewModel.autoGenreOf("stranger"))
+        assertNull(viewModel.autoGenreOf("group/none"))
+    }
 }

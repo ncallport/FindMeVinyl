@@ -81,6 +81,38 @@ class ArtistGenreViewModel(
         null
     }
 
+    /**
+     * Finds the genre with the most votes for each favourite artist and group that has no suggestion yet, and keeps it
+     * as the suggestion (`autoGenre`), which the user's own choice always wins over. They are asked about in the order
+     * they are listed, one request each in the [throttle], so what is on screen first is found first, and a group asks
+     * for each of its members. The genres MusicBrainz lists are kept, so one with none is not asked about again, and one
+     * whose request failed is tried again next time. [onFound] is told after each suggestion that was kept.
+     * Artists in a group are not asked about on their own: the group is the favourite.
+     */
+    suspend fun fillDefaults(onFound: suspend () -> Unit = {}) {
+        class Candidate(val id: String, val name: String, val position: Int, val auto: String?)
+
+        val inGroup = groupDao.getAllMembers().map { it.artistId }.toSet()
+        val withMembers = groupDao.getAllMembers().map { it.groupId }.toSet()
+        val candidates = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Candidate(it.id, it.name, it.position, it.autoGenre) } +
+            groupDao.getGroups().filter { it.id in withMembers }.map { Candidate(it.id, it.name, it.position, it.autoGenre) }
+
+        for (candidate in candidates.sortedWith(compareBy<Candidate> { it.position }.thenBy { it.name.lowercase() })) {
+            if (candidate.auto != null) continue
+            val top = options(candidate.id)?.firstOrNull()?.name ?: continue
+            setAutoGenre(candidate.id, top)
+            onFound()
+        }
+    }
+
+    /** The genre suggested for the artist or the group, the one with the most votes, or null. */
+    suspend fun autoGenreOf(id: String): String? =
+        if (ArtistGroupViewModel.isGroupId(id)) groupDao.getGroup(id)?.autoGenre else artistDao.getById(id)?.autoGenre
+
+    private suspend fun setAutoGenre(id: String, genre: String) {
+        if (ArtistGroupViewModel.isGroupId(id)) groupDao.setAutoGenre(id, genre) else artistDao.setAutoGenre(id, genre)
+    }
+
     /** The genre the user chose for the artist or the group, or null. */
     suspend fun genreOf(id: String): String? =
         if (ArtistGroupViewModel.isGroupId(id)) groupDao.getGroup(id)?.genre else artistDao.getById(id)?.genre
