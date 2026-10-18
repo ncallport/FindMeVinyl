@@ -76,6 +76,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_15_16
 import com.nickallport.findmevinyl.storage.MIGRATION_16_17
 import com.nickallport.findmevinyl.storage.MIGRATION_17_18
 import com.nickallport.findmevinyl.storage.MIGRATION_18_19
+import com.nickallport.findmevinyl.storage.MIGRATION_19_20
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -240,7 +241,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -474,7 +475,7 @@ class MainActivity : ComponentActivity() {
                                 loadPressing = { albumId, releaseId ->
                                     albumDetailsViewModel.selectPressing(albumId, releaseId)
                                 },
-                                saveCopy = { albumId, formats, note, formatNotes -> discographyViewModel.saveCopy(albumId, formats, note, formatNotes) },
+                                saveCopies = { albumId, copies, note -> discographyViewModel.saveCopies(albumId, copies, note) },
                                 saveWantFormat = { albumId, format -> discographyViewModel.saveWantFormat(albumId, format) },
                                 saveMyPressing = { albumId, pressing -> discographyViewModel.saveMyPressing(albumId, pressing) }
                             )

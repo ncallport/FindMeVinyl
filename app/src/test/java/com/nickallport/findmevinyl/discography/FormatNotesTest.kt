@@ -1,44 +1,24 @@
 package com.nickallport.findmevinyl.discography
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
+/** Notes as an earlier version stored them, still read by the migration and when an older backup is restored. */
 class FormatNotesTest {
 
     @Test
-    fun `notes for the formats given are kept, trimmed, and read back in the usual order`() {
-        val stored = FormatNotes.encode(mapOf("CD" to "  from Mum ", "LP" to "scratched"), listOf("LP", "CD"))
+    fun `notes are read back in the usual order of the labels`() {
+        val notes = FormatNotes.decode("""{"CD":"from Mum","LP":"scratched"}""")
 
-        assertEquals(mapOf("LP" to "scratched", "CD" to "from Mum"), FormatNotes.decode(stored))
-        assertEquals(listOf("LP", "CD"), FormatNotes.decode(stored).keys.toList())
+        assertEquals(mapOf("LP" to "scratched", "CD" to "from Mum"), notes)
+        assertEquals(listOf("LP", "CD"), notes.keys.toList())
     }
 
     @Test
-    fun `a note for a format that is not among those given is dropped`() {
-        val stored = FormatNotes.encode(mapOf("LP" to "scratched", "CD" to "from Mum"), listOf("LP"))
+    fun `blank notes and labels that are not formats are left out`() {
+        val notes = FormatNotes.decode("""{"LP":"   ","Betamax":"x","CD":"ok"}""")
 
-        assertEquals(mapOf("LP" to "scratched"), FormatNotes.decode(stored))
-    }
-
-    @Test
-    fun `blank notes and labels that are not formats are dropped`() {
-        val stored = FormatNotes.encode(mapOf("LP" to "   ", "Betamax" to "x", "CD" to "ok"), listOf("LP", "CD", "Betamax"))
-
-        assertEquals(mapOf("CD" to "ok"), FormatNotes.decode(stored))
-    }
-
-    @Test
-    fun `a note is cut to the length of the album note`() {
-        val stored = FormatNotes.encode(mapOf("LP" to "x".repeat(MAX_NOTE_LENGTH + 50)), listOf("LP"))
-
-        assertEquals(MAX_NOTE_LENGTH, FormatNotes.decode(stored).getValue("LP").length)
-    }
-
-    @Test
-    fun `with nothing to keep there is nothing stored`() {
-        assertNull(FormatNotes.encode(emptyMap(), listOf("LP")))
-        assertNull(FormatNotes.encode(mapOf("LP" to " "), listOf("LP")))
+        assertEquals(mapOf("CD" to "ok"), notes)
     }
 
     @Test

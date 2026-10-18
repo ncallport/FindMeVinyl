@@ -31,13 +31,24 @@ interface AlbumDao {
     @Query("UPDATE albums SET formats = :formats, statuses = :statuses, formatsCheckedAt = :checkedAt WHERE id = :albumId")
     suspend fun setChecked(albumId: String, formats: String, statuses: String, checkedAt: Long): Int
 
-    /** Saves the user's own copy details, or clears them with nulls. Nothing else about the album changes. */
-    @Query("UPDATE albums SET userFormats = :userFormats, userNote = :userNote WHERE id = :albumId")
-    suspend fun setCopy(albumId: String, userFormats: String?, userNote: String?): Int
+    /** Saves the user's note about the album, or clears it with null. Nothing else about the album changes. */
+    @Query("UPDATE albums SET userNote = :note WHERE id = :albumId")
+    suspend fun setNote(albumId: String, note: String?): Int
 
-    /** Saves the user's note for each format of their copy (see `FormatNotes`), or clears them with null. */
-    @Query("UPDATE albums SET userFormatNotes = :notes WHERE id = :albumId")
-    suspend fun setFormatNotes(albumId: String, notes: String?): Int
+    /** The copies of the album the user owns, in the order they were listed. */
+    @Query("SELECT * FROM album_copies WHERE albumId = :albumId ORDER BY position, id")
+    suspend fun getCopies(albumId: String): List<AlbumCopyEntity>
+
+    /** Every copy of every album, for the discography list and for a backup. */
+    @Query("SELECT * FROM album_copies ORDER BY albumId, position, id")
+    suspend fun getAllCopies(): List<AlbumCopyEntity>
+
+    @Insert
+    suspend fun insertCopies(copies: List<AlbumCopyEntity>): List<Long>
+
+    /** Takes away the copies of the album other than [keep], which are the ones just saved. */
+    @Query("DELETE FROM album_copies WHERE albumId = :albumId AND id NOT IN (:keep)")
+    suspend fun deleteCopiesExcept(albumId: String, keep: List<Long>): Int
 
     /** Saves the pressing the user chose as their copy and a line that describes it, or takes it away with nulls. */
     @Query("UPDATE albums SET myPressingId = :releaseId, myPressingText = :text WHERE id = :albumId")
@@ -45,8 +56,8 @@ interface AlbumDao {
 
     /** Every album the user owns or wants, or has recorded details of a copy for, for a backup. */
     @Query(
-        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR userFormats IS NOT NULL OR userNote IS NOT NULL OR userFormatNotes IS NOT NULL " +
-            "OR myPressingId IS NOT NULL"
+        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR userNote IS NOT NULL OR myPressingId IS NOT NULL " +
+            "OR EXISTS (SELECT 1 FROM album_copies WHERE album_copies.albumId = albums.id)"
     )
     suspend fun getOwnedOrWanted(): List<AlbumEntity>
 

@@ -4,12 +4,14 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistReleasesResponse
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
+import com.nickallport.findmevinyl.storage.AlbumCopyEntity
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
 import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.storage.ArtistGroupDao
 import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
+import com.nickallport.findmevinyl.ui.discography.AlbumCopy
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -233,6 +235,7 @@ class DiscographyViewModel(
         } else {
             emptyMap()
         }
+        val copies = albumDao.getAllCopies().groupBy { it.albumId }
         val grouped = memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
             .groupBy { categoryFrom(it.category) }
             .mapValues { (category, albums) ->
@@ -242,16 +245,16 @@ class DiscographyViewModel(
                         compareBy<AlbumEntity, String?>(nullsLast()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                             .thenBy { it.title }
                     )
-                    .map { toUiModel(it, category, now).copy(artistName = memberNames[it.artistId]) }
+                    .map { toUiModel(it, category, now, copies[it.id].orEmpty()).copy(artistName = memberNames[it.artistId]) }
             }
         return DiscographyUiState.Success(grouped)
     }
 
     /** One saved album as the screens show it, or null when it is not saved. */
     suspend fun loadAlbum(albumId: String): AlbumUiModel? =
-        albumDao.getById(albumId)?.let { toUiModel(it, categoryFrom(it.category), clock()) }
+        albumDao.getById(albumId)?.let { toUiModel(it, categoryFrom(it.category), clock(), albumDao.getCopies(albumId)) }
 
-    private fun toUiModel(album: AlbumEntity, category: DiscographyCategory, now: Long) = AlbumUiModel(
+    private fun toUiModel(album: AlbumEntity, category: DiscographyCategory, now: Long, copies: List<AlbumCopyEntity>) = AlbumUiModel(
         id = album.id,
         title = album.title,
         owned = album.owned,
@@ -259,12 +262,12 @@ class DiscographyViewModel(
         formats = album.formats?.let { ReleaseFormats.labels(ReleaseFormats.decode(it), category) },
         formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false,
         statuses = album.statuses?.let(ReleaseStatuses::decode),
-        userFormats = ReleaseFormats.decodeUser(album.userFormats),
+        userFormats = copies.map { it.format }.distinct().sortedBy { ReleaseFormats.displayOrder.indexOf(it) },
         note = album.userNote,
         myPressingId = album.myPressingId,
         myPressingText = album.myPressingText,
         wantFormat = album.wantFormat,
-        formatNotes = FormatNotes.decode(album.userFormatNotes)
+        copies = copies.map { AlbumCopy(it.format, it.note) }
     )
 
     /**
@@ -276,22 +279,27 @@ class DiscographyViewModel(
     }
 
     /**
-     * Keeps what the user says about their own copy of an album: formats MusicBrainz does not list, and a
-     * note. The formats are added to MusicBrainz's and never replace them, and a lookup never touches them.
-     * Labels that are not formats are dropped, a blank note is not kept, and no formats and no note clear it.
+     * Keeps the copies of an album the user owns, each with a format and a note, and a note about the album. They
+     * replace the copies kept before. A format that is not a label is dropped, a note is trimmed and cut, a blank note
+     * is not kept, and at most [MAX_COPIES] are kept. Several copies on the same format are fine. A lookup never
+     * touches them. An album wanted on a format is no longer wanted once one of the copies is on that format.
      */
-    suspend fun saveCopy(albumId: String, formats: List<String>, note: String, formatNotes: Map<String, String> = emptyMap()) {
-        albumDao.setCopy(
-            albumId,
-            ReleaseFormats.encodeUserOrNull(formats),
-            note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null }
-        )
-        // Each format has a note of its own, and a note goes when its format does.
-        albumDao.setFormatNotes(albumId, FormatNotes.encode(formatNotes, ReleaseFormats.decodeUser(ReleaseFormats.encodeUser(formats))))
-        // An album wanted on a format is no longer wanted once the user says their copy is on that format.
+    suspend fun saveCopies(albumId: String, copies: List<AlbumCopy>, note: String) {
+        val kept = copies.filter { it.format in ReleaseFormats.displayOrder }.take(MAX_COPIES)
+            .mapIndexed { position, copy ->
+                AlbumCopyEntity(
+                    albumId = albumId, format = copy.format,
+                    note = copy.note?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }, position = position
+                )
+            }
+        // The new copies go in before the old ones go, so an interruption leaves too many, never too few.
+        val ids = if (kept.isEmpty()) emptyList() else albumDao.insertCopies(kept)
+        albumDao.deleteCopiesExcept(albumId, ids)
+        albumDao.setNote(albumId, note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null })
+
         val album = albumDao.getById(albumId) ?: return
         val wantedOn = album.wantFormat
-        if (album.wanted && wantedOn != null && wantedOn in ReleaseFormats.decodeUser(album.userFormats)) {
+        if (album.wanted && wantedOn != null && kept.any { it.format == wantedOn }) {
             albumDao.setWanted(albumId, false)
         }
     }
@@ -486,3 +494,6 @@ class DiscographyViewModel(
 
 /** The longest note about a copy that is kept. */
 const val MAX_NOTE_LENGTH = 500
+
+/** The most copies of one album the app keeps. */
+const val MAX_COPIES = 20

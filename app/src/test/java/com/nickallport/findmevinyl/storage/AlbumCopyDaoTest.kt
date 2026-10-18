@@ -32,65 +32,114 @@ class AlbumCopyDaoTest {
         database.close()
     }
 
+    private fun copy(format: String, note: String? = null, position: Int = 0, albumId: String = "1") =
+        AlbumCopyEntity(albumId = albumId, format = format, note = note, position = position)
+
     @Test
-    fun `an album has no copy details to begin with`() = runBlocking {
+    fun `an album has no copies and no note to begin with`() = runBlocking {
         dao.insert(album())
 
-        assertNull(dao.getById("1")!!.userFormats)
+        assertEquals(emptyList<AlbumCopyEntity>(), dao.getCopies("1"))
         assertNull(dao.getById("1")!!.userNote)
     }
 
     @Test
-    fun `saves the formats and the note of the copy`() = runBlocking {
+    fun `copies come back in the order they were listed, several on the same format`() = runBlocking {
         dao.insert(album())
 
-        dao.setCopy("1", "LP", "BMG vinyl")
+        dao.insertCopies(listOf(copy("CD", "from Mum", 1), copy("LP", "green cover", 0), copy("LP", "blue cover", 2)))
 
-        assertEquals("LP", dao.getById("1")!!.userFormats)
+        assertEquals(
+            listOf("LP" to "green cover", "CD" to "from Mum", "LP" to "blue cover"),
+            dao.getCopies("1").map { it.format to it.note }
+        )
+    }
+
+    @Test
+    fun `the copies of one album are not the copies of another`() = runBlocking {
+        dao.insert(album("1"))
+        dao.insert(album("2"))
+        dao.insertCopies(listOf(copy("LP", albumId = "1"), copy("CD", albumId = "2")))
+
+        assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
+        assertEquals(listOf("1" to "LP", "2" to "CD"), dao.getAllCopies().map { it.albumId to it.format })
+    }
+
+    @Test
+    fun `old copies go and the ones just saved stay`() = runBlocking {
+        dao.insert(album())
+        dao.insertCopies(listOf(copy("LP"), copy("CD", position = 1)))
+        val fresh = dao.insertCopies(listOf(copy("MC")))
+
+        dao.deleteCopiesExcept("1", fresh)
+
+        assertEquals(listOf("MC"), dao.getCopies("1").map { it.format })
+    }
+
+    @Test
+    fun `with nothing to keep every copy of the album goes, and other albums keep theirs`() = runBlocking {
+        dao.insert(album("1"))
+        dao.insert(album("2"))
+        dao.insertCopies(listOf(copy("LP", albumId = "1"), copy("CD", albumId = "2")))
+
+        dao.deleteCopiesExcept("1", emptyList())
+
+        assertEquals(emptyList<AlbumCopyEntity>(), dao.getCopies("1"))
+        assertEquals(listOf("CD"), dao.getCopies("2").map { it.format })
+    }
+
+    @Test
+    fun `saves the note about the album, and null clears it`() = runBlocking {
+        dao.insert(album())
+
+        dao.setNote("1", "BMG vinyl")
         assertEquals("BMG vinyl", dao.getById("1")!!.userNote)
-    }
 
-    @Test
-    fun `saving null for both clears them`() = runBlocking {
-        dao.insert(album())
-        dao.setCopy("1", "LP", "BMG vinyl")
-
-        dao.setCopy("1", null, null)
-
-        assertNull(dao.getById("1")!!.userFormats)
+        dao.setNote("1", null)
         assertNull(dao.getById("1")!!.userNote)
     }
 
     @Test
-    fun `syncing the discography again does not touch the copy details`() = runBlocking {
+    fun `syncing the discography again does not touch the copies or the note`() = runBlocking {
         dao.insert(album())
-        dao.setCopy("1", "LP", "BMG vinyl")
+        dao.insertCopies(listOf(copy("LP", "BMG vinyl")))
+        dao.setNote("1", "2018")
 
         dao.insertAllIfNotExist(listOf(album()))
 
-        assertEquals("LP", dao.getById("1")!!.userFormats)
-        assertEquals("BMG vinyl", dao.getById("1")!!.userNote)
+        assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
+        assertEquals("2018", dao.getById("1")!!.userNote)
     }
 
     @Test
-    fun `a lookup of the release formats does not touch the copy details`() = runBlocking {
+    fun `a lookup of the release formats does not touch the copies or the note`() = runBlocking {
         dao.insert(album())
-        dao.setCopy("1", "LP", "BMG vinyl")
+        dao.insertCopies(listOf(copy("LP", "BMG vinyl")))
+        dao.setNote("1", "2018")
 
         dao.setChecked("1", "CD", "Official", 5L)
         dao.setFormats("1", "CD", 6L)
 
         val saved = dao.getById("1")!!
         assertEquals("CD", saved.formats)
-        assertEquals("LP", saved.userFormats)
-        assertEquals("BMG vinyl", saved.userNote)
+        assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
+        assertEquals("2018", saved.userNote)
     }
 
     @Test
-    fun `an album with copy details is in the backup even when it is neither owned nor wanted`() = runBlocking {
+    fun `an album with a copy is in the backup even when it is neither owned nor wanted`() = runBlocking {
         dao.insert(album("1").copy(owned = false))
         dao.insert(album("2").copy(owned = false))
-        dao.setCopy("1", null, "Kept after I sold it")
+        dao.insertCopies(listOf(copy("LP", "Kept after I sold it")))
+
+        assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
+    }
+
+    @Test
+    fun `an album with only a note is in the backup even when it is neither owned nor wanted`() = runBlocking {
+        dao.insert(album("1").copy(owned = false))
+        dao.insert(album("2").copy(owned = false))
+        dao.setNote("1", "Kept after I sold it")
 
         assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
     }
@@ -123,13 +172,13 @@ class AlbumCopyDaoTest {
         dao.insert(album())
         dao.setMyPressing("1", "release-9", "1972, Portugal, Charisma")
 
-        dao.setCopy("1", "LP", "note")
+        dao.insertCopies(listOf(AlbumCopyEntity(albumId = "1", format = "LP", note = "note")))
         dao.insertAllIfNotExist(listOf(album()))
         dao.setChecked("1", "CD", "Official", 5L)
 
         val saved = dao.getById("1")!!
         assertEquals("release-9", saved.myPressingId)
-        assertEquals("LP", saved.userFormats)
+        assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
     }
 
     @Test
@@ -137,28 +186,6 @@ class AlbumCopyDaoTest {
         dao.insert(album("1").copy(owned = false))
         dao.insert(album("2").copy(owned = false))
         dao.setMyPressing("1", "release-9", "text")
-
-        assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
-    }
-
-    // A note for each format.
-
-    @Test
-    fun `saves the notes for the formats, and null takes them away`() = runBlocking {
-        dao.insert(album())
-
-        dao.setFormatNotes("1", """{"LP":"scratched"}""")
-        assertEquals("""{"LP":"scratched"}""", dao.getById("1")!!.userFormatNotes)
-
-        dao.setFormatNotes("1", null)
-        assertEquals(null, dao.getById("1")!!.userFormatNotes)
-    }
-
-    @Test
-    fun `an album with only format notes is in the backup even when it is neither owned nor wanted`() = runBlocking {
-        dao.insert(album("1").copy(owned = false))
-        dao.insert(album("2").copy(owned = false))
-        dao.setFormatNotes("1", """{"CD":"from Mum"}""")
 
         assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
     }
