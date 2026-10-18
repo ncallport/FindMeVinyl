@@ -349,6 +349,8 @@ class MainActivity : ComponentActivity() {
                                 onReorderFavourites = { ids -> favouritesViewModel.reorder(ids) },
                                 startInGrid = favouritesLayoutStore.isGrid(),
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
+                                startGroupedByGenre = favouritesLayoutStore.isGroupedByGenre(),
+                                onGroupedByGenreChange = { favouritesLayoutStore.setGroupedByGenre(it) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     // A group opens on the discography of all its artists, under the group's name.

@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import com.nickallport.findmevinyl.genre.GenreNames
+import com.nickallport.findmevinyl.favourites.FavouriteGenreGroups
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -43,6 +46,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -71,7 +75,9 @@ data class FavouriteArtistUiModel(
     val memberIds: List<String> = emptyList(),
     /** The names of the members, in the same order as [memberIds], so a group can be found by them. */
     val memberNames: List<String> = emptyList(),
-    val imageId: String = id
+    val imageId: String = id,
+    /** The genre the user chose, in lower case, or null. The Artists page can group by it. */
+    val genre: String? = null
 )
 
 /**
@@ -90,7 +96,9 @@ fun FavouritesScreen(
     /** Show pictures only, as a grid, instead of the list with names and move buttons. */
     grid: Boolean = false,
     /** The ids in their new order, after a picture in the grid was dragged to a new place. */
-    onReorder: (List<String>) -> Unit = {}
+    onReorder: (List<String>) -> Unit = {},
+    /** Group the favourites by the genre chosen for each, in the list or the grid. The order cannot be changed meanwhile. */
+    groupByGenre: Boolean = false
 ) {
     if (artists.isEmpty()) {
         Text(
@@ -101,7 +109,55 @@ fun FavouritesScreen(
         var picturesShown by remember { mutableIntStateOf(0) }
 
         Column(modifier = modifier) {
-            if (grid) {
+            val onShownChange: (Boolean) -> Unit = { shown -> picturesShown += if (shown) 1 else -1 }
+            if (groupByGenre) {
+                // The order of the favourites cannot be changed here: where a picture would go between sections
+                // means nothing. The order is the user's own, and is there again when the grouping is switched off.
+                Text(
+                    text = "Grouped by genre. Turn grouping off to change the order.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag("favourites_genre_hint")
+                )
+                val sections = FavouriteGenreGroups.group(artists)
+                if (grid) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 76.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        sections.forEach { section ->
+                            item(key = "genre-header-${section.genre ?: "none"}", span = { GridItemSpan(maxLineSpan) }) {
+                                // The grid already has 16 dp around it.
+                                GenreHeader(section, start = 8.dp)
+                            }
+                            items(section.artists, key = { it.id }) { artist ->
+                                ArtistTile(
+                                    artist = artist,
+                                    loadArtistImage = loadArtistImage,
+                                    lifted = false,
+                                    onClick = { onArtistSelected(artist) },
+                                    onMove = {},
+                                    canMoveEarlier = false,
+                                    canMoveLater = false,
+                                    onShownChange = onShownChange
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                        sections.forEach { section ->
+                            item(key = "genre-header-${section.genre ?: "none"}") { GenreHeader(section, start = 16.dp) }
+                            items(section.artists, key = { it.id }) { artist ->
+                                ArtistRow(artist, loadArtistImage, onArtistSelected, onShownChange, moves = null)
+                            }
+                        }
+                    }
+                }
+            } else if (grid) {
                 Text(
                     text = "Touch and hold a picture, then drag it to move it.",
                     style = MaterialTheme.typography.bodySmall,
@@ -113,54 +169,96 @@ fun FavouritesScreen(
                     loadArtistImage = loadArtistImage,
                     onArtistSelected = onArtistSelected,
                     onReorder = onReorder,
-                    onShownChange = { shown -> picturesShown += if (shown) 1 else -1 },
+                    onShownChange = onShownChange,
                     modifier = Modifier.weight(1f, fill = false)
                 )
             } else LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 itemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
-                    Row(
-                        modifier = Modifier
-                            .testTag("favourite_artist_${artist.id}")
-                            .fillMaxWidth()
-                            .clickable { onArtistSelected(artist) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ArtistImage(
-                            artistId = artist.imageId,
-                            loadImage = loadArtistImage,
-                            onShownChange = { shown -> picturesShown += if (shown) 1 else -1 }
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = artist.name, style = MaterialTheme.typography.titleMedium)
-                            if (artist.isGroup) {
-                                Text(
-                                    text = "${artist.memberIds.size} artists joined",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.testTag("favourite_group_note_${artist.id}")
-                                )
-                            }
-                        }
+                    ArtistRow(
+                        artist, loadArtistImage, onArtistSelected, onShownChange,
                         // With one favourite there is nothing to move past.
-                        if (artists.size > 1) {
-                            MoveButtons(
-                                name = artist.name,
-                                upTag = "favourite_up_${artist.id}",
-                                downTag = "favourite_down_${artist.id}",
+                        moves = if (artists.size > 1) {
+                            RowMoves(
                                 canMoveUp = index > 0,
                                 canMoveDown = index < artists.lastIndex,
                                 onMoveUp = { onMoveUp(artist.id) },
                                 onMoveDown = { onMoveDown(artist.id) }
                             )
+                        } else {
+                            null
                         }
-                    }
+                    )
                 }
             }
             if (picturesShown > 0) PhotoCredit()
         }
     }
+}
+
+/** The buttons that move a row up and down, with whether each can. */
+private class RowMoves(
+    val canMoveUp: Boolean,
+    val canMoveDown: Boolean,
+    val onMoveUp: () -> Unit,
+    val onMoveDown: () -> Unit
+)
+
+/** One favourite in the list: its picture, name (and how many artists it joins, for a group) and, if given, move buttons. */
+@Composable
+private fun ArtistRow(
+    artist: FavouriteArtistUiModel,
+    loadArtistImage: suspend (String) -> Bitmap?,
+    onArtistSelected: (FavouriteArtistUiModel) -> Unit,
+    onShownChange: (Boolean) -> Unit,
+    moves: RowMoves?
+) {
+    Row(
+        modifier = Modifier
+            .testTag("favourite_artist_${artist.id}")
+            .fillMaxWidth()
+            .clickable { onArtistSelected(artist) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ArtistImage(artistId = artist.imageId, loadImage = loadArtistImage, onShownChange = onShownChange)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = artist.name, style = MaterialTheme.typography.titleMedium)
+            if (artist.isGroup) {
+                Text(
+                    text = "${artist.memberIds.size} artists joined",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("favourite_group_note_${artist.id}")
+                )
+            }
+        }
+        if (moves != null) {
+            MoveButtons(
+                name = artist.name,
+                upTag = "favourite_up_${artist.id}",
+                downTag = "favourite_down_${artist.id}",
+                canMoveUp = moves.canMoveUp,
+                canMoveDown = moves.canMoveDown,
+                onMoveUp = moves.onMoveUp,
+                onMoveDown = moves.onMoveDown
+            )
+        }
+    }
+}
+
+/** The heading of a genre, with how many artists are under it. Artists with no genre are under "No genre yet". */
+@Composable
+private fun GenreHeader(section: FavouriteGenreGroups.Section, start: androidx.compose.ui.unit.Dp) {
+    Text(
+        text = "${GenreNames.display(section.genre)} (${section.artists.size})",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = start, end = 8.dp, top = 12.dp, bottom = 4.dp)
+            .testTag("genre_header_${section.genre ?: "none"}")
+    )
 }
 
 /**

@@ -18,7 +18,19 @@ class FavouritesLayoutStore(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(KEY, grid).apply()
     }
 
+    /** Whether the favourites are grouped by genre, which works with the list and with the grid. Off to begin with. */
+    fun isGroupedByGenre(): Boolean = try {
+        prefs.getBoolean(GENRE_KEY, false)
+    } catch (e: ClassCastException) {
+        false
+    }
+
+    fun setGroupedByGenre(grouped: Boolean) {
+        prefs.edit().putBoolean(GENRE_KEY, grouped).apply()
+    }
+
     private companion object {
         const val KEY = "grid"
+        const val GENRE_KEY = "grouped_by_genre"
     }
 }

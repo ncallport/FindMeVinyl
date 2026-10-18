@@ -47,4 +47,26 @@ class FavouritesLayoutStoreTest {
 
         assertEquals(false, FavouritesLayoutStore(prefs).isGrid())
     }
+
+    @Test
+    fun `grouping by genre is off to begin with, and the choice is kept`() {
+        val store = FavouritesLayoutStore(prefs)
+        assertEquals(false, store.isGroupedByGenre())
+
+        store.setGroupedByGenre(true)
+
+        assertEquals(true, FavouritesLayoutStore(prefs).isGroupedByGenre())
+    }
+
+    @Test
+    fun `grouping by genre and the grid are kept apart`() {
+        val store = FavouritesLayoutStore(prefs)
+
+        store.setGroupedByGenre(true)
+        assertEquals(false, store.isGrid())
+
+        store.setGrid(true)
+        store.setGroupedByGenre(false)
+        assertEquals(true, store.isGrid())
+    }
 }

@@ -1,5 +1,11 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import androidx.compose.ui.test.center
+import androidx.compose.ui.test.up
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.performTouchInput
+import org.junit.Assert.assertTrue
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
@@ -325,5 +331,132 @@ class FavouritesScreenTest {
 
         composeTestRule.onNodeWithText("Acid Mothers Temple Family").assertExists()
     }
-}
 
+    // Grouped by genre.
+
+    private val genreArtists = listOf(
+        FavouriteArtistUiModel("1", "Joy Division", genre = "post-punk"),
+        FavouriteArtistUiModel("2", "Genesis", genre = "progressive rock"),
+        FavouriteArtistUiModel("3", "Nick Cave", genre = "post-punk"),
+        FavouriteArtistUiModel("4", "Nameless")
+    )
+
+    @Test
+    fun `grouped by genre the list has a heading for each genre, with how many artists, and one for none`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {}, groupByGenre = true)
+        }
+
+        composeTestRule.onNodeWithTag("genre_header_post-punk").assertTextEquals("Post-punk (2)")
+        composeTestRule.onNodeWithTag("genre_header_progressive rock").assertTextEquals("Progressive rock (1)")
+        composeTestRule.onNodeWithTag("genre_header_none").assertTextEquals("No genre yet (1)")
+    }
+
+    @Test
+    fun `grouped by genre the artists are under their headings, in alphabetical order of the genre, none last`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {}, groupByGenre = true)
+        }
+
+        fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+        assertTrue(y("genre_header_post-punk") < y("favourite_artist_1"))
+        assertTrue(y("favourite_artist_1") < y("favourite_artist_3"))
+        assertTrue(y("favourite_artist_3") < y("genre_header_progressive rock"))
+        assertTrue(y("genre_header_progressive rock") < y("favourite_artist_2"))
+        assertTrue(y("favourite_artist_2") < y("genre_header_none"))
+        assertTrue(y("genre_header_none") < y("favourite_artist_4"))
+    }
+
+    @Test
+    fun `grouped by genre there are no move buttons, and a line says how to change the order`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {}, groupByGenre = true)
+        }
+
+        composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_genre_hint")
+            .assertTextEquals("Grouped by genre. Turn grouping off to change the order.")
+    }
+
+    @Test
+    fun `grouped by genre an artist can still be opened`() {
+        var selected: FavouriteArtistUiModel? = null
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = { selected = it }, groupByGenre = true)
+        }
+
+        composeTestRule.onNodeWithTag("favourite_artist_3").performClick()
+
+        assertEquals(genreArtists[2], selected)
+    }
+
+    @Test
+    fun `not grouped, there are no genre headings and the move buttons are there`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithTag("genre_header_post-punk").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_genre_hint").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertExists()
+    }
+
+    @Test
+    fun `a group of artists is placed by the genre chosen for the group`() {
+        val joined = FavouriteArtistUiModel("group/1", "Nick Cave, all of it", isGroup = true, memberIds = listOf("a", "b"), genre = "post-punk")
+        composeTestRule.setContent {
+            FavouritesScreen(artists = listOf(joined, genreArtists[1]), onArtistSelected = {}, groupByGenre = true)
+        }
+
+        fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+        assertTrue(y("genre_header_post-punk") < y("favourite_artist_group/1"))
+        composeTestRule.onNodeWithTag("favourite_group_note_group/1", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `grouped by genre the grid has the same headings, with the pictures under them`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {}, grid = true, groupByGenre = true)
+        }
+
+        fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+        composeTestRule.onNodeWithTag("genre_header_post-punk").assertTextEquals("Post-punk (2)")
+        assertTrue(y("genre_header_post-punk") < y("favourite_artist_1"))
+        assertTrue(y("favourite_artist_3") < y("genre_header_progressive rock"))
+        assertTrue(y("genre_header_progressive rock") < y("favourite_artist_2"))
+        assertTrue(y("favourite_artist_2") < y("genre_header_none"))
+    }
+
+    @Test
+    fun `grouped by genre the grid says the order cannot be changed, not that a picture can be dragged`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = genreArtists, onArtistSelected = {}, grid = true, groupByGenre = true)
+        }
+
+        composeTestRule.onNodeWithTag("favourites_genre_hint").assertExists()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun `grouped by genre in the grid an artist can be opened, and holding a picture moves nothing`() {
+        var selected: FavouriteArtistUiModel? = null
+        var reordered = false
+        composeTestRule.setContent {
+            FavouritesScreen(
+                artists = genreArtists, onArtistSelected = { selected = it }, grid = true, groupByGenre = true,
+                onReorder = { reordered = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("favourite_artist_1").performClick()
+        assertEquals(genreArtists[0], selected)
+
+        composeTestRule.onNodeWithTag("favourite_artist_1").performTouchInput { down(center) }
+        composeTestRule.mainClock.advanceTimeBy(700)
+        composeTestRule.onNodeWithTag("favourite_artist_1").performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(300f, 0f)); up() }
+        composeTestRule.waitForIdle()
+
+        assertEquals(false, reordered)
+    }
+}
