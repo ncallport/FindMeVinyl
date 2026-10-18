@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.artist
 
+import androidx.compose.runtime.mutableIntStateOf
 import android.graphics.Bitmap
 import kotlinx.coroutines.delay
 import com.nickallport.findmevinyl.ui.brand.Glyphs
@@ -57,12 +58,29 @@ fun ArtistsScreen(
     startGroupedByGenre: Boolean = false,
     /** Told when the user switches grouping by genre on or off, so the choice can be kept. */
     onGroupedByGenreChange: ((Boolean) -> Unit)? = null,
+    /**
+     * Finds the suggested genre of each favourite in the background, telling after each one that it did. Started when the
+     * page opens. Without it nothing is looked for.
+     */
+    fillGenreDefaults: (suspend (onFound: suspend () -> Unit) -> Unit)? = null,
     /** Artists from MusicBrainz for the text typed so far. Without it there are no suggestions. */
     suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
     var groupedByGenre by rememberSaveable { mutableStateOf(startGroupedByGenre) }
+    // Counts the genres found, so the favourites are read again and the grouping follows.
+    var genresFound by remember { mutableIntStateOf(0) }
+    var findingGenres by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val fill = fillGenreDefaults ?: return@LaunchedEffect
+        findingGenres = true
+        try {
+            fill { genresFound++ }
+        } finally {
+            findingGenres = false
+        }
+    }
 
     // The artists offered while typing: the favourites that match at once, the others once typing pauses.
     var suggestions by remember { mutableStateOf<List<ArtistSuggestion>>(emptyList()) }
@@ -129,6 +147,14 @@ fun ArtistsScreen(
                         modifier = Modifier.testTag("favourites_group_by_genre")
                     )
                 }
+                if (groupedByGenre && findingGenres) {
+                    Text(
+                        text = "Finding genres for your artists…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp).testTag("favourites_genres_finding")
+                    )
+                }
                 FavouritesRoute(
                     load = loadFavourites,
                     onArtistSelected = onArtistSelected,
@@ -137,7 +163,8 @@ fun ArtistsScreen(
                     onMoveDown = onMoveFavouriteDown,
                     onReorder = onReorderFavourites,
                     grid = grid,
-                    groupByGenre = groupedByGenre
+                    groupByGenre = groupedByGenre,
+                    reloadKey = genresFound
                 )
             }
             if (suggestions.isNotEmpty()) {

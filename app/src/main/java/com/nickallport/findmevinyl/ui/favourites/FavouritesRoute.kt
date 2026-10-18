@@ -26,12 +26,14 @@ fun FavouritesRoute(
     onMoveDown: suspend (String) -> Unit = {},
     grid: Boolean = false,
     onReorder: suspend (List<String>) -> Unit = {},
-    groupByGenre: Boolean = false
+    groupByGenre: Boolean = false,
+    /** Changes when the favourites should be read again, such as after a genre was found for one. */
+    reloadKey: Int = 0
 ) {
     var artists by remember { mutableStateOf<List<FavouriteArtistUiModel>?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(reloadKey) {
         artists = load()
     }
 

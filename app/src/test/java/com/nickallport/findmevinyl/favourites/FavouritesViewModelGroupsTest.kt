@@ -176,4 +176,28 @@ class FavouritesViewModelGroupsTest {
 
         assertEquals(mapOf("a" to "progressive rock", "b" to null, "group/1" to "post-punk"), listed)
     }
+
+    @Test
+    fun `an artist is listed under the genre the user chose, else the suggested one, else none`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "Chosen", null, null, 0, genre = "jazz", autoGenre = "rock"))
+        database.artistDao().insert(ArtistEntity("b", "Suggested", null, null, 1, genre = null, autoGenre = "folk"))
+        database.artistDao().insert(ArtistEntity("c", "Neither", null, null, 2))
+
+        val listed = viewModel.loadFavourites().associate { it.id to it.genre }
+
+        assertEquals(mapOf("a" to "jazz", "b" to "folk", "c" to null), listed)
+    }
+
+    @Test
+    fun `a group is listed under the genre chosen for it, else the suggested one`() = runBlocking {
+        group("group/1", "G", 0, "x" to "X", "y" to "Y")
+        group("group/2", "H", 1, "p" to "P", "q" to "Q")
+        database.artistGroupDao().setGenre("group/1", "post-punk")
+        database.artistGroupDao().setAutoGenre("group/1", "rock")
+        database.artistGroupDao().setAutoGenre("group/2", "folk")
+
+        val listed = viewModel.loadFavourites().associate { it.id to it.genre }
+
+        assertEquals(mapOf("group/1" to "post-punk", "group/2" to "folk"), listed)
+    }
 }

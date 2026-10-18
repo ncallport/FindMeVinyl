@@ -142,3 +142,11 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         )
     }
 }
+
+/** Adds the genre the app suggests for an artist or a group, apart from the one the user chooses. */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `favourite_artists` ADD COLUMN `autoGenre` TEXT")
+        db.execSQL("ALTER TABLE `artist_groups` ADD COLUMN `autoGenre` TEXT")
+    }
+}

@@ -95,6 +95,7 @@ fun DiscographyRoute(
     var loadState by remember { mutableStateOf<LoadState>(LoadState.Loading) }
     var isFavourite by remember { mutableStateOf(false) }
     var genre by remember(artistId) { mutableStateOf<String?>(null) }
+    var suggestedGenre by remember(artistId) { mutableStateOf<String?>(null) }
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
@@ -151,7 +152,10 @@ fun DiscographyRoute(
     }
 
     // The genre the user chose, if there is one.
-    LaunchedEffect(artistId) { genre = genreControls?.load?.invoke() }
+    LaunchedEffect(artistId) {
+        genre = genreControls?.load?.invoke()
+        suggestedGenre = genreControls?.suggested?.invoke()
+    }
 
     LaunchedEffect(artistId, attempt) {
         isFavourite = loadIsFavourite()
@@ -210,6 +214,7 @@ fun DiscographyRoute(
         if (genreControls != null && isFavourite && (isGroup || !inGroup)) {
             GenreSection(
                 genre = genre,
+                suggested = suggestedGenre,
                 loadOptions = genreControls.options,
                 onSet = { chosen -> coroutineScope.launch { genreControls.set(chosen); genre = genreControls.load() } }
             )

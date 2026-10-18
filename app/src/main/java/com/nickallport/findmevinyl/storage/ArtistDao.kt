@@ -25,6 +25,10 @@ interface ArtistDao {
     @Query("UPDATE favourite_artists SET genre = :genre WHERE id = :artistId")
     suspend fun setGenre(artistId: String, genre: String?): Int
 
+    /** Keeps the genre the app found with the most votes, or takes it away with null. The user's own genre is not touched. */
+    @Query("UPDATE favourite_artists SET autoGenre = :genre WHERE id = :artistId")
+    suspend fun setAutoGenre(artistId: String, genre: String?): Int
+
     @Query("DELETE FROM favourite_artists WHERE id = :artistId")
     suspend fun deleteById(artistId: String): Int
 

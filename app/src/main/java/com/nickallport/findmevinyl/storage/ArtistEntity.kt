@@ -13,5 +13,10 @@ data class ArtistEntity(
     /** Where the artist sits in the user's own order, lowest first. Equal values fall back to the name. */
     @ColumnInfo(defaultValue = "0") val position: Int = 0,
     /** The genre the user chose for the artist, lower case, such as "post-punk". Null: none chosen. */
-    val genre: String? = null
+    val genre: String? = null,
+    /**
+     * The genre with the most votes on MusicBrainz, found by the app, lower case. It is what the artist is shown
+     * under until the user chooses a [genre] of their own, which always wins. Null: none found, or not looked up yet.
+     */
+    val autoGenre: String? = null
 )

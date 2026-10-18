@@ -96,4 +96,35 @@ class ArtistDaoTest {
         assertEquals(4, artist.position)
         assertEquals("Group", artist.type)
     }
+
+    // The genre suggested from MusicBrainz, kept apart from the one the user chose.
+
+    @Test
+    fun `an artist has no suggested genre to begin with, and one can be kept and taken away`() = runBlocking {
+        dao.insert(ArtistEntity("a", "Genesis", null, null))
+        assertNull(dao.getById("a")!!.autoGenre)
+
+        dao.setAutoGenre("a", "progressive rock")
+        assertEquals("progressive rock", dao.getById("a")!!.autoGenre)
+
+        dao.setAutoGenre("a", null)
+        assertNull(dao.getById("a")!!.autoGenre)
+    }
+
+    @Test
+    fun `the suggested genre and the chosen genre do not touch each other`() = runBlocking {
+        dao.insert(ArtistEntity("a", "Genesis", null, null))
+
+        dao.setAutoGenre("a", "progressive rock")
+        dao.setGenre("a", "rock")
+        assertEquals("progressive rock", dao.getById("a")!!.autoGenre)
+        assertEquals("rock", dao.getById("a")!!.genre)
+
+        dao.setGenre("a", null)
+        assertEquals("progressive rock", dao.getById("a")!!.autoGenre)
+
+        dao.setGenre("a", "folk")
+        dao.setAutoGenre("a", null)
+        assertEquals("folk", dao.getById("a")!!.genre)
+    }
 }

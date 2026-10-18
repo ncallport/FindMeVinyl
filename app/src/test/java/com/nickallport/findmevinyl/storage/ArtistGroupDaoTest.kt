@@ -157,4 +157,19 @@ class ArtistGroupDaoTest {
 
         assertEquals("post-punk", dao.getGroup("group/1")!!.genre)
     }
+
+    @Test
+    fun `a group keeps a suggested genre apart from the one chosen`() = runBlocking {
+        dao.insertGroup(group)
+        assertNull(dao.getGroup("group/1")!!.autoGenre)
+
+        dao.setAutoGenre("group/1", "post-punk")
+        dao.setGenre("group/1", "rock")
+
+        assertEquals("post-punk", dao.getGroup("group/1")!!.autoGenre)
+        assertEquals("rock", dao.getGroup("group/1")!!.genre)
+
+        dao.setGenre("group/1", null)
+        assertEquals("post-punk", dao.getGroup("group/1")!!.autoGenre)
+    }
 }
