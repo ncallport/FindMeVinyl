@@ -60,4 +60,74 @@ class ArtistPictureSourceTest {
         assertEquals(listOf("artist-7"), userAsked)
         assertEquals(listOf("artist-7"), webAsked)
     }
+
+    // A group of artists.
+
+    private val first = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+
+    @Test
+    fun `a group shows the photo the user chose for the group`() = runBlocking {
+        val source = ArtistPictureSource(
+            userPhoto = { id -> if (id == "group/1") photo else first },
+            webPicture = { web },
+            firstMemberOf = { "cave" }
+        )
+
+        assertSame(photo, source.load("group/1"))
+    }
+
+    @Test
+    fun `a group with no photo of its own shows its first member's photo`() = runBlocking {
+        val source = ArtistPictureSource(
+            userPhoto = { id -> if (id == "cave") first else null },
+            webPicture = { web },
+            firstMemberOf = { "cave" }
+        )
+
+        assertSame(first, source.load("group/1"))
+    }
+
+    @Test
+    fun `a group with no photos shows the web picture of its first member`() = runBlocking {
+        val source = ArtistPictureSource(
+            userPhoto = { null },
+            webPicture = { id -> if (id == "cave") web else null },
+            firstMemberOf = { "cave" }
+        )
+
+        assertSame(web, source.load("group/1"))
+    }
+
+    @Test
+    fun `the web is never asked about the id of a group`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val source = ArtistPictureSource(
+            userPhoto = { null },
+            webPicture = { id -> asked.add(id); null },
+            firstMemberOf = { "cave" }
+        )
+
+        source.load("group/1")
+
+        assertEquals(listOf("cave"), asked)
+    }
+
+    @Test
+    fun `a group that cannot be found, or has no members, gives nothing`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val source = ArtistPictureSource(
+            userPhoto = { null }, webPicture = { id -> asked.add(id); web }, firstMemberOf = { null }
+        )
+
+        assertNull(source.load("group/none"))
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `an ordinary artist is looked up as before`() = runBlocking {
+        val source = ArtistPictureSource(userPhoto = { null }, webPicture = { web }, firstMemberOf = { "never" })
+
+        assertSame(web, source.load("1c70a3fc-fe03-4b23-ba9c-873c33dcd814"))
+    }
 }
+

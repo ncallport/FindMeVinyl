@@ -264,9 +264,11 @@ class MainActivity : ComponentActivity() {
         // A photo the user chose wins over the picture from the web, and then the web is not asked.
         val artistPictures = ArtistPictureSource(
             userPhoto = { id -> artistPhotoViewModel.loadPhoto(id) },
-            webPicture = { id -> artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) } }
+            webPicture = { id -> artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) } },
+            // A group shows the photo chosen for it, and otherwise its first member's picture.
+            firstMemberOf = { groupId -> database.artistGroupDao().getMembers(groupId).firstOrNull()?.artistId }
         )
-        val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
+        val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao(), groupDao = database.artistGroupDao())
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
@@ -345,9 +347,8 @@ class MainActivity : ComponentActivity() {
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
-                                    // A group opens on its first member's discography, with the group's name.
-                                    val openId = if (artist.isGroup) artist.memberIds.first() else artist.id
-                                    currentScreen = Screen.Discography(openId, artist.name, Screen.Search)
+                                    // A group opens on the discography of all its artists, under the group's name.
+                                    currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
                                 }
                             )
                         }
@@ -387,6 +388,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenArtists = { currentScreen = Screen.Search },
                                 onJoinArtists = { currentScreen = Screen.JoinArtists(screen.artistId, screen.artistName, screen) },
                                 inGroup = inGroup,
+                                isGroup = ArtistGroupViewModel.isGroupId(screen.artistId),
                                 startWithGrouping = groupingStore.get(screen.artistId),
                                 onGroupingChange = { groupingStore.set(screen.artistId, it) },
                                 settings = settings,

@@ -291,5 +291,27 @@ class DiscographyHeaderTest {
         val join = composeTestRule.onNodeWithTag("join_artists_button").fetchSemanticsNode().positionInRoot.y
         assertTrue(join > save)
     }
-}
 
+    @Test
+    fun `a group page has no Save button, since a group is always kept`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Nick Cave, all of it", isFavourite = true, onToggleFavourite = {}, onOpenArtists = {},
+                onJoinArtists = {}, inGroup = true, showFavourite = false
+            )
+        }
+
+        composeTestRule.onNodeWithTag("favourite_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("artists_button").assertExists()
+        composeTestRule.onNodeWithTag("join_artists_button").assertExists()
+    }
+
+    @Test
+    fun `an artist page still has its Save button`() {
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {})
+        }
+
+        composeTestRule.onNodeWithTag("favourite_toggle").assertExists()
+    }
+}

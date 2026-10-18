@@ -56,7 +56,7 @@ class FavouritesViewModelGroupsTest {
     }
 
     @Test
-    fun `a group says what it is, who is in it and whose picture to use`() = runBlocking {
+    fun `a group says what it is, who is in it, and has its own picture, which falls back to its first member's`() = runBlocking {
         group("group/1", "Acid Mothers Temple Family", 0, "b" to "AMT & The Melting Paraiso", "a" to "Acid Mothers Temple")
 
         val listed = viewModel.loadFavourites().single()
@@ -64,7 +64,7 @@ class FavouritesViewModelGroupsTest {
         assertEquals("Acid Mothers Temple Family", listed.name)
         assertTrue(listed.isGroup)
         assertEquals(listOf("b", "a"), listed.memberIds)
-        assertEquals("b", listed.imageId)
+        assertEquals("group/1", listed.imageId)
     }
 
     @Test

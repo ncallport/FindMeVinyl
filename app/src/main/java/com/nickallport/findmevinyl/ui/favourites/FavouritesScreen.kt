@@ -61,8 +61,8 @@ import com.nickallport.findmevinyl.ui.common.MoveButtons
 
 /**
  * One favourite: an artist, or a group of artists the user keeps together (then [isGroup] is true, [id] is the
- * group's id, and [memberIds] are its artists, first first). [imageId] is the artist whose picture is shown: the
- * artist itself, or the first member of a group.
+ * group's id, and [memberIds] are its artists, first first). [imageId] is what the picture is asked for by: the
+ * artist's id, or the group's, which shows the photo chosen for the group and otherwise its first member's picture.
  */
 data class FavouriteArtistUiModel(
     val id: String,

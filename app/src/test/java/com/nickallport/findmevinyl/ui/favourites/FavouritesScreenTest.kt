@@ -274,7 +274,7 @@ class FavouritesScreenTest {
 
     private val group = FavouriteArtistUiModel(
         id = "group/1", name = "Acid Mothers Temple Family", isGroup = true,
-        memberIds = listOf("amt", "amt-two", "amt-three"), imageId = "amt"
+        memberIds = listOf("amt", "amt-two", "amt-three"), imageId = "group/1"
     )
 
     @Test
@@ -289,18 +289,18 @@ class FavouritesScreenTest {
     }
 
     @Test
-    fun `a group in the list gets the picture of its first member, not of the group`() {
+    fun `a group in the list asks for the picture of the group`() {
         val asked = mutableListOf<String>()
         composeTestRule.setContent {
             FavouritesScreen(artists = listOf(group), onArtistSelected = {}, loadArtistImage = { id -> asked.add(id); picture() })
         }
         composeTestRule.waitForIdle()
 
-        assertEquals(listOf("amt"), asked)
+        assertEquals(listOf("group/1"), asked)
     }
 
     @Test
-    fun `a group in the grid gets the picture of its first member, and opens as the group`() {
+    fun `a group in the grid asks for the picture of the group, and opens as the group`() {
         val asked = mutableListOf<String>()
         var selected: FavouriteArtistUiModel? = null
         composeTestRule.setContent {
@@ -313,7 +313,7 @@ class FavouritesScreenTest {
 
         composeTestRule.onNodeWithTag("favourite_artist_group/1").performClick()
 
-        assertEquals(listOf("amt"), asked)
+        assertEquals(listOf("group/1"), asked)
         assertEquals(group, selected)
     }
 

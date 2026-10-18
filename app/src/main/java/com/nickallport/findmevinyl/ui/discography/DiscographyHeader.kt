@@ -48,7 +48,9 @@ fun DiscographyHeader(
     /** Opens the page for joining this artist with others into a group. Without it there is no button. */
     onJoinArtists: (() -> Unit)? = null,
     /** The artist is already in a group, so the button edits that group. */
-    inGroup: Boolean = false
+    inGroup: Boolean = false,
+    /** False on the page of a group, which is always kept, so there is nothing to save. */
+    showFavourite: Boolean = true
 ) {
     Row(
         modifier = modifier
@@ -74,14 +76,16 @@ fun DiscographyHeader(
                         Text("Artists")
                     }
                 }
-                // Saved is the quieter style, since there is nothing left to do.
-                val colors = if (isFavourite) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors()
-                Button(
-                    onClick = onToggleFavourite,
-                    colors = colors,
-                    modifier = Modifier.testTag("favourite_toggle")
-                ) {
-                    Text(if (isFavourite) "Saved" else "Save")
+                if (showFavourite) {
+                    // Saved is the quieter style, since there is nothing left to do.
+                    val colors = if (isFavourite) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors()
+                    Button(
+                        onClick = onToggleFavourite,
+                        colors = colors,
+                        modifier = Modifier.testTag("favourite_toggle")
+                    ) {
+                        Text(if (isFavourite) "Saved" else "Save")
+                    }
                 }
             }
             if (onJoinArtists != null) {

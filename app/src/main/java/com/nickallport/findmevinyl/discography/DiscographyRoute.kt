@@ -74,6 +74,8 @@ fun DiscographyRoute(
     onJoinArtists: (() -> Unit)? = null,
     /** The artist is already in a group, so the button says Edit group. */
     inGroup: Boolean = false,
+    /** [artistId] is a group of artists: its albums are every member's, and it has no Save button, being always kept. */
+    isGroup: Boolean = false,
     settings: Settings = Settings.ShowEverything,
     /** Owned first was on the last time this artist was open. */
     startWithGrouping: Grouping = Grouping.None,
@@ -176,6 +178,7 @@ fun DiscographyRoute(
             onOpenArtists = onOpenArtists,
             onJoinArtists = onJoinArtists,
             inGroup = inGroup,
+            showFavourite = !isGroup,
             artistId = artistId,
             loadArtistImage = loadArtistImage,
             photoVersion = photoVersion,
