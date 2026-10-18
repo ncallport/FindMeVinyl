@@ -30,16 +30,18 @@ class MyCopySectionTest {
     private val withCopy = owned.copy(userFormats = listOf("LP"), note = "BMG vinyl, 2018")
     private val noDetails = AlbumDetails(null, null, null, null, null, null, emptyList(), emptyList())
     private val saved = mutableListOf<Pair<List<String>, String>>()
+    private val savedNotes = mutableListOf<Map<String, String>>()
 
     private fun show(album: AlbumUiModel?) {
         saved.clear()
+        savedNotes.clear()
         composeTestRule.setContent {
             FindMeVinylTheme {
                 AlbumDetailScreen(
                     albumId = "1", title = "Olympia", artistName = "Bryan Ferry", album = album,
                     state = AlbumDetailState.Loaded(noDetails), onRetry = {}, onToggleOwned = {},
                     onToggleWanted = {}, loadCover = { null },
-                    onSaveCopy = { formats, note -> saved.add(formats to note) }
+                    onSaveCopy = { formats, note, notes -> saved.add(formats to note); savedNotes.add(notes) }
                 )
             }
         }
@@ -169,5 +171,69 @@ class MyCopySectionTest {
 
         onNodeWithTag("my_copy_format_LP").performScrollTo().assertIsSelected()
         onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Portuguese")
+    }
+
+    // A note for each format.
+
+    private val twoCopies = owned.copy(
+        userFormats = listOf("LP", "CD"), formatNotes = mapOf("LP" to "scratched", "CD" to "from Mum")
+    )
+
+    @Test
+    fun `the summary gives each format its own note`() {
+        show(twoCopies)
+
+        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
+            .assertTextContains("LP: scratched", substring = true)
+            .assertTextContains("CD: from Mum", substring = true)
+    }
+
+    @Test
+    fun `editing gives each chosen format a note, filled in with what is stored`() {
+        show(twoCopies)
+
+        tap("my_copy_edit")
+
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().assertTextContains("scratched")
+        composeTestRule.onNodeWithTag("my_copy_format_note_CD").performScrollTo().assertTextContains("from Mum")
+        composeTestRule.onNodeWithTag("my_copy_format_note_MC").assertDoesNotExist()
+    }
+
+    @Test
+    fun `choosing a format gives it a note field, and taking it off removes the field`() {
+        show(owned)
+        tap("my_copy_edit")
+
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertDoesNotExist()
+        tap("my_copy_format_LP")
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertExists()
+        tap("my_copy_format_LP")
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertDoesNotExist()
+    }
+
+    @Test
+    fun `saving hands over the note of each format`() {
+        show(owned)
+        tap("my_copy_edit")
+        tap("my_copy_format_LP")
+        tap("my_copy_format_CD")
+
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().performTextReplacement("scratched")
+        composeTestRule.onNodeWithTag("my_copy_format_note_CD").performScrollTo().performTextReplacement("from Mum")
+        tap("my_copy_save")
+
+        assertEquals(listOf(mapOf("LP" to "scratched", "CD" to "from Mum")), savedNotes)
+    }
+
+    @Test
+    fun `a note typed for a format that is then taken off is not handed over`() {
+        show(owned)
+        tap("my_copy_edit")
+        tap("my_copy_format_LP")
+        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().performTextReplacement("scratched")
+        tap("my_copy_format_LP")
+        tap("my_copy_save")
+
+        assertEquals(listOf(emptyMap<String, String>()), savedNotes)
     }
 }

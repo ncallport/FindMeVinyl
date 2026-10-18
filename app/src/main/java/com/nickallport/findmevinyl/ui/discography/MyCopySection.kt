@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.nickallport.findmevinyl.discography.FormatNotes
 import com.nickallport.findmevinyl.discography.MAX_NOTE_LENGTH
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 
@@ -40,7 +41,7 @@ import com.nickallport.findmevinyl.discography.ReleaseFormats
 @Composable
 fun MyCopySection(
     album: AlbumUiModel,
-    onSave: (formats: List<String>, note: String) -> Unit,
+    onSave: (formats: List<String>, note: String, formatNotes: Map<String, String>) -> Unit,
     modifier: Modifier = Modifier,
     /** The pressing the page is showing, which "This is my pressing" would choose. Null when it is not known. */
     shownPressing: Pressing? = null,
@@ -51,6 +52,8 @@ fun MyCopySection(
     // The chosen formats are kept as the text the database uses, which a rotation can keep.
     var chosen by rememberSaveable(album.id) { mutableStateOf("") }
     var note by rememberSaveable(album.id) { mutableStateOf("") }
+    // The note of each format, as the text the database uses, which a rotation can keep.
+    var formatNotesText by rememberSaveable(album.id) { mutableStateOf("") }
 
     Column(modifier = modifier.fillMaxWidth().testTag("my_copy_section")) {
         Text(text = "My copy", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -60,7 +63,7 @@ fun MyCopySection(
             val summary = listOfNotNull(
                 album.userFormats.takeIf { it.isNotEmpty() }?.let { "Formats you added: ${it.joinToString(" · ")}" },
                 album.note?.takeIf { it.isNotBlank() }
-            ).joinToString("\n")
+            ).plus(album.formatNotes.map { (label, text) -> "$label: $text" }).joinToString("\n")
             if (summary.isNotEmpty()) {
                 Text(text = summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("my_copy_summary"))
                 Spacer(Modifier.height(8.dp))
@@ -78,6 +81,7 @@ fun MyCopySection(
                     onClick = {
                         chosen = ReleaseFormats.encodeUser(album.userFormats)
                         note = album.note.orEmpty()
+                        formatNotesText = FormatNotes.encode(album.formatNotes, ReleaseFormats.displayOrder).orEmpty()
                         editing = true
                     },
                     modifier = Modifier.testTag("my_copy_edit")
@@ -98,6 +102,7 @@ fun MyCopySection(
             }
         } else {
             val chosenFormats = ReleaseFormats.decodeUser(chosen)
+            val formatNotes = FormatNotes.decode(formatNotesText)
             Text(
                 text = "Formats my copy is on, if MusicBrainz does not list them",
                 style = MaterialTheme.typography.bodySmall,
@@ -115,6 +120,21 @@ fun MyCopySection(
                     )
                 }
             }
+            // Each format of the copy has a note of its own, such as where it came from or what shape it is in.
+            chosenFormats.forEach { label ->
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = formatNotes[label].orEmpty(),
+                    onValueChange = {
+                        formatNotesText = FormatNotes.encode(
+                            formatNotes + (label to it.take(MAX_NOTE_LENGTH)), ReleaseFormats.displayOrder
+                        ).orEmpty()
+                    },
+                    label = { Text("Note for $label, such as where it came from") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth().testTag("my_copy_format_note_$label")
+                )
+            }
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = note,
@@ -127,7 +147,7 @@ fun MyCopySection(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        onSave(chosenFormats, note)
+                        onSave(chosenFormats, note, formatNotes.filterKeys { it in chosenFormats })
                         editing = false
                     },
                     modifier = Modifier.testTag("my_copy_save")

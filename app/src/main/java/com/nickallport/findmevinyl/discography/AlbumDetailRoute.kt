@@ -35,7 +35,7 @@ fun AlbumDetailRoute(
     loadCover: suspend (String) -> Bitmap? = { null },
     loadPressing: suspend (albumId: String, releaseId: String) -> AlbumDetails? = { _, _ -> null },
     /** Keeps the formats and the note the user gives for their copy. The album is read again after it. */
-    saveCopy: suspend (albumId: String, formats: List<String>, note: String) -> Unit = { _, _, _ -> },
+    saveCopy: suspend (albumId: String, formats: List<String>, note: String, formatNotes: Map<String, String>) -> Unit = { _, _, _, _ -> },
     /** Keeps the pressing the user chose as their copy, or takes it away with null. The album is read again after it. */
     saveMyPressing: suspend (albumId: String, pressing: Pressing?) -> Unit = { _, _ -> },
     /** Keeps the format a wanted album is wanted on, or null for any. The album is read again after it. */
@@ -107,9 +107,9 @@ fun AlbumDetailRoute(
                 album = loadAlbum(albumId)
             }
         },
-        onSaveCopy = { formats, note ->
+        onSaveCopy = { formats, note, formatNotes ->
             coroutineScope.launch {
-                saveCopy(albumId, formats, note)
+                saveCopy(albumId, formats, note, formatNotes)
                 album = loadAlbum(albumId)
             }
         },

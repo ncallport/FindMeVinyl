@@ -263,7 +263,8 @@ class DiscographyViewModel(
         note = album.userNote,
         myPressingId = album.myPressingId,
         myPressingText = album.myPressingText,
-        wantFormat = album.wantFormat
+        wantFormat = album.wantFormat,
+        formatNotes = FormatNotes.decode(album.userFormatNotes)
     )
 
     /**
@@ -279,12 +280,14 @@ class DiscographyViewModel(
      * note. The formats are added to MusicBrainz's and never replace them, and a lookup never touches them.
      * Labels that are not formats are dropped, a blank note is not kept, and no formats and no note clear it.
      */
-    suspend fun saveCopy(albumId: String, formats: List<String>, note: String) {
+    suspend fun saveCopy(albumId: String, formats: List<String>, note: String, formatNotes: Map<String, String> = emptyMap()) {
         albumDao.setCopy(
             albumId,
             ReleaseFormats.encodeUserOrNull(formats),
             note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null }
         )
+        // Each format has a note of its own, and a note goes when its format does.
+        albumDao.setFormatNotes(albumId, FormatNotes.encode(formatNotes, ReleaseFormats.decodeUser(ReleaseFormats.encodeUser(formats))))
         // An album wanted on a format is no longer wanted once the user says their copy is on that format.
         val album = albumDao.getById(albumId) ?: return
         val wantedOn = album.wantFormat

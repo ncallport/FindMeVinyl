@@ -140,4 +140,26 @@ class AlbumCopyDaoTest {
 
         assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
     }
+
+    // A note for each format.
+
+    @Test
+    fun `saves the notes for the formats, and null takes them away`() = runBlocking {
+        dao.insert(album())
+
+        dao.setFormatNotes("1", """{"LP":"scratched"}""")
+        assertEquals("""{"LP":"scratched"}""", dao.getById("1")!!.userFormatNotes)
+
+        dao.setFormatNotes("1", null)
+        assertEquals(null, dao.getById("1")!!.userFormatNotes)
+    }
+
+    @Test
+    fun `an album with only format notes is in the backup even when it is neither owned nor wanted`() = runBlocking {
+        dao.insert(album("1").copy(owned = false))
+        dao.insert(album("2").copy(owned = false))
+        dao.setFormatNotes("1", """{"CD":"from Mum"}""")
+
+        assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
+    }
 }
