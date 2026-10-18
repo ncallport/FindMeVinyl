@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.ui.discography
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -54,6 +55,7 @@ class AlbumDetailScreenTest {
         onToggleOwned: () -> Unit = {},
         onToggleWanted: () -> Unit = {},
         onSetWantFormat: (String?) -> Unit = {},
+        onOpenArtist: (() -> Unit)? = null,
         onSelectPressing: (String) -> Unit = {},
         loadCover: suspend (String) -> Bitmap? = { null }
     ) {
@@ -61,7 +63,7 @@ class AlbumDetailScreenTest {
             FindMeVinylTheme(darkTheme = darkTheme) {
                 AlbumDetailScreen(
                     albumId = "1", title = "Trespass", artistName = "Genesis", album = album, state = state,
-                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted, onSetWantFormat = onSetWantFormat,
+                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted, onSetWantFormat = onSetWantFormat, onOpenArtist = onOpenArtist,
                     onSelectPressing = onSelectPressing, loadCover = loadCover
                 )
             }
@@ -405,5 +407,22 @@ class AlbumDetailScreenTest {
         show(album = notOwned)
 
         composeTestRule.onNodeWithTag("want_format_any").assertDoesNotExist()
+    }
+
+    @Test
+    fun `tapping the artist's name opens the artist`() {
+        var opened = 0
+        show(onOpenArtist = { opened++ })
+
+        composeTestRule.onNodeWithTag("detail_artist").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `without a way to open the artist the name is plain text`() {
+        show()
+
+        composeTestRule.onNodeWithTag("detail_artist").assertHasNoClickAction()
     }
 }

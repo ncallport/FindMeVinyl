@@ -40,7 +40,9 @@ fun AlbumDetailRoute(
     /** Keeps the pressing the user chose as their copy, or takes it away with null. The album is read again after it. */
     saveMyPressing: suspend (albumId: String, pressing: Pressing?) -> Unit = { _, _ -> },
     /** Keeps the format a wanted album is wanted on, or null for any. The album is read again after it. */
-    saveWantFormat: suspend (albumId: String, format: String?) -> Unit = { _, _ -> }
+    saveWantFormat: suspend (albumId: String, format: String?) -> Unit = { _, _ -> },
+    /** Opens the artist's page. When null the artist's name is plain text. */
+    onOpenArtist: (() -> Unit)? = null
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -114,6 +116,7 @@ fun AlbumDetailRoute(
                 album = loadAlbum(albumId)
             }
         },
+        onOpenArtist = onOpenArtist,
         onSetWantFormat = { format ->
             coroutineScope.launch {
                 saveWantFormat(albumId, format)

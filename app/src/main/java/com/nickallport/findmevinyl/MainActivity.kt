@@ -477,7 +477,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 saveCopies = { albumId, copies, note -> discographyViewModel.saveCopies(albumId, copies, note) },
                                 saveWantFormat = { albumId, format -> discographyViewModel.saveWantFormat(albumId, format) },
-                                saveMyPressing = { albumId, pressing -> discographyViewModel.saveMyPressing(albumId, pressing) }
+                                saveMyPressing = { albumId, pressing -> discographyViewModel.saveMyPressing(albumId, pressing) },
+                                // The page the album was opened from is the artist's, or the group's.
+                                onOpenArtist = {
+                                    currentScreen = screen.backTo as? Screen.Discography
+                                        ?: Screen.Discography(screen.artistId, screen.artistName, Screen.Search)
+                                }
                             )
                         }
                         is Screen.WantList -> {
