@@ -130,3 +130,15 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         )
     }
 }
+
+/** Adds the genre the user chooses for an artist or a group, and the genres MusicBrainz lists, kept for choosing. */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `favourite_artists` ADD COLUMN `genre` TEXT")
+        db.execSQL("ALTER TABLE `artist_groups` ADD COLUMN `genre` TEXT")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `artist_genres` (`artistId` TEXT NOT NULL, `genres` TEXT NOT NULL, " +
+                "`checkedAt` INTEGER NOT NULL, PRIMARY KEY(`artistId`))"
+        )
+    }
+}

@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
             .allowMainThreadQueries()
             .build()
 
@@ -860,6 +860,35 @@ class MigrationTest {
         database.artistGroupDao().insertMembers(listOf(ArtistGroupMemberEntity("artist-1", "group/1", "Genesis", 0)))
 
         assertEquals("group/1", database.artistGroupDao().groupIdOf("artist-1"))
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database keeps its artists and groups when they get the genre column`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        val genesis = database.artistDao().getAllFavourites().single()
+
+        assertEquals("Genesis", genesis.name)
+        assertEquals(2, genesis.position)
+        assertNull(genesis.genre)
+        assertEquals(emptyList<ArtistGroupEntity>(), database.artistGroupDao().getGroups())
+        database.close()
+    }
+
+    @Test
+    fun `an upgraded database can keep a genre for an artist and for a group, and the genres record`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        database.artistDao().setGenre("artist-1", "progressive rock")
+        database.artistGroupDao().insertGroup(ArtistGroupEntity("group/1", "G", 0, "post-punk"))
+        database.artistGenresDao().save(ArtistGenresEntity("artist-1", "[]", 5L))
+
+        assertEquals("progressive rock", database.artistDao().getById("artist-1")!!.genre)
+        assertEquals("post-punk", database.artistGroupDao().getGroup("group/1")!!.genre)
+        assertEquals(5L, database.artistGenresDao().get("artist-1")!!.checkedAt)
         database.close()
     }
 }

@@ -929,4 +929,89 @@ class BackupViewModelTest {
         assertNull(fresh.artistUserPhotoDao().get("group/ghost"))
         fresh.close()
     }
+
+    // The genre the user chose.
+
+    @Test
+    fun `the backup carries the genre of an artist and of a group`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("genesis", "Genesis", null, null, 0, "progressive rock"))
+        group(members = caveAndSeeds)
+        database.artistGroupDao().setGenre("group/1", "post-punk")
+
+        val text = String(entries(backup()).getValue("backup.json"))
+
+        assertTrue(text.contains("\"genre\":\"progressive rock\""))
+        assertTrue(text.contains("\"genre\":\"post-punk\""))
+    }
+
+    @Test
+    fun `restoring into an empty phone brings the genres back`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("genesis", "Genesis", null, null, 0, "progressive rock"))
+        group(members = caveAndSeeds)
+        database.artistGroupDao().setGenre("group/1", "post-punk")
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals("progressive rock", fresh.artistDao().getById("genesis")!!.genre)
+        assertEquals("post-punk", fresh.artistGroupDao().getGroup("group/1")!!.genre)
+        fresh.close()
+    }
+
+    @Test
+    fun `an artist on the phone with no genre takes the one in the backup, and one with a genre keeps its own`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "A", null, null, 0, "rock"))
+        database.artistDao().insert(ArtistEntity("b", "B", null, null, 1, "punk"))
+        val saved = backup()
+        database.artistDao().setGenre("a", null)
+        database.artistDao().setGenre("b", "jazz")
+
+        restore(saved)
+
+        assertEquals("rock", database.artistDao().getById("a")!!.genre)
+        assertEquals("jazz", database.artistDao().getById("b")!!.genre)
+    }
+
+    @Test
+    fun `a group on the phone with no genre takes the one in the backup, and one with a genre keeps its own`() = runBlocking {
+        group(id = "group/1", members = caveAndSeeds)
+        database.artistGroupDao().setGenre("group/1", "post-punk")
+        group(id = "group/2", name = "Other", position = 4, members = arrayOf("x" to "X", "y" to "Y"))
+        database.artistGroupDao().setGenre("group/2", "punk")
+        val saved = backup()
+        database.artistGroupDao().setGenre("group/1", null)
+        database.artistGroupDao().setGenre("group/2", "jazz")
+
+        restore(saved)
+
+        assertEquals("post-punk", database.artistGroupDao().getGroup("group/1")!!.genre)
+        assertEquals("jazz", database.artistGroupDao().getGroup("group/2")!!.genre)
+    }
+
+    @Test
+    fun `a genre in the file is tidied the way a chosen one is, and a blank one is no genre`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"favourites":[
+            {"id":"a","name":"A","genre":"  Post   Punk "},{"id":"b","name":"B","genre":"   "}],
+            "groups":[{"id":"group/1","name":"G","genre":"Gothic Rock","members":[{"artistId":"x","name":"X"},{"artistId":"y","name":"Y"}]}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertEquals("post punk", fresh.artistDao().getById("a")!!.genre)
+        assertNull(fresh.artistDao().getById("b")!!.genre)
+        assertEquals("gothic rock", fresh.artistGroupDao().getGroup("group/1")!!.genre)
+        fresh.close()
+    }
+
+    @Test
+    fun `a backup made before genres existed restores with no genres`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"favourites":[{"id":"a","name":"A"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertNull(fresh.artistDao().getById("a")!!.genre)
+        fresh.close()
+    }
 }

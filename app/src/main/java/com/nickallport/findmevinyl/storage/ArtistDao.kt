@@ -21,6 +21,10 @@ interface ArtistDao {
     @Query("SELECT MIN(p) FROM (SELECT position AS p FROM favourite_artists UNION ALL SELECT position AS p FROM artist_groups)")
     suspend fun minPosition(): Int?
 
+    /** Keeps the genre the user chose, or takes it away with null. Nothing else about the artist changes. */
+    @Query("UPDATE favourite_artists SET genre = :genre WHERE id = :artistId")
+    suspend fun setGenre(artistId: String, genre: String?): Int
+
     @Query("DELETE FROM favourite_artists WHERE id = :artistId")
     suspend fun deleteById(artistId: String): Int
 

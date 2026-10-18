@@ -18,7 +18,9 @@ data class ArtistGroupEntity(
     @PrimaryKey val id: String,
     val name: String,
     /** Where the group sits in the user's own order of favourites, with the favourite artists. Lowest first. */
-    @ColumnInfo(defaultValue = "0") val position: Int = 0
+    @ColumnInfo(defaultValue = "0") val position: Int = 0,
+    /** The genre the user chose for the group, lower case. Null: none chosen. */
+    val genre: String? = null
 )
 
 /** One MusicBrainz artist in a group. An artist is in at most one group. */
@@ -61,6 +63,9 @@ interface ArtistGroupDao {
 
     @Query("UPDATE artist_groups SET position = :position WHERE id = :groupId")
     suspend fun setPosition(groupId: String, position: Int): Int
+
+    @Query("UPDATE artist_groups SET genre = :genre WHERE id = :groupId")
+    suspend fun setGenre(groupId: String, genre: String?): Int
 
     @Query("DELETE FROM artist_group_members WHERE groupId = :groupId")
     suspend fun deleteMembersOf(groupId: String): Int

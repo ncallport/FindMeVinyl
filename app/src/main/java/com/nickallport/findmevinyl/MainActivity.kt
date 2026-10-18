@@ -46,6 +46,8 @@ import com.nickallport.findmevinyl.image.ImageLoader
 import com.nickallport.findmevinyl.wikidata.WikidataApiFactory
 import com.nickallport.findmevinyl.coverart.CoverArtLoader
 import com.nickallport.findmevinyl.discography.AlbumDetailRoute
+import com.nickallport.findmevinyl.discography.GenreControls
+import com.nickallport.findmevinyl.genre.ArtistGenreViewModel
 import androidx.room.withTransaction
 import com.nickallport.findmevinyl.ui.artist.JoinArtistsRoute
 import com.nickallport.findmevinyl.favourites.GroupMember
@@ -69,6 +71,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_10_11
 import com.nickallport.findmevinyl.storage.MIGRATION_11_12
 import com.nickallport.findmevinyl.storage.MIGRATION_12_13
 import com.nickallport.findmevinyl.storage.MIGRATION_13_14
+import com.nickallport.findmevinyl.storage.MIGRATION_14_15
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -233,7 +236,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -272,6 +275,7 @@ class MainActivity : ComponentActivity() {
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
+        val artistGenreViewModel = ArtistGenreViewModel(api, database.artistGenresDao(), database.artistDao(), database.artistGroupDao())
         val artistGroupViewModel = ArtistGroupViewModel(
             database.artistDao(), database.artistGroupDao(),
             inTransaction = { block -> database.withTransaction { block() } }
@@ -389,6 +393,13 @@ class MainActivity : ComponentActivity() {
                                 onJoinArtists = { currentScreen = Screen.JoinArtists(screen.artistId, screen.artistName, screen) },
                                 inGroup = inGroup,
                                 isGroup = ArtistGroupViewModel.isGroupId(screen.artistId),
+                                genreControls = remember(screen.artistId) {
+                                    GenreControls(
+                                        load = { artistGenreViewModel.genreOf(screen.artistId) },
+                                        options = { artistGenreViewModel.options(screen.artistId) },
+                                        set = { genre -> artistGenreViewModel.setGenre(screen.artistId, genre) }
+                                    )
+                                },
                                 startWithGrouping = groupingStore.get(screen.artistId),
                                 onGroupingChange = { groupingStore.set(screen.artistId, it) },
                                 settings = settings,

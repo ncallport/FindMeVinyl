@@ -70,4 +70,30 @@ class ArtistDaoTest {
         assertEquals("Genesis", dao.getById("g-1")?.name)
         assertNull(dao.getById("unknown"))
     }
+
+    // The genre the user chose.
+
+    @Test
+    fun `an artist has no genre to begin with, and one can be chosen and taken away`() = runBlocking {
+        dao.insert(ArtistEntity("a", "Genesis", null, null))
+        assertNull(dao.getById("a")!!.genre)
+
+        dao.setGenre("a", "progressive rock")
+        assertEquals("progressive rock", dao.getById("a")!!.genre)
+
+        dao.setGenre("a", null)
+        assertNull(dao.getById("a")!!.genre)
+    }
+
+    @Test
+    fun `choosing a genre does not change the name or the position`() = runBlocking {
+        dao.insert(ArtistEntity("a", "Genesis", "Group", "GB", position = 4))
+
+        dao.setGenre("a", "rock")
+
+        val artist = dao.getById("a")!!
+        assertEquals("Genesis", artist.name)
+        assertEquals(4, artist.position)
+        assertEquals("Group", artist.type)
+    }
 }
