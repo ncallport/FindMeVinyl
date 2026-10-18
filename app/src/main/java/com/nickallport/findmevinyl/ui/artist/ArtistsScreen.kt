@@ -112,17 +112,17 @@ fun ArtistsScreen(
         // The favourites stay where they are, with their state, and the suggestions are drawn over them.
         Box(modifier = Modifier.weight(1f)) {
             Column {
+                Text(
+                    text = "Your favourites",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
+                )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Your favourites",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
                     FilterChip(
                         selected = !grid,
                         onClick = { if (grid) { grid = false; onGridChange?.invoke(false) } },
@@ -135,8 +135,6 @@ fun ArtistsScreen(
                         label = { Text("Grid") },
                         modifier = Modifier.testTag("favourites_view_grid")
                     )
-                }
-                Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, bottom = 4.dp)) {
                     FilterChip(
                         selected = groupedByGenre,
                         onClick = {
