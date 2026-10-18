@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performTextInput
 import com.nickallport.findmevinyl.ui.favourites.FavouriteArtistUiModel
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -345,5 +346,22 @@ class ArtistsScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the group by genre chip sits on the same line as List and Grid, after Grid`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        val list = composeTestRule.onNodeWithTag("favourites_view_list").fetchSemanticsNode().boundsInRoot
+        val grid = composeTestRule.onNodeWithTag("favourites_view_grid").fetchSemanticsNode().boundsInRoot
+        val genre = composeTestRule.onNodeWithTag("favourites_group_by_genre").fetchSemanticsNode().boundsInRoot
+
+        assertEquals(list.top, genre.top, 1f)
+        assertEquals(grid.top, genre.top, 1f)
+        assertTrue(genre.left >= grid.right)
+        assertTrue(grid.left >= list.right)
     }
 }
