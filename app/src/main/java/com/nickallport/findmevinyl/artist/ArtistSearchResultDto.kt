@@ -20,13 +20,17 @@ object ArtistDescriptionFormatter {
 
         val fromPhrase = artist.country?.let { " from $it" } ?: ""
 
-        val activePhrase = if (artist.lifeSpanEnd != null) {
-            "active ${artist.lifeSpanBegin}\u2013${artist.lifeSpanEnd}"
-        } else {
-            "active since ${artist.lifeSpanBegin}"
+        // MusicBrainz has no dates for many artists, so the active phrase is only there when it has something to say.
+        val begin = artist.lifeSpanBegin?.takeIf { it.isNotBlank() }
+        val end = artist.lifeSpanEnd?.takeIf { it.isNotBlank() }
+        val activePhrase = when {
+            begin != null && end != null -> ", active $begin–$end"
+            begin != null -> ", active since $begin"
+            end != null -> ", active until $end"
+            else -> ""
         }
 
-        val base = "$typeLabel$fromPhrase, $activePhrase"
+        val base = "$typeLabel$fromPhrase$activePhrase"
 
         return artist.disambiguation?.let { "$base ($it)" } ?: base
     }
