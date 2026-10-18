@@ -59,9 +59,17 @@ import com.nickallport.findmevinyl.ui.artist.ArtistImage
 import com.nickallport.findmevinyl.ui.artist.PhotoCredit
 import com.nickallport.findmevinyl.ui.common.MoveButtons
 
+/**
+ * One favourite: an artist, or a group of artists the user keeps together (then [isGroup] is true, [id] is the
+ * group's id, and [memberIds] are its artists, first first). [imageId] is the artist whose picture is shown: the
+ * artist itself, or the first member of a group.
+ */
 data class FavouriteArtistUiModel(
     val id: String,
-    val name: String
+    val name: String,
+    val isGroup: Boolean = false,
+    val memberIds: List<String> = emptyList(),
+    val imageId: String = id
 )
 
 /**
@@ -117,16 +125,22 @@ fun FavouritesScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ArtistImage(
-                            artistId = artist.id,
+                            artistId = artist.imageId,
                             loadImage = loadArtistImage,
                             onShownChange = { shown -> picturesShown += if (shown) 1 else -1 }
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = artist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = artist.name, style = MaterialTheme.typography.titleMedium)
+                            if (artist.isGroup) {
+                                Text(
+                                    text = "${artist.memberIds.size} artists joined",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.testTag("favourite_group_note_${artist.id}")
+                                )
+                            }
+                        }
                         // With one favourite there is nothing to move past.
                         if (artists.size > 1) {
                             MoveButtons(
@@ -309,7 +323,7 @@ private fun ArtistTile(
             }
     ) {
         ArtistImage(
-            artistId = artist.id,
+            artistId = artist.imageId,
             loadImage = loadArtistImage,
             fillSize = true,
             onShownChange = onShownChange

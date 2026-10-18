@@ -25,7 +25,7 @@ class FavouritesViewModelTest {
             AppDatabase::class.java
         ).allowMainThreadQueries().build()
 
-        viewModel = FavouritesViewModel(database.artistDao())
+        viewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
     }
 
     @After
@@ -129,7 +129,7 @@ class FavouritesViewModelTest {
 
         viewModel.moveDown("a")
 
-        assertEquals(listOf("b", "a"), FavouritesViewModel(database.artistDao()).loadFavourites().map { it.id })
+        assertEquals(listOf("b", "a"), FavouritesViewModel(database.artistDao(), database.artistGroupDao()).loadFavourites().map { it.id })
     }
 
     @Test

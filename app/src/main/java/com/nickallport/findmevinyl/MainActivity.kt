@@ -46,6 +46,10 @@ import com.nickallport.findmevinyl.image.ImageLoader
 import com.nickallport.findmevinyl.wikidata.WikidataApiFactory
 import com.nickallport.findmevinyl.coverart.CoverArtLoader
 import com.nickallport.findmevinyl.discography.AlbumDetailRoute
+import androidx.room.withTransaction
+import com.nickallport.findmevinyl.ui.artist.JoinArtistsRoute
+import com.nickallport.findmevinyl.favourites.GroupMember
+import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
 import com.nickallport.findmevinyl.discography.AlbumDetailsViewModel
 import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
@@ -64,6 +68,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_8_9
 import com.nickallport.findmevinyl.storage.MIGRATION_10_11
 import com.nickallport.findmevinyl.storage.MIGRATION_11_12
 import com.nickallport.findmevinyl.storage.MIGRATION_12_13
+import com.nickallport.findmevinyl.storage.MIGRATION_13_14
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -228,7 +233,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -264,7 +269,11 @@ class MainActivity : ComponentActivity() {
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao())
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
-        val favouritesViewModel = FavouritesViewModel(database.artistDao())
+        val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
+        val artistGroupViewModel = ArtistGroupViewModel(
+            database.artistDao(), database.artistGroupDao(),
+            inTransaction = { block -> database.withTransaction { block() } }
+        )
         val wantListViewModel = WantListViewModel(database.albumDao())
         val placeSuggester = PlaceSuggester(ShopApiFactory.createPhoton())
         val shopSearchViewModel = ShopSearchViewModel(
@@ -336,7 +345,9 @@ class MainActivity : ComponentActivity() {
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
-                                    currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
+                                    // A group opens on its first member's discography, with the group's name.
+                                    val openId = if (artist.isGroup) artist.memberIds.first() else artist.id
+                                    currentScreen = Screen.Discography(openId, artist.name, Screen.Search)
                                 }
                             )
                         }
@@ -353,6 +364,8 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is Screen.Discography -> {
+                            var inGroup by remember(screen.artistId) { mutableStateOf(false) }
+                            LaunchedEffect(screen.artistId) { inGroup = artistGroupViewModel.groupOf(screen.artistId) != null }
                             DiscographyRoute(
                                 artistId = screen.artistId,
                                 artistName = screen.artistName,
@@ -372,6 +385,8 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
+                                onJoinArtists = { currentScreen = Screen.JoinArtists(screen.artistId, screen.artistName, screen) },
+                                inGroup = inGroup,
                                 startWithGrouping = groupingStore.get(screen.artistId),
                                 onGroupingChange = { groupingStore.set(screen.artistId, it) },
                                 settings = settings,
@@ -399,6 +414,22 @@ class MainActivity : ComponentActivity() {
                                 loadCover = { id -> CoverArtLoader.shared.load(id) },
                                 loadFormats = { id -> discographyViewModel.loadFormats(id) },
                                 checkAllFormats = { id, onProgress -> discographyViewModel.checkAllFormats(id, onProgress) }
+                            )
+                        }
+                        is Screen.JoinArtists -> {
+                            JoinArtistsRoute(
+                                startArtist = GroupMember(screen.artistId, screen.artistName),
+                                loadGroup = { id -> artistGroupViewModel.groupOf(id) },
+                                loadFavourites = { favouritesViewModel.loadFavourites() },
+                                suggestArtists = { text -> artistSuggester.suggest(text) },
+                                save = { groupId, name, members ->
+                                    if (groupId == null) artistGroupViewModel.create(name, members)
+                                    else artistGroupViewModel.update(groupId, name, members)
+                                },
+                                ungroup = { id -> artistGroupViewModel.ungroup(id) },
+                                // Saved or split up: the favourites show the result.
+                                onDone = { currentScreen = Screen.Search },
+                                onCancel = { currentScreen = screen.backTo }
                             )
                         }
                         is Screen.AlbumDetail -> {

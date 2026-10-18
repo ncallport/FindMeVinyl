@@ -928,4 +928,48 @@ class DiscographyRouteTest {
         onNodeWithTag("group_wanted_toggle").assertIsSelected()
         onNodeWithTag("group_first_owned").assertExists()
     }
+
+    // Joining artists into a group.
+
+    @Test
+    fun `the header offers to join the artist with others, and tapping it says so`() {
+        var joined = 0
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Nick Cave", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                onJoinArtists = { joined++ }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("join_artists_button").performClick()
+
+        assertEquals(1, joined)
+    }
+
+    @Test
+    fun `there is no join button when the route is not given one`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Nick Cave", load = loading(twoOwned()), onToggleOwned = { _, _ -> }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("join_artists_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun `for an artist in a group the button reads Edit group`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Nick Cave", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                onJoinArtists = {}, inGroup = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Edit group").assertExists()
+    }
 }
+

@@ -269,4 +269,61 @@ class FavouritesScreenTest {
         assertEquals(first.y, third.y, 0.5f)
         assertEquals(true, second.x > first.x && third.x > second.x)
     }
+
+    // Groups of artists.
+
+    private val group = FavouriteArtistUiModel(
+        id = "group/1", name = "Acid Mothers Temple Family", isGroup = true,
+        memberIds = listOf("amt", "amt-two", "amt-three"), imageId = "amt"
+    )
+
+    @Test
+    fun `a group in the list shows its own name and how many artists it joins`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = listOf(group, twoArtists[0]), onArtistSelected = {})
+        }
+
+        composeTestRule.onNodeWithText("Acid Mothers Temple Family").assertExists()
+        composeTestRule.onNodeWithTag("favourite_group_note_group/1", useUnmergedTree = true).assertTextEquals("3 artists joined")
+        composeTestRule.onNodeWithTag("favourite_group_note_1", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a group in the list gets the picture of its first member, not of the group`() {
+        val asked = mutableListOf<String>()
+        composeTestRule.setContent {
+            FavouritesScreen(artists = listOf(group), onArtistSelected = {}, loadArtistImage = { id -> asked.add(id); picture() })
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("amt"), asked)
+    }
+
+    @Test
+    fun `a group in the grid gets the picture of its first member, and opens as the group`() {
+        val asked = mutableListOf<String>()
+        var selected: FavouriteArtistUiModel? = null
+        composeTestRule.setContent {
+            FavouritesScreen(
+                artists = listOf(group), onArtistSelected = { selected = it }, grid = true,
+                loadArtistImage = { id -> asked.add(id); picture() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_artist_group/1").performClick()
+
+        assertEquals(listOf("amt"), asked)
+        assertEquals(group, selected)
+    }
+
+    @Test
+    fun `a group in the grid shows its name on the tile`() {
+        composeTestRule.setContent {
+            FavouritesScreen(artists = listOf(group), onArtistSelected = {}, grid = true)
+        }
+
+        composeTestRule.onNodeWithText("Acid Mothers Temple Family").assertExists()
+    }
 }
+

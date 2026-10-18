@@ -116,3 +116,17 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `myPressingText` TEXT")
     }
 }
+
+/** Adds the groups of artists the user keeps together, and their members. Nothing is grouped to begin with. */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `artist_groups` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                "`position` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `artist_group_members` (`artistId` TEXT NOT NULL, `groupId` TEXT NOT NULL, " +
+                "`name` TEXT NOT NULL, `ordinal` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`artistId`))"
+        )
+    }
+}
