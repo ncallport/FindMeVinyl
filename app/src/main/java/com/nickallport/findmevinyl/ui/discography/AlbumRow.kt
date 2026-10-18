@@ -42,7 +42,9 @@ data class AlbumUiModel(
     val myPressingId: String? = null,
     val myPressingText: String? = null,
     /** The artist the album is filed under on MusicBrainz, when the page knows it (a group's members). */
-    val artistName: String? = null
+    val artistName: String? = null,
+    /** The format the album is wanted on (a label such as LP), or null for any. */
+    val wantFormat: String? = null
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.
@@ -108,7 +110,7 @@ fun AlbumRow(
                 // An album can be both: a copy you own and want another of. It keeps the owned colour.
                 if (album.wanted) {
                     Text(
-                        text = "Wanted",
+                        text = if (album.wantFormat != null) "Wanted on ${album.wantFormat}" else "Wanted",
                         style = MaterialTheme.typography.labelLarge,
                         color = if (album.owned) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.testTag("album_wanted_label")

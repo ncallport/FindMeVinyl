@@ -325,4 +325,16 @@ class AlbumRowTest {
 
         assertTrue(wantedToggled)
     }
+
+    @Test
+    fun `an album wanted on a format says which`() {
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Desire", owned = true, wanted = true, wantFormat = "LP"),
+                onToggleOwned = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).assertTextEquals("Wanted on LP")
+    }
 }

@@ -350,4 +350,14 @@ class WantListScreenTest {
 
         assertEquals(emptyList<String>(), moved)
     }
+
+    @Test
+    fun `an album wanted on a format shows it under the title`() {
+        composeTestRule.setContent {
+            WantListScreen(wanted = listOf(WantedAlbumUiModel("1", "Bob Dylan", "Desire", wantFormat = "LP")), onShare = {})
+        }
+
+        composeTestRule.onNodeWithTag("want_format_1", useUnmergedTree = true).assertTextEquals("on LP")
+        composeTestRule.onNodeWithText("Desire").assertExists()
+    }
 }

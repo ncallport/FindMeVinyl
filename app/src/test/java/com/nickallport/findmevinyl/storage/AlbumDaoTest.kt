@@ -244,4 +244,55 @@ class AlbumDaoTest {
         assertEquals("Foxtrot", wanted[0].albumTitle)
         assertEquals("Genesis", wanted[0].artistName)
     }
+
+    // The format the user wants an album on.
+
+    private suspend fun wantedOn(format: String?) {
+        database.albumDao().insert(AlbumEntity("w", "artist-1", "Desire", "STUDIO_ALBUM", "1976", owned = true, wanted = true))
+        database.albumDao().setWantFormat("w", format)
+    }
+
+    @Test
+    fun `the format an album is wanted on is saved, and null takes it away`() = runBlocking {
+        wantedOn("LP")
+        assertEquals("LP", database.albumDao().getById("w")!!.wantFormat)
+
+        database.albumDao().setWantFormat("w", null)
+        assertEquals(null, database.albumDao().getById("w")!!.wantFormat)
+    }
+
+    @Test
+    fun `taking the want off an album forgets the format it was wanted on`() = runBlocking {
+        wantedOn("LP")
+
+        database.albumDao().setWanted("w", false)
+
+        assertEquals(null, database.albumDao().getById("w")!!.wantFormat)
+    }
+
+    @Test
+    fun `keeping the want keeps the format`() = runBlocking {
+        wantedOn("LP")
+
+        database.albumDao().setWanted("w", true)
+
+        assertEquals("LP", database.albumDao().getById("w")!!.wantFormat)
+    }
+
+    @Test
+    fun `clearing the wants of an artist forgets their formats`() = runBlocking {
+        wantedOn("LP")
+
+        database.albumDao().clearWantedForArtist("artist-1")
+
+        assertEquals(null, database.albumDao().getById("w")!!.wantFormat)
+    }
+
+    @Test
+    fun `the want list rows carry the format`() = runBlocking {
+        database.artistDao().insert(com.nickallport.findmevinyl.storage.ArtistEntity("artist-1", "Bob Dylan", null, null))
+        wantedOn("LP")
+
+        assertEquals(listOf("LP"), database.albumDao().getWantedAlbums().map { it.wantFormat })
+    }
 }

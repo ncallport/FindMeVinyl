@@ -160,3 +160,10 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
         db.execSQL("UPDATE `albums` SET `wanted` = 0 WHERE `owned` = 1 AND `wanted` = 1")
     }
 }
+
+/** Adds the format the user wants an album on, such as the LP of an album owned on CD. */
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `wantFormat` TEXT")
+    }
+}
