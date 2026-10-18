@@ -164,4 +164,16 @@ class FavouritesViewModelGroupsTest {
 
         assertEquals(listOf("Second name", "First name"), viewModel.loadFavourites().single().memberNames)
     }
+
+    @Test
+    fun `an artist and a group each come with the genre chosen for them`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("a", "Genesis", null, null, 0, "progressive rock"))
+        database.artistDao().insert(ArtistEntity("b", "Nameless", null, null, 1))
+        group("group/1", "G", 2, "x" to "X", "y" to "Y")
+        database.artistGroupDao().setGenre("group/1", "post-punk")
+
+        val listed = viewModel.loadFavourites().associate { it.id to it.genre }
+
+        assertEquals(mapOf("a" to "progressive rock", "b" to null, "group/1" to "post-punk"), listed)
+    }
 }

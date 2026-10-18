@@ -14,9 +14,9 @@ class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao
         return ordered().map {
             val members = it.memberIds
             if (members == null) {
-                FavouriteArtistUiModel(id = it.id, name = it.name)
+                FavouriteArtistUiModel(id = it.id, name = it.name, genre = it.genre)
             } else {
-                FavouriteArtistUiModel(id = it.id, name = it.name, isGroup = true, memberIds = members, memberNames = it.memberNames)
+                FavouriteArtistUiModel(id = it.id, name = it.name, isGroup = true, memberIds = members, memberNames = it.memberNames, genre = it.genre)
             }
         }
     }
@@ -46,7 +46,8 @@ class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao
         val name: String,
         val position: Int,
         val memberIds: List<String>? = null,
-        val memberNames: List<String> = emptyList()
+        val memberNames: List<String> = emptyList(),
+        val genre: String? = null
     )
 
     /**
@@ -57,10 +58,10 @@ class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao
         val members = groupDao.getAllMembers()
         val inGroup = members.map { it.artistId }.toSet()
         val membersByGroup = members.groupBy { it.groupId }.mapValues { (_, list) -> list.sortedBy { it.ordinal } }
-        val artists = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Entry(it.id, it.name, it.position) }
+        val artists = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Entry(it.id, it.name, it.position, genre = it.genre) }
         val groups = groupDao.getGroups().mapNotNull { group ->
             membersByGroup[group.id]?.takeIf { it.isNotEmpty() }?.let { list ->
-                Entry(group.id, group.name, group.position, list.map { it.artistId }, list.map { it.name })
+                Entry(group.id, group.name, group.position, list.map { it.artistId }, list.map { it.name }, group.genre)
             }
         }
         return (artists + groups).sortedWith(compareBy<Entry> { it.position }.thenBy { it.name.lowercase() })

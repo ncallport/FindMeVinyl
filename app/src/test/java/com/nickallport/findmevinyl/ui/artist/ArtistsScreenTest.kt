@@ -170,4 +170,88 @@ class ArtistsScreenTest {
 
         onNodeWithTag("favourites_view_grid").assertIsSelected()
     }
+
+    // Grouping the favourites by genre.
+
+    @Test
+    fun `has a switch to group the favourites by genre, off to begin with`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("genre_header_none").assertDoesNotExist()
+    }
+
+    @Test
+    fun `switching it on groups the favourites and says so`() {
+        val changes = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
+                    onGroupedByGenreChange = { changes.add(it) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsSelected()
+        composeTestRule.onNodeWithTag("genre_header_none").assertExists()
+        assertEquals(listOf(true), changes)
+    }
+
+    @Test
+    fun `switching it off again brings back the order of the favourites`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("genre_header_none").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourite_down_1").assertExists()
+    }
+
+    @Test
+    fun `it starts grouped when it was left grouped`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsSelected()
+        composeTestRule.onNodeWithTag("genre_header_none").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `the switch keeps its place over a rotation`() = runComposeUiTest {
+        val restorationTester = StateRestorationTester(this)
+        restorationTester.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        waitForIdle()
+        onNodeWithTag("favourites_group_by_genre").performClick()
+        waitForIdle()
+
+        restorationTester.emulateSaveAndRestore()
+        waitForIdle()
+
+        onNodeWithTag("favourites_group_by_genre").assertIsSelected()
+    }
 }

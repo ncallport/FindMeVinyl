@@ -53,11 +53,16 @@ fun ArtistsScreen(
     startInGrid: Boolean = false,
     /** Told when the user switches between the list and the grid, so the choice can be kept. */
     onGridChange: ((Boolean) -> Unit)? = null,
+    /** Group the favourites by genre when the page opens. */
+    startGroupedByGenre: Boolean = false,
+    /** Told when the user switches grouping by genre on or off, so the choice can be kept. */
+    onGroupedByGenreChange: ((Boolean) -> Unit)? = null,
     /** Artists from MusicBrainz for the text typed so far. Without it there are no suggestions. */
     suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
+    var groupedByGenre by rememberSaveable { mutableStateOf(startGroupedByGenre) }
 
     // The artists offered while typing: the favourites that match at once, the others once typing pauses.
     var suggestions by remember { mutableStateOf<List<ArtistSuggestion>>(emptyList()) }
@@ -113,6 +118,17 @@ fun ArtistsScreen(
                         modifier = Modifier.testTag("favourites_view_grid")
                     )
                 }
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, bottom = 4.dp)) {
+                    FilterChip(
+                        selected = groupedByGenre,
+                        onClick = {
+                            groupedByGenre = !groupedByGenre
+                            onGroupedByGenreChange?.invoke(groupedByGenre)
+                        },
+                        label = { Text("Group by genre") },
+                        modifier = Modifier.testTag("favourites_group_by_genre")
+                    )
+                }
                 FavouritesRoute(
                     load = loadFavourites,
                     onArtistSelected = onArtistSelected,
@@ -120,7 +136,8 @@ fun ArtistsScreen(
                     onMoveUp = onMoveFavouriteUp,
                     onMoveDown = onMoveFavouriteDown,
                     onReorder = onReorderFavourites,
-                    grid = grid
+                    grid = grid,
+                    groupByGenre = groupedByGenre
                 )
             }
             if (suggestions.isNotEmpty()) {

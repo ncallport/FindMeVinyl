@@ -354,4 +354,14 @@ class WantListViewModelTest {
 
         assertEquals(viewModel.exportText(ShareOptions()), viewModel.exportText())
     }
+
+    @Test
+    fun `the genre of an artist makes no difference to the want list`() = runBlocking {
+        database.artistDao().insert(ArtistEntity("z", "Zebra", null, null, 0, "folk"))
+        database.artistDao().insert(ArtistEntity("a", "Abba", null, null, 1, "pop"))
+        wantedAlbum("1", "z", "Z album", "1980")
+        wantedAlbum("2", "a", "A album", "1980")
+
+        assertEquals(listOf("Z album", "A album"), viewModel.loadWantList().map { it.albumTitle })
+    }
 }
