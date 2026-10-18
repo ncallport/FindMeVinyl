@@ -89,6 +89,15 @@ class ArtistSuggesterTest {
     }
 
     @Test
+    fun `a backslash is taken out too`() = runBlocking {
+        server.enqueue(MockResponse().setBody(joyDivision))
+
+        suggester.suggest("AC\\DC")
+
+        assertEquals("AC DC*" to "5", lastQuery())
+    }
+
+    @Test
     fun `sends the user agent of the app`() = runBlocking {
         server.enqueue(MockResponse().setBody(joyDivision))
 

@@ -1,5 +1,9 @@
 package com.nickallport.findmevinyl.backup
 
+import com.nickallport.findmevinyl.storage.ArtistGroupMemberEntity
+import com.nickallport.findmevinyl.storage.ArtistGroupEntity
+import com.nickallport.findmevinyl.favourites.GroupMember
+import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import com.nickallport.findmevinyl.discography.MAX_NOTE_LENGTH
 import android.graphics.BitmapFactory
@@ -30,6 +34,7 @@ private const val PHOTO_PREFIX = "photos/"
 private const val MAX_JSON_BYTES = 20 * 1024 * 1024
 private const val MAX_PHOTO_BYTES = 5 * 1024 * 1024
 private const val MAX_ENTRIES = 5_000
+private const val MAX_GROUP_NAME = 200
 
 /**
  * Backs up what the user chose and cannot get back from MusicBrainz, and restores it.
@@ -60,6 +65,8 @@ class BackupViewModel(
             .mapNotNull { record -> photoStore.read(record.fileName)?.let { record to it } }
 
         val shops = database.favouriteShopDao().getAll().sortedBy { it.id }
+        val groups = database.artistGroupDao().getGroups().sortedWith(compareBy({ it.position }, { it.name }))
+        val groupMembers = database.artistGroupDao().getAllMembers().groupBy { it.groupId }
 
         val file = BackupFile(
             app = BackupFile.APP,
@@ -80,6 +87,12 @@ class BackupViewModel(
                     it.regionCountry, it.regionSubdivision, it.savedAt, it.approximatePosition, it.mapQuery, it.mapsLink
                 )
             },
+            groups = groups.map { group ->
+                BackupGroup(
+                    group.id, group.name, group.position,
+                    groupMembers[group.id].orEmpty().sortedBy { it.ordinal }.map { BackupGroupMember(it.artistId, it.name) }
+                )
+            },
             settings = currentSettings()
         )
 
@@ -94,7 +107,7 @@ class BackupViewModel(
         }
         zip.finish()
         zip.flush()
-        BackupSummary(artists.size, albums.size, photos.size, shops.size)
+        BackupSummary(artists.size, albums.size, photos.size, shops.size, groups.size)
     }
 
     /** Adds what is in the backup read from [input] to the phone. See the class comment for the rules. */
@@ -135,7 +148,7 @@ class BackupViewModel(
         }
 
         file.settings?.let(applySettings)
-        RestoreResult.Done(counts.artists, counts.albums, counts.photos, file.settings != null, counts.shops)
+        RestoreResult.Done(counts.artists, counts.albums, counts.photos, file.settings != null, counts.shops, counts.groups)
     }
 
     private class ReadZip(val json: ByteArray?, val photos: Map<String, ByteArray>)
@@ -158,7 +171,7 @@ class BackupViewModel(
         return ReadZip(json, photos)
     }
 
-    private class Counts(val artists: Int, val albums: Int, val photos: Int, val shops: Int)
+    private class Counts(val artists: Int, val albums: Int, val photos: Int, val shops: Int, val groups: Int)
 
     // Runs inside the transaction. Everything here only adds to what the phone has.
     private suspend fun merge(file: BackupFile, photoBytes: Map<String, ByteArray>, written: MutableList<String>): Counts {
@@ -223,9 +236,29 @@ class BackupViewModel(
             if (changed) albums++
         }
 
+        // A group that is on the phone already is kept as it is. An artist is in one group at most, so one already
+        // in another group on the phone is left out, and a group left with fewer than two artists is not restored.
+        var groups = 0
+        val groupDao = database.artistGroupDao()
+        for (group in file.groups.orEmpty()) {
+            val id = group.id?.takeIf { ArtistGroupViewModel.isGroupId(it) } ?: continue
+            if (groupDao.getGroup(id) != null) continue
+            val members = group.members.orEmpty()
+                .mapNotNull { m -> m.artistId?.trim()?.takeIf { it.isNotEmpty() }?.let { GroupMember(it, m.name.orEmpty()) } }
+                .distinctBy { it.artistId }
+                .filter { groupDao.groupIdOf(it.artistId) == null }
+            if (members.size < 2) continue
+            val name = group.name?.trim()?.takeIf { it.isNotEmpty() }?.take(MAX_GROUP_NAME) ?: members.first().name
+            groupDao.insertGroup(ArtistGroupEntity(id, name, group.position ?: 0))
+            groupDao.insertMembers(members.mapIndexed { i, m -> ArtistGroupMemberEntity(m.artistId, id, m.name, i) })
+            groups++
+        }
+
         var photos = 0
         for (photo in file.photos.orEmpty()) {
             val artistId = photo.artistId?.takeIf { it.isNotBlank() } ?: continue
+            // The photo of a group only comes back with the group.
+            if (ArtistGroupViewModel.isGroupId(artistId) && groupDao.getGroup(artistId) == null) continue
             val bytes = photoBytes[PHOTO_PREFIX + photo.fileName] ?: continue
             if (photoDao.get(artistId) != null || !isPicture(bytes)) continue
             // The name in the file is never used as a path: the file gets a name made here.
@@ -253,7 +286,7 @@ class BackupViewModel(
             )
             if (added > 0) shops++
         }
-        return Counts(artists, albums, photos, shops)
+        return Counts(artists, albums, photos, shops, groups)
     }
 
     private fun isPicture(bytes: ByteArray): Boolean {

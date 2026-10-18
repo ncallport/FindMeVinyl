@@ -778,5 +778,155 @@ class BackupViewModelTest {
         assertEquals(500, fresh.albumDao().getById("2")!!.myPressingText!!.length)
         fresh.close()
     }
-}
 
+    // Groups of artists.
+
+    private suspend fun group(db: AppDatabase = database, id: String = "group/1", name: String = "Nick Cave, all of it", position: Int = 3, vararg members: Pair<String, String>) {
+        db.artistGroupDao().insertGroup(com.nickallport.findmevinyl.storage.ArtistGroupEntity(id, name, position))
+        db.artistGroupDao().insertMembers(members.mapIndexed { i, (artistId, memberName) ->
+            com.nickallport.findmevinyl.storage.ArtistGroupMemberEntity(artistId, id, memberName, i)
+        })
+    }
+
+    private val caveAndSeeds = arrayOf("cave" to "Nick Cave", "seeds" to "Nick Cave & The Bad Seeds")
+
+    @Test
+    fun `the backup carries each group with its name, place and members in order`() = runBlocking {
+        group(members = caveAndSeeds)
+
+        val text = String(entries(backup()).getValue("backup.json"))
+
+        assertTrue(text.contains("\"name\":\"Nick Cave, all of it\""))
+        assertTrue(text.indexOf("\"artistId\":\"cave\"") < text.indexOf("\"artistId\":\"seeds\""))
+    }
+
+    @Test
+    fun `the summary of a backup counts the groups`() = runBlocking {
+        group(members = caveAndSeeds)
+
+        val summary = runBlocking { viewModel().createBackup(ByteArrayOutputStream()) }
+
+        assertEquals(1, summary.groups)
+    }
+
+    @Test
+    fun `restoring into an empty phone brings a group back as it was`() = runBlocking {
+        group(members = caveAndSeeds)
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        val result = restore(saved, viewModel(fresh)) as RestoreResult.Done
+
+        val restored = fresh.artistGroupDao().getGroup("group/1")!!
+        assertEquals("Nick Cave, all of it", restored.name)
+        assertEquals(3, restored.position)
+        assertEquals(
+            listOf("cave" to "Nick Cave", "seeds" to "Nick Cave & The Bad Seeds"),
+            fresh.artistGroupDao().getMembers("group/1").map { it.artistId to it.name }
+        )
+        assertEquals(1, result.groups)
+        fresh.close()
+    }
+
+    @Test
+    fun `a group already on the phone is kept as it is`() = runBlocking {
+        group(members = caveAndSeeds)
+        val saved = backup()
+        database.artistGroupDao().setName("group/1", "Renamed on the phone")
+
+        val result = restore(saved) as RestoreResult.Done
+
+        assertEquals("Renamed on the phone", database.artistGroupDao().getGroup("group/1")!!.name)
+        assertEquals(0, result.groups)
+    }
+
+    @Test
+    fun `an artist already in another group on the phone is left out of the restored group`() = runBlocking {
+        group(members = arrayOf("cave" to "Nick Cave", "seeds" to "Seeds", "grinderman" to "Grinderman"))
+        val saved = backup()
+        val fresh = emptyDatabase()
+        group(fresh, "group/other", "Other", 0, "seeds" to "Seeds", "x" to "X")
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals(listOf("cave", "grinderman"), fresh.artistGroupDao().getMembers("group/1").map { it.artistId })
+        assertEquals("group/other", fresh.artistGroupDao().groupIdOf("seeds"))
+        fresh.close()
+    }
+
+    @Test
+    fun `a group left with fewer than two artists is not restored`() = runBlocking {
+        group(members = caveAndSeeds)
+        val saved = backup()
+        val fresh = emptyDatabase()
+        group(fresh, "group/other", "Other", 0, "seeds" to "Seeds", "x" to "X")
+
+        val result = restore(saved, viewModel(fresh)) as RestoreResult.Done
+
+        assertNull(fresh.artistGroupDao().getGroup("group/1"))
+        assertEquals(0, result.groups)
+        fresh.close()
+    }
+
+    @Test
+    fun `restoring the same file again adds no group`() = runBlocking {
+        group(members = caveAndSeeds)
+        val saved = backup()
+        val fresh = emptyDatabase()
+        restore(saved, viewModel(fresh))
+
+        val again = restore(saved, viewModel(fresh)) as RestoreResult.Done
+
+        assertEquals(0, again.groups)
+        assertEquals(2, fresh.artistGroupDao().getMembers("group/1").size)
+        fresh.close()
+    }
+
+    @Test
+    fun `entries with no id, a blank name or a blank member are made sense of or skipped`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"groups":[
+            {"name":"No id","members":[{"artistId":"a","name":"A"},{"artistId":"b","name":"B"}]},
+            {"id":"group/1","name":"   ","members":[{"artistId":"a","name":"First"},{"artistId":"","name":"Blank"},{"artistId":"b","name":"B"}]},
+            {"id":"group/2","name":"Not a group","members":[{"artistId":"c","name":"C"}]},
+            {"id":"not-a-group-id","name":"Wrong id","members":[{"artistId":"d","name":"D"},{"artistId":"e","name":"E"}]}]}"""
+        val fresh = emptyDatabase()
+
+        val result = restore(zipOf(json(text)), viewModel(fresh)) as RestoreResult.Done
+
+        assertEquals(1, result.groups)
+        assertEquals("First", fresh.artistGroupDao().getGroup("group/1")!!.name)
+        assertEquals(listOf("a", "b"), fresh.artistGroupDao().getMembers("group/1").map { it.artistId })
+        assertEquals(1, fresh.artistGroupDao().getGroups().size)
+        fresh.close()
+    }
+
+    @Test
+    fun `the photo chosen for a group comes back with the group`() = runBlocking {
+        group(members = caveAndSeeds)
+        File(photoDir, "group-1.jpg").writeBytes(jpeg())
+        database.artistUserPhotoDao().save(ArtistUserPhotoEntity("group/1", "group-1.jpg", 1))
+        val saved = backup()
+        val fresh = emptyDatabase()
+        val freshDir = folder.newFolder("fresh-group-photos")
+
+        restore(saved, viewModel(fresh, freshDir))
+
+        val record = fresh.artistUserPhotoDao().get("group/1")!!
+        assertTrue(File(freshDir, record.fileName).exists())
+        assertFalse(record.fileName.contains("/"))
+        fresh.close()
+    }
+
+    @Test
+    fun `a photo for a group that is not on the phone and was not restored is left out`() = runBlocking {
+        val photo = jpeg()
+        val text = """{"app":"FindMeVinyl","version":1,"photos":[{"artistId":"group/ghost","fileName":"g.jpg"}]}"""
+        val fresh = emptyDatabase()
+        val freshDir = folder.newFolder("ghost-photos")
+
+        restore(zipOf(json(text), "photos/g.jpg" to photo), viewModel(fresh, freshDir))
+
+        assertNull(fresh.artistUserPhotoDao().get("group/ghost"))
+        fresh.close()
+    }
+}

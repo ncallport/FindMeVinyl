@@ -60,7 +60,7 @@ class ArtistSuggester(
         const val LIMIT = 5
 
         /** What the Lucene search syntax uses, which would make a name like AC/DC a malformed query. */
-        val SEARCH_SYNTAX = Regex("""[+\-&|!(){}\[\]^"~*?:\/]""")
+        val SEARCH_SYNTAX = Regex("""[+\-&|!(){}\[\]^"~*?:\\/]""")
         val WHITESPACE = Regex("""\s+""")
 
         /** "Various Artists" and "[unknown]", which a start such as "Va*" brings in. */
@@ -73,14 +73,30 @@ object ArtistSuggestions {
     private const val MAX_FAVOURITES = 3
     private const val MAX_ALL = 6
 
-    /** The favourites whose name has every word typed in it, in the user's order. One letter is too little. */
+    /**
+     * The favourites whose name has every word typed in it, in the user's order. One letter is too little. A group
+     * is found by its own name, or by the name of one of its artists, which must have all the words itself, and
+     * then the description says which artist it was.
+     */
     fun favouritesMatching(text: String, favourites: List<FavouriteArtistUiModel>): List<ArtistSuggestion> {
         val words = text.lowercase().split(Regex("""\s+""")).filter { it.isNotEmpty() }
         if (words.sumOf { it.length } < 2) return emptyList()
-        return favourites
-            .filter { favourite -> words.all { favourite.name.lowercase().contains(it) } }
-            .take(MAX_FAVOURITES)
-            .map { ArtistSuggestion(it.id, it.name, "In your favourites", favourite = true) }
+        fun matches(name: String) = words.all { name.lowercase().contains(it) }
+        return favourites.mapNotNull { favourite ->
+            when {
+                !favourite.isGroup ->
+                    if (matches(favourite.name)) ArtistSuggestion(favourite.id, favourite.name, "In your favourites", favourite = true) else null
+                else -> {
+                    val groupOf = "Group of ${favourite.memberIds.size} artists"
+                    val artist = if (matches(favourite.name)) null else favourite.memberNames.firstOrNull { matches(it) }
+                    when {
+                        matches(favourite.name) -> ArtistSuggestion(favourite.id, favourite.name, groupOf, favourite = true)
+                        artist != null -> ArtistSuggestion(favourite.id, favourite.name, "$groupOf, including $artist", favourite = true)
+                        else -> null
+                    }
+                }
+            }
+        }.take(MAX_FAVOURITES)
     }
 
     /** The favourites first, then the others that are not already among them, six in all. */

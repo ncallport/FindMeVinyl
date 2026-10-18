@@ -67,4 +67,47 @@ class ArtistSuggestionsTest {
         assertEquals(6, merged.size)
         assertEquals(listOf("f1", "f2", "f3", "r1", "r2", "r3"), merged.map { it.id })
     }
+
+    // Groups of artists.
+
+    private val group = FavouriteArtistUiModel(
+        id = "group/1", name = "Nick Cave, all of it", isGroup = true,
+        memberIds = listOf("cave", "seeds"), memberNames = listOf("Nick Cave", "Nick Cave & The Bad Seeds")
+    )
+
+    @Test
+    fun `a group is found by its own name, and says how many artists it joins`() {
+        val result = ArtistSuggestions.favouritesMatching("all of", listOf(group))
+
+        assertEquals(listOf("group/1"), result.map { it.id })
+        assertEquals("Group of 2 artists", result.single().description)
+        assertEquals(true, result.single().favourite)
+    }
+
+    @Test
+    fun `a group is also found by the name of one of its artists, and says which`() {
+        val result = ArtistSuggestions.favouritesMatching("bad seeds", listOf(group))
+
+        assertEquals(listOf("group/1"), result.map { it.id })
+        assertEquals("Group of 2 artists, including Nick Cave & The Bad Seeds", result.single().description)
+    }
+
+    @Test
+    fun `found by its own name, a group does not also say which artist matched`() {
+        val result = ArtistSuggestions.favouritesMatching("nick cave", listOf(group))
+
+        assertEquals("Group of 2 artists", result.single().description)
+    }
+
+    @Test
+    fun `the words have to be in one name, not spread over several artists of a group`() {
+        val spread = group.copy(name = "Collection", memberNames = listOf("Nick Cave", "Grinderman"))
+
+        assertEquals(emptyList<String>(), ArtistSuggestions.favouritesMatching("cave grinderman", listOf(spread)).map { it.id })
+    }
+
+    @Test
+    fun `an ordinary favourite is described as before`() {
+        assertEquals("In your favourites", ArtistSuggestions.favouritesMatching("joy", favourites).first().description)
+    }
 }

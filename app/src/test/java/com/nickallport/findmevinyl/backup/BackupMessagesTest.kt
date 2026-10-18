@@ -85,4 +85,29 @@ class BackupMessagesTest {
             BackupMessages.restored(RestoreResult.Done(0, 4, 0, settingsRestored = true, shops = 2))
         )
     }
+
+    @Test
+    fun `says how many groups were backed up, after the artists`() {
+        assertEquals(
+            "Backed up 12 artists, 2 groups, 87 albums and 3 photos.",
+            BackupMessages.backedUp(BackupSummary(12, 87, 3, shops = 0, groups = 2))
+        )
+        assertEquals("Backed up 1 group.", BackupMessages.backedUp(BackupSummary(0, 0, 0, shops = 0, groups = 1)))
+    }
+
+    @Test
+    fun `says how many groups were restored`() {
+        assertEquals(
+            "Restored 3 artists and 1 group.",
+            BackupMessages.restored(RestoreResult.Done(3, 0, 0, settingsRestored = false, shops = 0, groups = 1))
+        )
+    }
+
+    @Test
+    fun `a restore that only brought back groups is not nothing new`() {
+        assertEquals(
+            "Restored 2 groups.",
+            BackupMessages.restored(RestoreResult.Done(0, 0, 0, settingsRestored = false, shops = 0, groups = 2))
+        )
+    }
 }
