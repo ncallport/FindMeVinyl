@@ -231,4 +231,13 @@ class MyCopySectionTest {
         onNodeWithTag("my_copy_0_note").performScrollTo().assertTextContains("Portuguese")
         onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Album note")
     }
+
+    @Test
+    fun `the note about the album is labelled, so it is not taken for a copy`() {
+        show(owned.copy(copies = listOf(AlbumCopy("LP", "Blue sleeve")), note = "Green sleeve"))
+
+        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
+            .assertTextContains("LP: Blue sleeve", substring = true)
+            .assertTextContains("Album note: Green sleeve", substring = true)
+    }
 }

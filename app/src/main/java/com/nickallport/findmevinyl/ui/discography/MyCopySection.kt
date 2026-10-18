@@ -60,7 +60,7 @@ fun MyCopySection(
         if (!editing) {
             val summary = (
                 album.copies.map { if (it.note.isNullOrBlank()) it.format else "${it.format}: ${it.note}" } +
-                    listOfNotNull(album.note?.takeIf { it.isNotBlank() })
+                    listOfNotNull(album.note?.takeIf { it.isNotBlank() }?.let { "Album note: $it" })
                 ).joinToString("\n")
             if (summary.isNotEmpty()) {
                 Text(text = summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("my_copy_summary"))

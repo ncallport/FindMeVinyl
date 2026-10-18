@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.FilterChip
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import com.nickallport.findmevinyl.discography.PressingSummary
@@ -78,7 +79,9 @@ fun AlbumDetailScreen(
     /** Chooses a pressing as the user's own copy, or takes the choice away with null. */
     onMarkMyPressing: (Pressing?) -> Unit = {},
     /** Chooses the format a wanted album is wanted on, or null for any. */
-    onSetWantFormat: (String?) -> Unit = {}
+    onSetWantFormat: (String?) -> Unit = {},
+    /** Opens the artist's page. When null the artist's name is plain text. */
+    onOpenArtist: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -104,7 +107,10 @@ fun AlbumDetailScreen(
             text = artistName,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.testTag("detail_artist")
+            textDecoration = if (onOpenArtist != null) TextDecoration.Underline else null,
+            modifier = Modifier
+                .then(if (onOpenArtist != null) Modifier.clickable(onClick = onOpenArtist) else Modifier)
+                .testTag("detail_artist")
         )
 
         if (album != null) {
