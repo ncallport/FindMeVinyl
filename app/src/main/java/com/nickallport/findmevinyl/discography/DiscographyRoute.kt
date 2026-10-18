@@ -297,7 +297,8 @@ fun DiscographyRoute(
                                         loadState = LoadState.Loaded(uiState.copy(loadError = null, loadingMore = true))
                                         attempt++
                                     },
-                                    checkingFormats = chosenFormat != null
+                                    checkingFormats = chosenFormat != null,
+                                    defaultArtistName = artistName.takeUnless { isGroup }
                                 )
                             }
                         }

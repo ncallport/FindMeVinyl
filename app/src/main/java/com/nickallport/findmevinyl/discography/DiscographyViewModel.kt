@@ -227,6 +227,12 @@ class DiscographyViewModel(
      */
     suspend fun loadSaved(artistId: String): DiscographyUiState.Success {
         val now = clock()
+        // A group says which member an album is filed under. A single artist's page already has the name.
+        val memberNames = if (ArtistGroupViewModel.isGroupId(artistId)) {
+            groupDao?.getMembers(artistId).orEmpty().associate { it.artistId to it.name }
+        } else {
+            emptyMap()
+        }
         val grouped = memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
             .groupBy { categoryFrom(it.category) }
             .mapValues { (category, albums) ->
@@ -236,7 +242,7 @@ class DiscographyViewModel(
                         compareBy<AlbumEntity, String?>(nullsLast()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                             .thenBy { it.title }
                     )
-                    .map { toUiModel(it, category, now) }
+                    .map { toUiModel(it, category, now).copy(artistName = memberNames[it.artistId]) }
             }
         return DiscographyUiState.Success(grouped)
     }

@@ -68,7 +68,9 @@ fun DiscographyScreen(
     loadingMore: Boolean = false,
     loadError: String? = null,
     onRetry: () -> Unit = {},
-    checkingFormats: Boolean = false
+    checkingFormats: Boolean = false,
+    /** The artist's name for rows that do not say whose album they are, as on a single artist's page. */
+    defaultArtistName: String? = null
 ) {
     fun isGroupedOwned(album: AlbumUiModel) = grouping.owned && album.owned
     fun isGroupedWanted(album: AlbumUiModel) = grouping.wanted && album.wanted && !album.owned
@@ -131,7 +133,8 @@ fun DiscographyScreen(
                     onToggleWanted = { onToggleWanted(album.id) },
                     loadCover = loadCover,
                     loadFormats = loadFormats,
-                    checkingFormats = checkingFormats
+                    checkingFormats = checkingFormats,
+                    defaultArtistName = defaultArtistName
                 )
             }
         }
@@ -154,7 +157,8 @@ fun DiscographyScreen(
                         onToggleWanted = { onToggleWanted(album.id) },
                         loadCover = loadCover,
                         loadFormats = loadFormats,
-                        checkingFormats = checkingFormats
+                        checkingFormats = checkingFormats,
+                    defaultArtistName = defaultArtistName
                     )
                 }
             }

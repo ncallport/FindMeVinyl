@@ -40,7 +40,9 @@ data class AlbumUiModel(
     val note: String? = null,
     /** The MusicBrainz release the user chose as their copy, and a line that describes it. */
     val myPressingId: String? = null,
-    val myPressingText: String? = null
+    val myPressingText: String? = null,
+    /** The artist the album is filed under on MusicBrainz, when the page knows it (a group's members). */
+    val artistName: String? = null
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.
@@ -63,7 +65,9 @@ fun AlbumRow(
     onToggleWanted: () -> Unit = {},
     loadCover: suspend (String) -> Bitmap? = { null },
     loadFormats: suspend (String) -> List<String>? = { null },
-    checkingFormats: Boolean = false
+    checkingFormats: Boolean = false,
+    /** Shown under the title when the album has no [AlbumUiModel.artistName] of its own. */
+    defaultArtistName: String? = null
 ) {
     // Owned albums are teal and wanted ones are orange, so a list can be scanned for either.
     val backgroundColor = when {
@@ -85,6 +89,14 @@ fun AlbumRow(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = album.title, style = MaterialTheme.typography.titleSmall)
+                (album.artistName ?: defaultArtistName)?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("album_artist")
+                    )
+                }
                 FormatLabels(
                     albumId = album.id,
                     formats = album.formats,
