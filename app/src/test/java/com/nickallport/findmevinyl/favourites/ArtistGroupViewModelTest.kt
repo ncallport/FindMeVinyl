@@ -183,4 +183,13 @@ class ArtistGroupViewModelTest {
 
         assertEquals(ian, viewModel.load(ian.id))
     }
+
+    @Test
+    fun `the id of a group, as a group page has, gives that group`() = runBlocking {
+        val group = saved(viewModel.create("G", listOf(cave, seeds)))
+
+        assertEquals(group, viewModel.groupOf(group.id))
+        assertNull(viewModel.groupOf("group/none"))
+    }
 }
+

@@ -16,7 +16,7 @@ class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao
             if (members == null) {
                 FavouriteArtistUiModel(id = it.id, name = it.name)
             } else {
-                FavouriteArtistUiModel(id = it.id, name = it.name, isGroup = true, memberIds = members, imageId = members.first())
+                FavouriteArtistUiModel(id = it.id, name = it.name, isGroup = true, memberIds = members)
             }
         }
     }

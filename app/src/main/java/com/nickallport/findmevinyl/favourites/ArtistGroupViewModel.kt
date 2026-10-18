@@ -42,7 +42,9 @@ class ArtistGroupViewModel(
         return ArtistGroup(group.id, group.name, groupDao.getMembers(groupId).map { GroupMember(it.artistId, it.name) })
     }
 
-    suspend fun groupOf(artistId: String): ArtistGroup? = groupDao.groupIdOf(artistId)?.let { load(it) }
+    /** The group the artist is in. The id of a group itself, as a group's page has, gives that group. */
+    suspend fun groupOf(artistId: String): ArtistGroup? =
+        if (isGroupId(artistId)) load(artistId) else groupDao.groupIdOf(artistId)?.let { load(it) }
 
     suspend fun create(name: String, members: List<GroupMember>): GroupResult {
         val distinct = members.distinctBy { it.artistId }

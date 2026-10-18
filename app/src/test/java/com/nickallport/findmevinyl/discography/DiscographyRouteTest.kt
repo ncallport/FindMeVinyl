@@ -971,5 +971,18 @@ class DiscographyRouteTest {
 
         composeTestRule.onNodeWithText("Edit group").assertExists()
     }
-}
 
+    @Test
+    fun `the page of a group has no Save button but keeps the button that edits the group`() {
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "group/1", artistName = "Nick Cave, all of it", load = loading(twoOwned()), onToggleOwned = { _, _ -> },
+                onJoinArtists = {}, inGroup = true, isGroup = true
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourite_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Edit group").assertExists()
+    }
+}

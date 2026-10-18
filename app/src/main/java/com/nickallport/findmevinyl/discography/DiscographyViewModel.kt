@@ -8,6 +8,8 @@ import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
 import com.nickallport.findmevinyl.storage.ArtistEntity
+import com.nickallport.findmevinyl.storage.ArtistGroupDao
+import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -45,8 +47,17 @@ class DiscographyViewModel(
     private val clock: () -> Long = System::currentTimeMillis,
     private val formatRefreshAfterMillis: Long = 30L * 24 * 60 * 60 * 1000,
     /** An artist with more releases than this many pages hold is not checked in one go. */
-    private val formatCheckMaxPages: Int = 60
+    private val formatCheckMaxPages: Int = 60,
+    /**
+     * Where the groups of artists are kept. The id of a group stands in for an artist's id: its discography is
+     * every member's albums together. Without it every id is an artist.
+     */
+    private val groupDao: ArtistGroupDao? = null
 ) {
+    /** The artists whose albums make up [artistId]: its members when it is a group, and just itself otherwise. */
+    private suspend fun memberIdsOf(artistId: String): List<String> =
+        if (ArtistGroupViewModel.isGroupId(artistId)) groupDao?.getMembers(artistId)?.map { it.artistId }.orEmpty() else listOf(artistId)
+
     // What has been read so far of an artist's releases, so a check that failed or was left carries on.
     private class FormatCheckProgress(val total: Int) {
         var nextOffset = 0
@@ -82,6 +93,42 @@ class DiscographyViewModel(
     suspend fun checkAllFormats(
         artistId: String,
         onProgress: (donePages: Int, totalPages: Int) -> Unit = { _, _ -> }
+    ): FormatCheckResult {
+        if (!ArtistGroupViewModel.isGroupId(artistId)) return checkArtistFormats(artistId, onProgress)
+
+        // A group is checked one member after another, each as an artist. A member whose albums have all been
+        // checked is left out, so a group is not asked about again for what is already known. Progress runs on
+        // across the members, and its total grows as each member's first page tells how big that member is.
+        var doneBefore = 0
+        var totalBefore = 0
+        var updated = 0
+        var tooBig = false
+        for (member in memberIdsOf(artistId)) {
+            val albums = albumDao.getAlbumsForArtist(member)
+            if (albums.none { needsCheck(it) }) continue
+            var memberTotal = 0
+            when (val result = checkArtistFormats(member) { done, total ->
+                memberTotal = total
+                onProgress(doneBefore + done, totalBefore + total)
+            }) {
+                is FormatCheckResult.Done -> updated += result.updated
+                FormatCheckResult.TooBig -> tooBig = true
+                FormatCheckResult.Failed -> return FormatCheckResult.Failed
+            }
+            doneBefore += memberTotal
+            totalBefore += memberTotal
+        }
+        return if (tooBig) FormatCheckResult.TooBig else FormatCheckResult.Done(updated)
+    }
+
+    // Formats or statuses never looked up, or looked up too long ago.
+    private fun needsCheck(album: AlbumEntity): Boolean =
+        album.formats == null || album.statuses == null ||
+            album.formatsCheckedAt?.let { clock() - it > formatRefreshAfterMillis } != false
+
+    private suspend fun checkArtistFormats(
+        artistId: String,
+        onProgress: (donePages: Int, totalPages: Int) -> Unit
     ): FormatCheckResult {
         if (artistId in artistsTooBig) return FormatCheckResult.TooBig
         return try {
@@ -180,7 +227,7 @@ class DiscographyViewModel(
      */
     suspend fun loadSaved(artistId: String): DiscographyUiState.Success {
         val now = clock()
-        val grouped = albumDao.getAlbumsForArtist(artistId)
+        val grouped = memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
             .groupBy { categoryFrom(it.category) }
             .mapValues { (category, albums) ->
                 albums
@@ -249,10 +296,50 @@ class DiscographyViewModel(
      * never silently short.
      */
     fun discography(artistId: String): Flow<DiscographyUiState> =
+        if (ArtistGroupViewModel.isGroupId(artistId)) groupPages(artistId) else singleArtist(artistId)
+
+    private fun singleArtist(artistId: String): Flow<DiscographyUiState> =
         pages(artistId).catch { e ->
             if (e is CancellationException) throw e
             emit(DiscographyUiState.Error(e.message ?: "Something went wrong"))
         }
+
+    /**
+     * A group's discography: each member's, one after another (MusicBrainz allows about a request a second, so
+     * they are not asked for at once), each shown with the others' as it arrives. The list is always the saved
+     * albums of every member, so an album credited to two members is listed once. Only the state after the
+     * last member's last page says nothing more is coming. A member that fails does not stop the others: the list
+     * keeps what there is and says some albums could not be loaded, or, with nothing at all, is an error.
+     */
+    private fun groupPages(groupId: String): Flow<DiscographyUiState> = flow {
+        val members = memberIdsOf(groupId)
+        if (members.isEmpty()) {
+            emit(DiscographyUiState.Success(emptyMap()))
+            return@flow
+        }
+        val saved = loadSaved(groupId)
+        if (saved.groupedAlbums.isNotEmpty()) emit(saved.copy(loadingMore = true))
+
+        var failure: String? = null
+        members.forEachIndexed { index, member ->
+            if (index > 0) delay(pageDelayMillis)
+            val last = index == members.lastIndex
+            singleArtist(member).collect { state ->
+                when (state) {
+                    is DiscographyUiState.Success -> {
+                        if (failure == null) failure = state.loadError
+                        emit(loadSaved(groupId).copy(loadingMore = state.loadingMore || !last, loadError = failure))
+                    }
+                    is DiscographyUiState.Error -> if (failure == null) failure = state.message
+                }
+            }
+        }
+        val problem = failure
+        if (problem != null) {
+            val merged = loadSaved(groupId)
+            emit(if (merged.groupedAlbums.isEmpty()) DiscographyUiState.Error(problem) else merged.copy(loadError = problem))
+        }
+    }
 
     /**
      * MusicBrainz allows about one request a second, so each page is asked for at least
@@ -347,11 +434,15 @@ class DiscographyViewModel(
         }
     }
 
+    /** An artist is a favourite when it is saved. A group of artists always is one, as long as it exists. */
     suspend fun isFavourite(artistId: String): Boolean {
+        if (ArtistGroupViewModel.isGroupId(artistId)) return groupDao?.getGroup(artistId) != null
         return artistDao.getById(artistId) != null
     }
 
     suspend fun saveFavourite(artistId: String, artistName: String) {
+        // A group is a favourite already, so owning or wanting an album on its page saves no artist.
+        if (ArtistGroupViewModel.isGroupId(artistId)) return
         // A favourite that is already saved keeps its place in the user's order. A new one goes first,
         // one place before the lowest position, which can be below 0. The first ever favourite gets 0.
         if (artistDao.getById(artistId) != null) return
