@@ -1053,4 +1053,31 @@ class BackupViewModelTest {
 
         assertEquals("CD", database.albumDao().getById("1")!!.wantFormat)
     }
+
+    @Test
+    fun `the note for each format comes back with the album`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true).copy(userFormats = "LP|CD"))
+        database.albumDao().setFormatNotes("1", """{"LP":"scratched","CD":"from Mum"}""")
+        val saved = backup()
+        database.albumDao().setFormatNotes("1", null)
+
+        restore(saved)
+
+        assertEquals(
+            mapOf("LP" to "scratched", "CD" to "from Mum"),
+            com.nickallport.findmevinyl.discography.FormatNotes.decode(database.albumDao().getById("1")!!.userFormatNotes)
+        )
+    }
+
+    @Test
+    fun `format notes already on the phone are kept`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true).copy(userFormats = "LP"))
+        database.albumDao().setFormatNotes("1", """{"LP":"scratched"}""")
+        val saved = backup()
+        database.albumDao().setFormatNotes("1", """{"LP":"mint"}""")
+
+        restore(saved)
+
+        assertEquals("""{"LP":"mint"}""", database.albumDao().getById("1")!!.userFormatNotes)
+    }
 }

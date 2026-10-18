@@ -44,7 +44,9 @@ data class AlbumUiModel(
     /** The artist the album is filed under on MusicBrainz, when the page knows it (a group's members). */
     val artistName: String? = null,
     /** The format the album is wanted on (a label such as LP), or null for any. */
-    val wantFormat: String? = null
+    val wantFormat: String? = null,
+    /** The user's note for each format of their copy, by label, in the usual order. */
+    val formatNotes: Map<String, String> = emptyMap()
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.

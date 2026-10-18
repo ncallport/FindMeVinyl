@@ -54,7 +54,9 @@ data class BackupAlbum(
     val myPressingId: String? = null,
     val myPressingText: String? = null,
     /** The format the album is wanted on, a label such as LP. */
-    val wantFormat: String? = null
+    val wantFormat: String? = null,
+    /** The user's note for each format of their copy, as JSON with the label as the key. */
+    val userFormatNotes: String? = null
 )
 
 /** Artists the user keeps together under a name of their own. The first member is first. */

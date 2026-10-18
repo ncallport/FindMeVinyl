@@ -219,7 +219,7 @@ class AlbumDetailRouteTest {
                     albumId = "1", title = "Trespass", artistName = "Genesis",
                     loadDetails = { details }, loadAlbum = { album },
                     onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
-                    saveCopy = { id, formats, note ->
+                    saveCopy = { id, formats, note, _ ->
                         saves.add(Triple(id, formats, note))
                         album = album.copy(userFormats = formats, note = note)
                     }

@@ -167,3 +167,10 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `wantFormat` TEXT")
     }
 }
+
+/** Adds a note for each format of the user's copy of an album. */
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userFormatNotes` TEXT")
+    }
+}

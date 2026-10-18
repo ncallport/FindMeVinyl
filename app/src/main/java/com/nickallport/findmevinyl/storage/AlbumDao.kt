@@ -35,13 +35,17 @@ interface AlbumDao {
     @Query("UPDATE albums SET userFormats = :userFormats, userNote = :userNote WHERE id = :albumId")
     suspend fun setCopy(albumId: String, userFormats: String?, userNote: String?): Int
 
+    /** Saves the user's note for each format of their copy (see `FormatNotes`), or clears them with null. */
+    @Query("UPDATE albums SET userFormatNotes = :notes WHERE id = :albumId")
+    suspend fun setFormatNotes(albumId: String, notes: String?): Int
+
     /** Saves the pressing the user chose as their copy and a line that describes it, or takes it away with nulls. */
     @Query("UPDATE albums SET myPressingId = :releaseId, myPressingText = :text WHERE id = :albumId")
     suspend fun setMyPressing(albumId: String, releaseId: String?, text: String?): Int
 
     /** Every album the user owns or wants, or has recorded details of a copy for, for a backup. */
     @Query(
-        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR userFormats IS NOT NULL OR userNote IS NOT NULL " +
+        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR userFormats IS NOT NULL OR userNote IS NOT NULL OR userFormatNotes IS NOT NULL " +
             "OR myPressingId IS NOT NULL"
     )
     suspend fun getOwnedOrWanted(): List<AlbumEntity>

@@ -258,4 +258,43 @@ class DiscographyViewModelCopyTest {
 
         assertEquals(true, viewModel.loadAlbum("1")!!.wanted)
     }
+
+    // A note for each format.
+
+    @Test
+    fun `saving a copy stores a note for each of its formats`() = runBlocking {
+        saveAlbum()
+
+        viewModel.saveCopy("1", listOf("CD", "LP"), "", mapOf("LP" to "scratched", "CD" to "from Mum"))
+
+        val album = viewModel.loadAlbum("1")!!
+        assertEquals(mapOf("LP" to "scratched", "CD" to "from Mum"), album.formatNotes)
+    }
+
+    @Test
+    fun `a note for a format that is no longer in the copy is dropped`() = runBlocking {
+        saveAlbum()
+        viewModel.saveCopy("1", listOf("CD", "LP"), "", mapOf("LP" to "scratched", "CD" to "from Mum"))
+
+        viewModel.saveCopy("1", listOf("CD"), "", mapOf("LP" to "scratched", "CD" to "from Mum"))
+
+        assertEquals(mapOf("CD" to "from Mum"), viewModel.loadAlbum("1")!!.formatNotes)
+    }
+
+    @Test
+    fun `an album with no format notes has none`() = runBlocking {
+        saveAlbum()
+
+        assertEquals(emptyMap<String, String>(), viewModel.loadAlbum("1")!!.formatNotes)
+    }
+
+    @Test
+    fun `the discography list carries the format notes too`() = runBlocking {
+        saveAlbum()
+        viewModel.saveCopy("1", listOf("LP"), "", mapOf("LP" to "scratched"))
+
+        val album = viewModel.loadSaved("artist-1").groupedAlbums.getValue(DiscographyCategory.STUDIO_ALBUM).single()
+
+        assertEquals(mapOf("LP" to "scratched"), album.formatNotes)
+    }
 }

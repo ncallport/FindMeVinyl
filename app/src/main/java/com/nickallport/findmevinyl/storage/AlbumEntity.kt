@@ -43,5 +43,7 @@ data class AlbumEntity(
      * The format the user wants the album on (a label such as LP), while it is wanted. Null: any format, or not wanted.
      * It goes when the want does, and the want goes when the user says their copy is on this format.
      */
-    val wantFormat: String? = null
+    val wantFormat: String? = null,
+    /** The user's note for each format of their copy, as JSON with the label as the key (see `FormatNotes`). Null: none. */
+    val userFormatNotes: String? = null
 )

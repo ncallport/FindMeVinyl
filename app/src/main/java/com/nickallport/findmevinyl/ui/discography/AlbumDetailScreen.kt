@@ -74,7 +74,7 @@ fun AlbumDetailScreen(
     modifier: Modifier = Modifier,
     onSelectPressing: (String) -> Unit = {},
     /** Saves the formats and the note the user gives for their own copy of an album they own. */
-    onSaveCopy: (formats: List<String>, note: String) -> Unit = { _, _ -> },
+    onSaveCopy: (formats: List<String>, note: String, formatNotes: Map<String, String>) -> Unit = { _, _, _ -> },
     /** Chooses a pressing as the user's own copy, or takes the choice away with null. */
     onMarkMyPressing: (Pressing?) -> Unit = {},
     /** Chooses the format a wanted album is wanted on, or null for any. */
