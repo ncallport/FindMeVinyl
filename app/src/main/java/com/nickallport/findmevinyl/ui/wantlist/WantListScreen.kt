@@ -109,11 +109,17 @@ fun WantListScreen(
                                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = album.albumTitle,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = album.albumTitle, style = MaterialTheme.typography.bodyLarge)
+                                    album.wantFormat?.let {
+                                        Text(
+                                            text = "on $it",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.testTag("want_format_${album.albumId}")
+                                        )
+                                    }
+                                }
                                 // An artist with one album has nothing to move it past.
                                 if (albums.size > 1) {
                                     MoveButtons(

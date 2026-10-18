@@ -77,7 +77,7 @@ class BackupViewModel(
             albums = albums.map {
                 BackupAlbum(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
-                    it.userFormats, it.userNote, it.myPressingId, it.myPressingText
+                    it.userFormats, it.userNote, it.myPressingId, it.myPressingText, it.wantFormat
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -205,6 +205,8 @@ class BackupViewModel(
             val copyFormats = ReleaseFormats.encodeUserOrNull(ReleaseFormats.decodeUser(album.userFormats))
             val copyNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
             val hasCopy = copyFormats != null || copyNote != null
+            // Only a label is kept, and only for an album that is wanted.
+            val wantFormat = album.wantFormat?.takeIf { wanted && it in ReleaseFormats.displayOrder }
             // A chosen pressing needs its id, and its line is cut to the length the app keeps.
             val pressingId = album.myPressingId?.trim()?.takeIf { it.isNotEmpty() }
             val pressingText = if (pressingId == null) null else album.myPressingText?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
@@ -218,7 +220,7 @@ class BackupViewModel(
                         id, artistId, album.title.orEmpty(), album.category ?: "OTHER", album.firstReleaseDate,
                         owned, wanted, wantPosition = album.wantPosition ?: 0,
                         userFormats = copyFormats, userNote = copyNote,
-                        myPressingId = pressingId, myPressingText = pressingText
+                        myPressingId = pressingId, myPressingText = pressingText, wantFormat = wantFormat
                     )
                 )
                 changed = true
@@ -229,6 +231,10 @@ class BackupViewModel(
                 }
                 if (wanted && !existing.wanted) {
                     albumDao.setWantedAt(id, album.wantPosition ?: 0)
+                    changed = true
+                }
+                if (wantFormat != null && (existing.wanted || wanted) && existing.wantFormat == null) {
+                    albumDao.setWantFormat(id, wantFormat)
                     changed = true
                 }
                 // Details already on the phone are kept: restoring only adds.

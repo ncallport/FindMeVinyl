@@ -108,4 +108,14 @@ class WantListFormatterTest {
 
         assertEquals("Ideas:\n\nMy vinyl want list (top 2 of 5):\n\nGenesis\n- Foxtrot\n- Trespass", result)
     }
+
+    @Test
+    fun `an album wanted on a format says so after its title`() {
+        val items = listOf(
+            WantedAlbumExportItem("Bob Dylan", "Desire", wantFormat = "LP"),
+            WantedAlbumExportItem("Bob Dylan", "Infidels")
+        )
+
+        assertEquals("My vinyl want list:\n\nBob Dylan\n- Desire (on LP)\n- Infidels", WantListFormatter.format(items))
+    }
 }

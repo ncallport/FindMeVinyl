@@ -364,4 +364,17 @@ class WantListViewModelTest {
 
         assertEquals(listOf("Z album", "A album"), viewModel.loadWantList().map { it.albumTitle })
     }
+
+    @Test
+    fun `an album wanted on a format carries it into the list and the share text`() = runBlocking {
+        artist("b", "Bob Dylan")
+        database.albumDao().insert(
+            AlbumEntity("1", "b", "Desire", "STUDIO_ALBUM", "1976", owned = true, wanted = true, wantFormat = "LP")
+        )
+        database.albumDao().insert(AlbumEntity("2", "b", "Blood on the Tracks", "STUDIO_ALBUM", "1975", owned = false, wanted = true))
+
+        assertEquals(listOf(null, "LP"), viewModel.loadWantList().map { it.wantFormat })
+        assertEquals(true, viewModel.exportText().contains("- Desire (on LP)"))
+        assertEquals(true, viewModel.exportText().contains("- Blood on the Tracks\n"))
+    }
 }

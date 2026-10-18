@@ -2,6 +2,8 @@ package com.nickallport.findmevinyl.ui.discography
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.assertCountEquals
@@ -51,6 +53,7 @@ class AlbumDetailScreenTest {
         onRetry: () -> Unit = {},
         onToggleOwned: () -> Unit = {},
         onToggleWanted: () -> Unit = {},
+        onSetWantFormat: (String?) -> Unit = {},
         onSelectPressing: (String) -> Unit = {},
         loadCover: suspend (String) -> Bitmap? = { null }
     ) {
@@ -58,7 +61,7 @@ class AlbumDetailScreenTest {
             FindMeVinylTheme(darkTheme = darkTheme) {
                 AlbumDetailScreen(
                     albumId = "1", title = "Trespass", artistName = "Genesis", album = album, state = state,
-                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted,
+                    onRetry = onRetry, onToggleOwned = onToggleOwned, onToggleWanted = onToggleWanted, onSetWantFormat = onSetWantFormat,
                     onSelectPressing = onSelectPressing, loadCover = loadCover
                 )
             }
@@ -367,5 +370,40 @@ class AlbumDetailScreenTest {
         show(state = AlbumDetailState.Loaded(withPressings), darkTheme = true)
 
         composeTestRule.onAllNodesWithTag("pressing_row", useUnmergedTree = true).assertCountEquals(3)
+    }
+
+    @Test
+    fun `a wanted album offers the formats to want it on, with Any chosen to begin with`() {
+        show(album = notOwned.copy(owned = true, wanted = true))
+
+        composeTestRule.onNodeWithTag("want_format_any").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("want_format_LP").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("want_format_CD").assertExists()
+    }
+
+    @Test
+    fun `the format the album is wanted on is the one selected`() {
+        show(album = notOwned.copy(wanted = true, wantFormat = "LP"))
+
+        composeTestRule.onNodeWithTag("want_format_LP").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("want_format_any").assertIsNotSelected()
+    }
+
+    @Test
+    fun `choosing a format, or Any, tells the caller`() {
+        val chosen = mutableListOf<String?>()
+        show(album = notOwned.copy(wanted = true, wantFormat = "LP"), onSetWantFormat = { chosen.add(it) })
+
+        composeTestRule.onNodeWithTag("want_format_CD").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("want_format_any").performScrollTo().performClick()
+
+        assertEquals(listOf<String?>("CD", null), chosen)
+    }
+
+    @Test
+    fun `an album that is not wanted offers no format to want it on`() {
+        show(album = notOwned)
+
+        composeTestRule.onNodeWithTag("want_format_any").assertDoesNotExist()
     }
 }

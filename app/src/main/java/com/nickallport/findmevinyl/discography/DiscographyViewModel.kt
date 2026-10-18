@@ -262,7 +262,8 @@ class DiscographyViewModel(
         userFormats = ReleaseFormats.decodeUser(album.userFormats),
         note = album.userNote,
         myPressingId = album.myPressingId,
-        myPressingText = album.myPressingText
+        myPressingText = album.myPressingText,
+        wantFormat = album.wantFormat
     )
 
     /**
@@ -284,6 +285,22 @@ class DiscographyViewModel(
             ReleaseFormats.encodeUserOrNull(formats),
             note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null }
         )
+        // An album wanted on a format is no longer wanted once the user says their copy is on that format.
+        val album = albumDao.getById(albumId) ?: return
+        val wantedOn = album.wantFormat
+        if (album.wanted && wantedOn != null && wantedOn in ReleaseFormats.decodeUser(album.userFormats)) {
+            albumDao.setWanted(albumId, false)
+        }
+    }
+
+    /**
+     * Chooses the format a wanted album is wanted on, or null for any. Only a label (LP, CD, ...) is kept, and only
+     * while the album is wanted.
+     */
+    suspend fun saveWantFormat(albumId: String, format: String?) {
+        val album = albumDao.getById(albumId) ?: return
+        if (!album.wanted) return
+        albumDao.setWantFormat(albumId, format?.takeIf { it in ReleaseFormats.displayOrder })
     }
 
     /**

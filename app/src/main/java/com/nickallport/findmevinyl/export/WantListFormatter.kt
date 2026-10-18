@@ -2,7 +2,8 @@ package com.nickallport.findmevinyl.export
 
 data class WantedAlbumExportItem(
     val artistName: String,
-    val albumTitle: String
+    val albumTitle: String,
+    val wantFormat: String? = null
 )
 
 /**
@@ -33,7 +34,7 @@ object WantListFormatter {
         val body = grouped.entries.joinToString("\n\n") { (artist, albums) ->
             buildString {
                 append(artist)
-                albums.forEach { append("\n- ${it.albumTitle}") }
+                albums.forEach { append("\n- ${it.albumTitle}" + (it.wantFormat?.let { f -> " (on $f)" } ?: "")) }
             }
         }
 

@@ -53,8 +53,13 @@ interface AlbumDao {
     @Query("UPDATE albums SET owned = :owned WHERE id = :albumId")
     suspend fun setOwned(albumId: String, owned: Boolean): Int
 
-    @Query("UPDATE albums SET wanted = :wanted WHERE id = :albumId")
+    /** Wants or unwants the album. Taking the want off also forgets the format it was wanted on. */
+    @Query("UPDATE albums SET wanted = :wanted, wantFormat = CASE WHEN :wanted = 1 THEN wantFormat ELSE NULL END WHERE id = :albumId")
     suspend fun setWanted(albumId: String, wanted: Boolean): Int
+
+    /** Saves the format the album is wanted on, or null for any. */
+    @Query("UPDATE albums SET wantFormat = :format WHERE id = :albumId")
+    suspend fun setWantFormat(albumId: String, format: String?): Int
 
     @Query("UPDATE albums SET wantPosition = :position WHERE id = :albumId")
     suspend fun setWantPosition(albumId: String, position: Int): Int
@@ -72,7 +77,7 @@ interface AlbumDao {
     )
     suspend fun markWanted(albumId: String): Int
 
-    @Query("UPDATE albums SET wanted = 0 WHERE artistId = :artistId")
+    @Query("UPDATE albums SET wanted = 0, wantFormat = NULL WHERE artistId = :artistId")
     suspend fun clearWantedForArtist(artistId: String): Int
 
     /**
@@ -89,7 +94,8 @@ interface AlbumDao {
                albums.title AS albumTitle,
                albums.firstReleaseDate AS firstReleaseDate,
                COALESCE(artist_groups.position, favourite_artists.position) AS artistPosition,
-               albums.wantPosition AS wantPosition
+               albums.wantPosition AS wantPosition,
+               albums.wantFormat AS wantFormat
         FROM albums
         LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
         LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId

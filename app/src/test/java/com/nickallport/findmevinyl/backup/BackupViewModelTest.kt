@@ -1029,4 +1029,28 @@ class BackupViewModelTest {
         assertNull(fresh.artistDao().getById("a")!!.genre)
         fresh.close()
     }
+
+    @Test
+    fun `the format an album is wanted on comes back with it`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true, wanted = true))
+        database.albumDao().setWantFormat("1", "LP")
+        val saved = backup()
+        database.albumDao().setWanted("1", false)
+
+        restore(saved)
+
+        assertEquals("LP", database.albumDao().getById("1")!!.wantFormat)
+    }
+
+    @Test
+    fun `a want already on the phone keeps the format it has`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+        database.albumDao().setWantFormat("1", "LP")
+        val saved = backup()
+        database.albumDao().setWantFormat("1", "CD")
+
+        restore(saved)
+
+        assertEquals("CD", database.albumDao().getById("1")!!.wantFormat)
+    }
 }

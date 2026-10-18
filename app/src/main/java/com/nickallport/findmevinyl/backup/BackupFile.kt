@@ -52,7 +52,9 @@ data class BackupAlbum(
     val userNote: String? = null,
     /** The MusicBrainz release the user chose as their copy, and a line that describes it. */
     val myPressingId: String? = null,
-    val myPressingText: String? = null
+    val myPressingText: String? = null,
+    /** The format the album is wanted on, a label such as LP. */
+    val wantFormat: String? = null
 )
 
 /** Artists the user keeps together under a name of their own. The first member is first. */

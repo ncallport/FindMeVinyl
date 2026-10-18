@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.material3.FilterChip
+import com.nickallport.findmevinyl.discography.ReleaseFormats
 import com.nickallport.findmevinyl.discography.PressingSummary
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
@@ -74,7 +76,9 @@ fun AlbumDetailScreen(
     /** Saves the formats and the note the user gives for their own copy of an album they own. */
     onSaveCopy: (formats: List<String>, note: String) -> Unit = { _, _ -> },
     /** Chooses a pressing as the user's own copy, or takes the choice away with null. */
-    onMarkMyPressing: (Pressing?) -> Unit = {}
+    onMarkMyPressing: (Pressing?) -> Unit = {},
+    /** Chooses the format a wanted album is wanted on, or null for any. */
+    onSetWantFormat: (String?) -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -118,6 +122,30 @@ fun AlbumDetailScreen(
                 // An owned album can be wanted too, such as a worn copy to replace.
                 OutlinedButton(onClick = onToggleWanted, modifier = Modifier.testTag("detail_want_toggle")) {
                     Text(if (album.wanted) "Wanted" else "+ Want")
+                }
+            }
+            if (album.wanted) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Want it on",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = album.wantFormat == null,
+                        onClick = { onSetWantFormat(null) },
+                        label = { Text("Any") },
+                        modifier = Modifier.testTag("want_format_any")
+                    )
+                    ReleaseFormats.displayOrder.forEach { label ->
+                        FilterChip(
+                            selected = album.wantFormat == label,
+                            onClick = { onSetWantFormat(label) },
+                            label = { Text(label) },
+                            modifier = Modifier.testTag("want_format_$label")
+                        )
+                    }
                 }
             }
             if (album.owned) {

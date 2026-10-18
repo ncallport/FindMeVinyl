@@ -177,4 +177,85 @@ class DiscographyViewModelCopyTest {
 
         assertEquals("release-9", album.myPressingId)
     }
+
+    // The format an album is wanted on.
+
+    private suspend fun wantedAlbum(owned: Boolean = true, userFormats: String? = null) =
+        database.albumDao().insert(
+            AlbumEntity(
+                "1", "artist-1", "Desire", "STUDIO_ALBUM", "1976", owned = owned, wanted = true,
+                userFormats = userFormats
+            )
+        )
+
+    @Test
+    fun `an album can be wanted on a format, and that shows on the saved album`() = runBlocking {
+        wantedAlbum(userFormats = "CD")
+
+        viewModel.saveWantFormat("1", "LP")
+
+        assertEquals("LP", viewModel.loadAlbum("1")!!.wantFormat)
+    }
+
+    @Test
+    fun `a format that is not a label is not kept`() = runBlocking {
+        wantedAlbum()
+
+        viewModel.saveWantFormat("1", "Betamax")
+
+        assertNull(viewModel.loadAlbum("1")!!.wantFormat)
+    }
+
+    @Test
+    fun `an album that is not wanted cannot be wanted on a format`() = runBlocking {
+        database.albumDao().insert(AlbumEntity("1", "artist-1", "Desire", "STUDIO_ALBUM", "1976", owned = true, wanted = false))
+
+        viewModel.saveWantFormat("1", "LP")
+
+        assertNull(viewModel.loadAlbum("1")!!.wantFormat)
+    }
+
+    @Test
+    fun `null goes back to wanting it on any format`() = runBlocking {
+        wantedAlbum()
+        viewModel.saveWantFormat("1", "LP")
+
+        viewModel.saveWantFormat("1", null)
+
+        assertNull(viewModel.loadAlbum("1")!!.wantFormat)
+    }
+
+    @Test
+    fun `saying the copy is on the format it was wanted on takes the want off`() = runBlocking {
+        wantedAlbum(userFormats = "CD")
+        viewModel.saveWantFormat("1", "LP")
+
+        viewModel.saveCopy("1", listOf("CD", "LP"), "")
+
+        val saved = viewModel.loadAlbum("1")!!
+        assertEquals(false, saved.wanted)
+        assertNull(saved.wantFormat)
+        assertEquals(listOf("LP", "CD"), saved.userFormats)
+    }
+
+    @Test
+    fun `saying the copy is on another format keeps the want`() = runBlocking {
+        wantedAlbum(userFormats = "CD")
+        viewModel.saveWantFormat("1", "LP")
+
+        viewModel.saveCopy("1", listOf("CD", "MC"), "")
+
+        val saved = viewModel.loadAlbum("1")!!
+        assertEquals(true, saved.wanted)
+        assertEquals("LP", saved.wantFormat)
+    }
+
+    @Test
+    fun `an album wanted on any format keeps its want when a format is added to the copy`() = runBlocking {
+        wantedAlbum()
+
+        viewModel.saveCopy("1", listOf("LP"), "")
+
+        assertEquals(true, viewModel.loadAlbum("1")!!.wanted)
+    }
 }

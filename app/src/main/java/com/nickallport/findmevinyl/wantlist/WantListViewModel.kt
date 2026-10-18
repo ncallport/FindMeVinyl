@@ -12,7 +12,9 @@ import kotlin.comparisons.nullsLast
 data class WantedAlbumUiModel(
     val albumId: String,
     val artistName: String,
-    val albumTitle: String
+    val albumTitle: String,
+    /** The format it is wanted on (a label such as LP), or null for any. */
+    val wantFormat: String? = null
 )
 
 /**
@@ -23,7 +25,7 @@ data class WantedAlbumUiModel(
  */
 class WantListViewModel(private val albumDao: AlbumDao) {
     suspend fun loadWantList(): List<WantedAlbumUiModel> {
-        return ordered().map { WantedAlbumUiModel(it.albumId, it.artistName, it.albumTitle) }
+        return ordered().map { WantedAlbumUiModel(it.albumId, it.artistName, it.albumTitle, it.wantFormat) }
     }
 
     /** Takes an album off the want list. The album itself stays, and shows as not wanted in its discography. */
@@ -37,7 +39,7 @@ class WantListViewModel(private val albumDao: AlbumDao) {
 
     /** The share text: the whole list unless [options] say otherwise, in the user's own order. */
     suspend fun exportText(options: ShareOptions = ShareOptions()): String {
-        val items = loadWantList().map { WantedAlbumExportItem(it.artistName, it.albumTitle) }
+        val items = loadWantList().map { WantedAlbumExportItem(it.artistName, it.albumTitle, it.wantFormat) }
         return WantListFormatter.format(items, options.intro, options.limit)
     }
 

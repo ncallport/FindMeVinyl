@@ -38,5 +38,10 @@ data class AlbumEntity(
      * A line that describes [myPressingId] (date, country, label, format), as it was when the user chose it, so the
      * album can still say which pressing it is when MusicBrainz's list of pressings has changed.
      */
-    val myPressingText: String? = null
+    val myPressingText: String? = null,
+    /**
+     * The format the user wants the album on (a label such as LP), while it is wanted. Null: any format, or not wanted.
+     * It goes when the want does, and the want goes when the user says their copy is on this format.
+     */
+    val wantFormat: String? = null
 )
