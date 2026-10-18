@@ -23,6 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
+/** One copy the user owns: a format label such as LP and a note, such as where it came from. */
+data class AlbumCopy(val format: String, val note: String? = null)
+
 data class AlbumUiModel(
     val id: String,
     val title: String,
@@ -45,8 +48,8 @@ data class AlbumUiModel(
     val artistName: String? = null,
     /** The format the album is wanted on (a label such as LP), or null for any. */
     val wantFormat: String? = null,
-    /** The user's note for each format of their copy, by label, in the usual order. */
-    val formatNotes: Map<String, String> = emptyMap()
+    /** The copies the user owns, each with its format and a note, in the order they were listed. */
+    val copies: List<AlbumCopy> = emptyList()
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.

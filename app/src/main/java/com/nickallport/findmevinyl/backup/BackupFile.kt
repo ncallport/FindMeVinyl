@@ -47,7 +47,7 @@ data class BackupAlbum(
     val owned: Boolean? = null,
     val wanted: Boolean? = null,
     val wantPosition: Int? = null,
-    /** Formats the user added for their copy, as labels joined with `|`. */
+    /** Written by older versions: formats the user added for their copy, as labels joined with `|`. */
     val userFormats: String? = null,
     val userNote: String? = null,
     /** The MusicBrainz release the user chose as their copy, and a line that describes it. */
@@ -55,9 +55,14 @@ data class BackupAlbum(
     val myPressingText: String? = null,
     /** The format the album is wanted on, a label such as LP. */
     val wantFormat: String? = null,
-    /** The user's note for each format of their copy, as JSON with the label as the key. */
-    val userFormatNotes: String? = null
+    /** Written by older versions: the formats of the user's copy joined with `|`, and a note for each as JSON. */
+    val userFormatNotes: String? = null,
+    /** The copies the user owns, in order. Older files have `userFormats` instead. */
+    val copies: List<BackupCopy>? = null
 )
+
+/** One copy of an album: a format label such as LP, and a note. */
+data class BackupCopy(val format: String? = null, val note: String? = null)
 
 /** Artists the user keeps together under a name of their own. The first member is first. */
 data class BackupGroup(

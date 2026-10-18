@@ -29,6 +29,7 @@ data class AlbumEntity(
      * MusicBrainz does not list the release. Added to [formats], never replacing them, and never touched
      * by a lookup. Null: none added.
      */
+    @Deprecated("Copied into album_copies by MIGRATION_19_20, no longer read or written.")
     val userFormats: String? = null,
     /** The user's own note about their copy, such as the country or the language of the sleeve. Null: none. */
     val userNote: String? = null,
@@ -45,5 +46,6 @@ data class AlbumEntity(
      */
     val wantFormat: String? = null,
     /** The user's note for each format of their copy, as JSON with the label as the key (see `FormatNotes`). Null: none. */
+    @Deprecated("Copied into album_copies by MIGRATION_19_20, no longer read or written.")
     val userFormatNotes: String? = null
 )

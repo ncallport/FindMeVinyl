@@ -19,29 +19,31 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** The My copy part of an album page: what the user says about their own copy. */
+/** The My copies part of an album page: the copies the user owns, each with a format and a note. */
 @RunWith(RobolectricTestRunner::class)
 class MyCopySectionTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val owned = AlbumUiModel("1", "Olympia", owned = true, wanted = false, formats = listOf("CD"))
-    private val withCopy = owned.copy(userFormats = listOf("LP"), note = "BMG vinyl, 2018")
+    private val owned = AlbumUiModel("1", "The Crossing", owned = true, wanted = false, formats = listOf("CD"))
+    private val withCopies = owned.copy(
+        userFormats = listOf("LP"),
+        copies = listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover")),
+        note = "Mercury, 1983"
+    )
     private val noDetails = AlbumDetails(null, null, null, null, null, null, emptyList(), emptyList())
-    private val saved = mutableListOf<Pair<List<String>, String>>()
-    private val savedNotes = mutableListOf<Map<String, String>>()
+    private val saved = mutableListOf<Pair<List<AlbumCopy>, String>>()
 
     private fun show(album: AlbumUiModel?) {
         saved.clear()
-        savedNotes.clear()
         composeTestRule.setContent {
             FindMeVinylTheme {
                 AlbumDetailScreen(
-                    albumId = "1", title = "Olympia", artistName = "Bryan Ferry", album = album,
+                    albumId = "1", title = "The Crossing", artistName = "Big Country", album = album,
                     state = AlbumDetailState.Loaded(noDetails), onRetry = {}, onToggleOwned = {},
                     onToggleWanted = {}, loadCover = { null },
-                    onSaveCopy = { formats, note, notes -> saved.add(formats to note); savedNotes.add(notes) }
+                    onSaveCopy = { copies, note -> saved.add(copies to note) }
                 )
             }
         }
@@ -53,8 +55,13 @@ class MyCopySectionTest {
         composeTestRule.waitForIdle()
     }
 
+    private fun type(tag: String, text: String) {
+        composeTestRule.onNodeWithTag(tag).performScrollTo().performTextReplacement(text)
+        composeTestRule.waitForIdle()
+    }
+
     @Test
-    fun `an album you do not own has no My copy section`() {
+    fun `an album you do not own has no My copies section`() {
         show(owned.copy(owned = false))
 
         composeTestRule.onNodeWithTag("my_copy_section").assertDoesNotExist()
@@ -68,70 +75,106 @@ class MyCopySectionTest {
     }
 
     @Test
-    fun `an owned album with no details invites you to add some`() {
+    fun `an owned album with no copies invites you to add some`() {
         show(owned)
 
         composeTestRule.onNodeWithTag("my_copy_section").assertExists()
-        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Add details of my copy")
+        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Add my copies")
         composeTestRule.onNodeWithTag("my_copy_summary").assertDoesNotExist()
     }
 
     @Test
-    fun `an owned album with details shows them`() {
-        show(withCopy)
+    fun `the summary lists each copy with its note, and the note about the album`() {
+        show(withCopies)
 
         composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
-            .assertTextContains("LP", substring = true)
-            .assertTextContains("BMG vinyl, 2018", substring = true)
-        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Edit my copy")
+            .assertTextContains("LP: green cover", substring = true)
+            .assertTextContains("LP: blue cover", substring = true)
+            .assertTextContains("Mercury, 1983", substring = true)
+        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Edit my copies")
     }
 
     @Test
-    fun `editing shows a chip for every format, with the ones already added chosen, and the note`() {
-        show(withCopy)
+    fun `a copy with no note is listed by its format alone`() {
+        show(owned.copy(copies = listOf(AlbumCopy("CD"))))
+
+        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextContains("CD")
+    }
+
+    @Test
+    fun `editing shows each copy with its format chosen and its note`() {
+        show(withCopies)
 
         tap("my_copy_edit")
 
-        composeTestRule.onNodeWithTag("my_copy_format_LP").performScrollTo().assertIsSelected()
-        composeTestRule.onNodeWithTag("my_copy_format_CD").performScrollTo().assertIsNotSelected()
-        composeTestRule.onNodeWithTag("my_copy_format_7\"").assertExists()
-        composeTestRule.onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("BMG vinyl, 2018")
+        composeTestRule.onNodeWithTag("my_copy_0_format_LP").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("my_copy_0_format_CD").performScrollTo().assertIsNotSelected()
+        composeTestRule.onNodeWithTag("my_copy_0_note").performScrollTo().assertTextContains("green cover")
+        composeTestRule.onNodeWithTag("my_copy_1_format_LP").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("my_copy_1_note").performScrollTo().assertTextContains("blue cover")
+        composeTestRule.onNodeWithTag("my_copy_2_note").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Mercury, 1983")
     }
 
     @Test
-    fun `saving hands over the chosen formats and the note, and closes the editor`() {
+    fun `a copy is added with a format and a note, and saving hands over the copies in order`() {
         show(owned)
         tap("my_copy_edit")
 
-        tap("my_copy_format_LP")
-        tap("my_copy_format_CD")
-        composeTestRule.onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("BMG vinyl")
+        tap("my_copy_add")
+        tap("my_copy_0_format_CD")
+        type("my_copy_0_note", "part of Mum's collection")
         tap("my_copy_save")
 
-        assertEquals(listOf(listOf("LP", "CD") to "BMG vinyl"), saved)
+        assertEquals(listOf(listOf(AlbumCopy("CD", "part of Mum's collection")) to ""), saved)
         composeTestRule.onNodeWithTag("my_copy_save").assertDoesNotExist()
     }
 
     @Test
-    fun `a format can be taken off again`() {
-        show(withCopy)
+    fun `two copies on the same format can be added`() {
+        show(owned)
         tap("my_copy_edit")
 
-        tap("my_copy_format_LP")
+        tap("my_copy_add")
+        type("my_copy_0_note", "green cover")
+        tap("my_copy_add")
+        type("my_copy_1_note", "blue cover")
         tap("my_copy_save")
 
-        assertEquals(listOf(emptyList<String>() to "BMG vinyl, 2018"), saved)
+        assertEquals(listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover")), saved.single().first)
+    }
+
+    @Test
+    fun `a copy can be removed again`() {
+        show(withCopies)
+        tap("my_copy_edit")
+
+        tap("my_copy_0_remove")
+        tap("my_copy_save")
+
+        assertEquals(listOf(AlbumCopy("LP", "blue cover")), saved.single().first)
+    }
+
+    @Test
+    fun `the note about the album is handed over with the copies`() {
+        show(withCopies)
+        tap("my_copy_edit")
+
+        type("my_copy_note", "Mercury, 1983, Scotland")
+        tap("my_copy_save")
+
+        assertEquals("Mercury, 1983, Scotland", saved.single().second)
     }
 
     @Test
     fun `cancelling closes the editor and saves nothing`() {
-        show(withCopy)
+        show(withCopies)
         tap("my_copy_edit")
-        tap("my_copy_format_CD")
+        tap("my_copy_0_remove")
 
         tap("my_copy_cancel")
 
-        assertEquals(emptyList<Pair<List<String>, String>>(), saved)
+        assertEquals(emptyList<Pair<List<AlbumCopy>, String>>(), saved)
         composeTestRule.onNodeWithTag("my_copy_save").assertDoesNotExist()
         composeTestRule.onNodeWithTag("my_copy_summary").assertExists()
     }
@@ -140,11 +183,24 @@ class MyCopySectionTest {
     fun `a note longer than the limit is cut as it is typed`() {
         show(owned)
         tap("my_copy_edit")
+        tap("my_copy_add")
 
-        composeTestRule.onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("x".repeat(600))
+        type("my_copy_0_note", "x".repeat(600))
+        type("my_copy_note", "y".repeat(600))
         tap("my_copy_save")
 
+        assertEquals(500, saved.single().first.single().note!!.length)
         assertEquals(500, saved.single().second.length)
+    }
+
+    @Test
+    fun `no more than twenty copies can be added`() {
+        show(owned)
+        tap("my_copy_edit")
+
+        repeat(20) { tap("my_copy_add") }
+
+        composeTestRule.onNodeWithTag("my_copy_add").assertDoesNotExist()
     }
 
     @OptIn(ExperimentalTestApi::class)
@@ -154,7 +210,7 @@ class MyCopySectionTest {
         restorationTester.setContent {
             FindMeVinylTheme {
                 AlbumDetailScreen(
-                    albumId = "1", title = "Olympia", artistName = "Bryan Ferry", album = owned,
+                    albumId = "1", title = "The Crossing", artistName = "Big Country", album = owned,
                     state = AlbumDetailState.Loaded(noDetails), onRetry = {}, onToggleOwned = {},
                     onToggleWanted = {}, loadCover = { null }
                 )
@@ -162,78 +218,17 @@ class MyCopySectionTest {
         }
         waitForIdle()
         onNodeWithTag("my_copy_edit").performScrollTo().performClick()
-        onNodeWithTag("my_copy_format_LP").performScrollTo().performClick()
-        onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("Portuguese")
+        onNodeWithTag("my_copy_add").performScrollTo().performClick()
+        onNodeWithTag("my_copy_0_format_CD").performScrollTo().performClick()
+        onNodeWithTag("my_copy_0_note").performScrollTo().performTextReplacement("Portuguese")
+        onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("Album note")
         waitForIdle()
 
         restorationTester.emulateSaveAndRestore()
         waitForIdle()
 
-        onNodeWithTag("my_copy_format_LP").performScrollTo().assertIsSelected()
-        onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Portuguese")
-    }
-
-    // A note for each format.
-
-    private val twoCopies = owned.copy(
-        userFormats = listOf("LP", "CD"), formatNotes = mapOf("LP" to "scratched", "CD" to "from Mum")
-    )
-
-    @Test
-    fun `the summary gives each format its own note`() {
-        show(twoCopies)
-
-        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
-            .assertTextContains("LP: scratched", substring = true)
-            .assertTextContains("CD: from Mum", substring = true)
-    }
-
-    @Test
-    fun `editing gives each chosen format a note, filled in with what is stored`() {
-        show(twoCopies)
-
-        tap("my_copy_edit")
-
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().assertTextContains("scratched")
-        composeTestRule.onNodeWithTag("my_copy_format_note_CD").performScrollTo().assertTextContains("from Mum")
-        composeTestRule.onNodeWithTag("my_copy_format_note_MC").assertDoesNotExist()
-    }
-
-    @Test
-    fun `choosing a format gives it a note field, and taking it off removes the field`() {
-        show(owned)
-        tap("my_copy_edit")
-
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertDoesNotExist()
-        tap("my_copy_format_LP")
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertExists()
-        tap("my_copy_format_LP")
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").assertDoesNotExist()
-    }
-
-    @Test
-    fun `saving hands over the note of each format`() {
-        show(owned)
-        tap("my_copy_edit")
-        tap("my_copy_format_LP")
-        tap("my_copy_format_CD")
-
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().performTextReplacement("scratched")
-        composeTestRule.onNodeWithTag("my_copy_format_note_CD").performScrollTo().performTextReplacement("from Mum")
-        tap("my_copy_save")
-
-        assertEquals(listOf(mapOf("LP" to "scratched", "CD" to "from Mum")), savedNotes)
-    }
-
-    @Test
-    fun `a note typed for a format that is then taken off is not handed over`() {
-        show(owned)
-        tap("my_copy_edit")
-        tap("my_copy_format_LP")
-        composeTestRule.onNodeWithTag("my_copy_format_note_LP").performScrollTo().performTextReplacement("scratched")
-        tap("my_copy_format_LP")
-        tap("my_copy_save")
-
-        assertEquals(listOf(emptyMap<String, String>()), savedNotes)
+        onNodeWithTag("my_copy_0_format_CD").performScrollTo().assertIsSelected()
+        onNodeWithTag("my_copy_0_note").performScrollTo().assertTextContains("Portuguese")
+        onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Album note")
     }
 }

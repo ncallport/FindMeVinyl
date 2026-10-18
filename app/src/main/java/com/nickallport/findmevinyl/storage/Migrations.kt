@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.storage
 
+import com.nickallport.findmevinyl.discography.FormatNotes
+import com.nickallport.findmevinyl.discography.ReleaseFormats
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -172,5 +174,31 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
 val MIGRATION_18_19 = object : Migration(18, 19) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `userFormatNotes` TEXT")
+    }
+}
+
+/**
+ * An album can have any number of copies, each with a format and a note, in a table of their own. The formats the user
+ * had ticked, and the note they had for each, become one copy each. The old columns are left as they were, unused.
+ */
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `album_copies` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`albumId` TEXT NOT NULL, `format` TEXT NOT NULL, `note` TEXT, `position` INTEGER NOT NULL)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_album_copies_albumId` ON `album_copies` (`albumId`)")
+        val old = db.query("SELECT id, userFormats, userFormatNotes FROM albums WHERE userFormats IS NOT NULL").use { c ->
+            buildList { while (c.moveToNext()) add(Triple(c.getString(0), c.getString(1), c.getString(2))) }
+        }
+        for ((albumId, formats, notes) in old) {
+            val noteOf = FormatNotes.decode(notes)
+            ReleaseFormats.decodeUser(formats).forEachIndexed { position, label ->
+                db.execSQL(
+                    "INSERT INTO `album_copies` (`albumId`, `format`, `note`, `position`) VALUES (?, ?, ?, ?)",
+                    arrayOf<Any?>(albumId, label, noteOf[label], position)
+                )
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import com.nickallport.findmevinyl.ui.discography.AlbumCopy
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -212,16 +213,16 @@ class AlbumDetailRouteTest {
     @Test
     fun `saving the copy hands it over and the page then shows what is stored`() {
         album = AlbumUiModel("1", "Trespass", owned = true, wanted = false)
-        val saves = mutableListOf<Triple<String, List<String>, String>>()
+        val saves = mutableListOf<Triple<String, List<AlbumCopy>, String>>()
         composeTestRule.setContent {
             FindMeVinylTheme {
                 AlbumDetailRoute(
                     albumId = "1", title = "Trespass", artistName = "Genesis",
                     loadDetails = { details }, loadAlbum = { album },
                     onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
-                    saveCopy = { id, formats, note, _ ->
-                        saves.add(Triple(id, formats, note))
-                        album = album.copy(userFormats = formats, note = note)
+                    saveCopies = { id, copies, note ->
+                        saves.add(Triple(id, copies, note))
+                        album = album.copy(userFormats = copies.map { it.format }, copies = copies, note = note)
                     }
                 )
             }
@@ -229,12 +230,12 @@ class AlbumDetailRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().performClick()
-        composeTestRule.onNodeWithTag("my_copy_format_LP").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("my_copy_add").performScrollTo().performClick()
         composeTestRule.onNodeWithTag("my_copy_save").performScrollTo().performClick()
         composeTestRule.waitForIdle()
 
-        assertEquals(listOf(Triple("1", listOf("LP"), "")), saves)
-        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextEquals("Formats you added: LP")
+        assertEquals(listOf(Triple("1", listOf(AlbumCopy("LP")), "")), saves)
+        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextEquals("LP")
     }
 
     // The pressing the user chose as theirs.

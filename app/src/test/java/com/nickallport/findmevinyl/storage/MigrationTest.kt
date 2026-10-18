@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
             .allowMainThreadQueries()
             .build()
 
@@ -794,7 +794,7 @@ class MigrationTest {
         assertTrue(foxtrot.owned)
         assertEquals("CD", foxtrot.formats)
         assertEquals("Official", foxtrot.statuses)
-        assertNull(foxtrot.userFormats)
+        assertEquals(emptyList<AlbumCopyEntity>(), database.albumDao().getCopies("1"))
         assertNull(foxtrot.userNote)
         database.close()
     }
@@ -804,10 +804,11 @@ class MigrationTest {
         createVersion10Database()
         val database = openMigrated()
 
-        database.albumDao().setCopy("1", "LP", "Portuguese pressing")
+        database.albumDao().insertCopies(listOf(AlbumCopyEntity(albumId = "1", format = "LP", note = "green cover")))
+        database.albumDao().setNote("1", "Portuguese pressing")
 
         val foxtrot = database.albumDao().getById("1")!!
-        assertEquals("LP", foxtrot.userFormats)
+        assertEquals(listOf("LP" to "green cover"), database.albumDao().getCopies("1").map { it.format to it.note })
         assertEquals("Portuguese pressing", foxtrot.userNote)
         assertEquals("CD", foxtrot.formats)
         database.close()
