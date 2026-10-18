@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -267,5 +268,42 @@ class DiscographyScreenTest {
 
         assertEquals("1", opened)
         assertEquals("1", toggled)
+    }
+
+    @Test
+    fun `a row shows the name of the artist the album is filed under`() {
+        val grouped = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(
+                AlbumUiModel("1", "Carnage", owned = false, wanted = false, artistName = "Nick Cave")
+            )
+        )
+
+        composeTestRule.setContent { DiscographyScreen(groupedAlbums = grouped, onToggleOwned = {}) }
+
+        composeTestRule.onNodeWithTag("album_artist", useUnmergedTree = true).assertTextEquals("Nick Cave")
+    }
+
+    @Test
+    fun `an album with no name of its own takes the name given for the page`() {
+        val grouped = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "Desire", owned = false, wanted = false))
+        )
+
+        composeTestRule.setContent {
+            DiscographyScreen(groupedAlbums = grouped, onToggleOwned = {}, defaultArtistName = "Bob Dylan")
+        }
+
+        composeTestRule.onNodeWithTag("album_artist", useUnmergedTree = true).assertTextEquals("Bob Dylan")
+    }
+
+    @Test
+    fun `with no name anywhere the row shows no artist line`() {
+        val grouped = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "Desire", owned = false, wanted = false))
+        )
+
+        composeTestRule.setContent { DiscographyScreen(groupedAlbums = grouped, onToggleOwned = {}) }
+
+        composeTestRule.onNodeWithTag("album_artist", useUnmergedTree = true).assertDoesNotExist()
     }
 }

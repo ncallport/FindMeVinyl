@@ -20,7 +20,7 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 
 ## What it does
 
-- Search for an artist, with suggestions as you type (your favourites first), and see their whole discography, grouped into studio albums, EPs, singles, live albums, compilations and others, with a cover for each.
+- Search for an artist, with suggestions as you type (your favourites first), and see their whole discography, grouped into studio albums, EPs, singles, live albums, compilations and others, with a cover for each. Each row names the artist, and on a group's page it is the member the album is filed under, so you can see which are Nick Cave albums and which are Bad Seeds albums.
 - See which formats each album came out on (LP, 12", 7", CD, cassette, digital), and filter by one.
 - Mark albums as owned or wanted. Owned albums are teal and wanted ones are orange. The Group owned and Group wanted switches put those albums in sections at the top of an artist's discography, Owned first by default. With both on, an arrow on the lower heading moves it to the top. The app remembers the choice for each artist.
 - Open an album for its pressings, label and catalogue numbers, tracklist by side, genres and rating.

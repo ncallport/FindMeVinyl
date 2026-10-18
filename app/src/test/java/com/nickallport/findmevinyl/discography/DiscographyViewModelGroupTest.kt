@@ -285,4 +285,22 @@ class DiscographyViewModelGroupTest {
 
         assertEquals(listOf(1 to 1, 2 to 2), seen)
     }
+
+    @Test
+    fun `each album of a group says which member it is filed under`() = runBlocking {
+        group("group/1", "cave", "seeds")
+        saved("a", "cave")
+        saved("b", "seeds")
+
+        val state = viewModel.loadSaved("group/1")
+
+        assertEquals(mapOf("a" to "Name of cave", "b" to "Name of seeds"), albums(state).associate { it.id to it.artistName })
+    }
+
+    @Test
+    fun `an album of a single artist has no name of its own, the page fills it in`() = runBlocking {
+        saved("a", "cave")
+
+        assertNull(albums(viewModel.loadSaved("cave")).single().artistName)
+    }
 }
