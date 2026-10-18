@@ -412,7 +412,10 @@ class DiscographyViewModel(
         wanted = false
     )
 
-    /** Marking an album owned also saves the artist as a favourite, as wanting an album does. */
+    /**
+     * Marking an album owned also saves the artist as a favourite, as wanting an album does. An album can be owned
+     * and wanted at once (a worn copy to replace, or a CD owned and the LP wanted), so a want is never cleared here.
+     */
     suspend fun toggleOwned(
         albumId: String,
         currentlyOwned: Boolean,
@@ -421,7 +424,6 @@ class DiscographyViewModel(
     ) {
         albumDao.setOwned(albumId, !currentlyOwned)
         if (!currentlyOwned) {
-            albumDao.setWanted(albumId, false)
             saveFavourite(artistId, artistName)
         }
     }

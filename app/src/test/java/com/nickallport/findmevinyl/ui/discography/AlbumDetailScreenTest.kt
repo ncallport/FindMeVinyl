@@ -223,11 +223,22 @@ class AlbumDetailScreenTest {
     }
 
     @Test
-    fun `an owned album says so and has no Want button`() {
+    fun `an owned album says so and still offers the Want button`() {
         show(album = notOwned.copy(owned = true))
 
         composeTestRule.onNodeWithTag("detail_owned_toggle").assertTextEquals("Owned")
-        composeTestRule.onNodeWithTag("detail_want_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_want_toggle").assertTextEquals("+ Want")
+    }
+
+    @Test
+    fun `an album both owned and wanted shows both, and Wanted takes the want off`() {
+        var wanted = 0
+        show(album = notOwned.copy(owned = true, wanted = true), onToggleWanted = { wanted++ })
+
+        composeTestRule.onNodeWithTag("detail_owned_toggle").assertTextEquals("Owned")
+        composeTestRule.onNodeWithTag("detail_want_toggle").assertTextEquals("Wanted")
+        composeTestRule.onNodeWithTag("detail_want_toggle").performScrollTo().performClick()
+        assertEquals(1, wanted)
     }
 
     @Test

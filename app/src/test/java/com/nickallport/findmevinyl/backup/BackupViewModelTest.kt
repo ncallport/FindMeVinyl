@@ -287,7 +287,7 @@ class BackupViewModelTest {
     }
 
     @Test
-    fun `an album owned in the backup becomes owned on the phone and is no longer wanted`() = runBlocking {
+    fun `an album owned in the backup becomes owned on the phone, and a want on the phone stays`() = runBlocking {
         database.albumDao().insert(album("1", owned = true))
         val saved = backup()
         database.albumDao().setOwned("1", false)
@@ -297,7 +297,22 @@ class BackupViewModelTest {
 
         val merged = database.albumDao().getById("1")!!
         assertTrue(merged.owned)
-        assertFalse(merged.wanted)
+        assertTrue(merged.wanted)
+    }
+
+    @Test
+    fun `an album both owned and wanted in the backup comes back both`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true, wanted = true, wantPosition = 3))
+        val saved = backup()
+        database.albumDao().setOwned("1", false)
+        database.albumDao().setWanted("1", false)
+
+        restore(saved)
+
+        val merged = database.albumDao().getById("1")!!
+        assertTrue(merged.owned)
+        assertTrue(merged.wanted)
+        assertEquals(3, merged.wantPosition)
     }
 
     @Test
@@ -326,7 +341,7 @@ class BackupViewModelTest {
     }
 
     @Test
-    fun `an album owned on the phone is not made wanted by a backup that wanted it`() = runBlocking {
+    fun `an album owned on the phone is also made wanted by a backup that wanted it`() = runBlocking {
         database.albumDao().insert(album("1", wanted = true))
         val saved = backup()
         database.albumDao().setWanted("1", false)
@@ -336,7 +351,7 @@ class BackupViewModelTest {
 
         val merged = database.albumDao().getById("1")!!
         assertTrue(merged.owned)
-        assertFalse(merged.wanted)
+        assertTrue(merged.wanted)
     }
 
     @Test

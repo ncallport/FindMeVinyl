@@ -73,7 +73,8 @@ fun DiscographyScreen(
     defaultArtistName: String? = null
 ) {
     fun isGroupedOwned(album: AlbumUiModel) = grouping.owned && album.owned
-    fun isGroupedWanted(album: AlbumUiModel) = grouping.wanted && album.wanted && !album.owned
+    // An album that is both is in the Owned section when that is grouped, and otherwise in the Wanted one.
+    fun isGroupedWanted(album: AlbumUiModel) = grouping.wanted && album.wanted && !isGroupedOwned(album)
 
     val inCategoryOrder = categoryDisplayOrder.flatMap { (category, _) -> groupedAlbums[category].orEmpty() }
     val owned = inCategoryOrder.filter { isGroupedOwned(it) }

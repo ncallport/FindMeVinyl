@@ -65,7 +65,7 @@ interface AlbumDao {
         UPDATE albums SET wanted = 1,
             wantPosition = CASE WHEN wanted = 1 THEN wantPosition ELSE
                 (SELECT COALESCE(MAX(other.wantPosition), -1) + 1 FROM albums AS other
-                 WHERE other.artistId = albums.artistId AND other.wanted = 1 AND other.owned = 0
+                 WHERE other.artistId = albums.artistId AND other.wanted = 1
                    AND other.id != albums.id) END
         WHERE id = :albumId
         """
@@ -94,7 +94,7 @@ interface AlbumDao {
         LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
         LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId
         LEFT JOIN favourite_artists ON albums.artistId = favourite_artists.id
-        WHERE albums.wanted = 1 AND albums.owned = 0
+        WHERE albums.wanted = 1
           AND (artist_groups.id IS NOT NULL OR favourite_artists.id IS NOT NULL)
         """
     )

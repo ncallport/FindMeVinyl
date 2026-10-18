@@ -59,15 +59,15 @@ class WantListViewModelTest {
     }
 
     @Test
-    fun `leaves out owned albums even when they are still flagged as wanted`() = runBlocking {
+    fun `lists an owned album that is also wanted`() = runBlocking {
         database.artistDao().insert(ArtistEntity("r", "roxy music", null, null))
         wantedAlbum("1", "r", "Avalon", "1982-05-31")
         database.albumDao().insert(
             AlbumEntity("2", "r", "Roxy Music", "STUDIO_ALBUM", "1972-06-16", owned = true, wanted = true)
         )
 
-        assertEquals(listOf("Avalon"), viewModel.loadWantList().map { it.albumTitle })
-        assertEquals(false, viewModel.exportText().contains("Roxy Music"))
+        assertEquals(listOf("Roxy Music", "Avalon"), viewModel.loadWantList().map { it.albumTitle })
+        assertEquals(true, viewModel.exportText().contains("Roxy Music"))
     }
 
     @Test
@@ -217,7 +217,7 @@ class WantListViewModelTest {
     }
 
     @Test
-    fun `an album that is owned is not counted when moving`() = runBlocking {
+    fun `an album that is owned and wanted is moved like any other`() = runBlocking {
         artist("r", "Roxy Music")
         wanted("1", "r", "One", wantPosition = 0)
         database.albumDao().insert(
@@ -227,7 +227,7 @@ class WantListViewModelTest {
 
         viewModel.moveUp("3")
 
-        assertEquals(listOf("Three", "One"), titles())
+        assertEquals(listOf("One", "Three", "Owned"), titles())
     }
 
     @Test

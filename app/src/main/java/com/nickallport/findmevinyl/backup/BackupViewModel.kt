@@ -200,7 +200,7 @@ class BackupViewModel(
             val id = album.id?.takeIf { it.isNotBlank() } ?: continue
             val artistId = album.artistId?.takeIf { it.isNotBlank() } ?: continue
             val owned = album.owned == true
-            val wanted = album.wanted == true && !owned
+            val wanted = album.wanted == true
             // The details of a copy are checked as they are when the user saves them, whatever the file says.
             val copyFormats = ReleaseFormats.encodeUserOrNull(ReleaseFormats.decodeUser(album.userFormats))
             val copyNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
@@ -225,9 +225,9 @@ class BackupViewModel(
             } else {
                 if (owned && !existing.owned) {
                     albumDao.setOwned(id, true)
-                    if (existing.wanted) albumDao.setWanted(id, false)
                     changed = true
-                } else if (wanted && !existing.owned && !existing.wanted) {
+                }
+                if (wanted && !existing.wanted) {
                     albumDao.setWantedAt(id, album.wantPosition ?: 0)
                     changed = true
                 }

@@ -169,7 +169,7 @@ class DiscographyScreenGroupingTest {
     }
 
     @Test
-    fun `an album marked both owned and wanted, as older saved rows can be, is only in the owned section`() {
+    fun `an album both owned and wanted is only in the owned section when both are grouped`() {
         val both = mapOf(
             DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "Both", owned = true, wanted = true))
         )
@@ -187,5 +187,19 @@ class DiscographyScreenGroupingTest {
         composeTestRule.onNodeWithText("Studio Wanted").performClick()
 
         assertEquals("2", opened)
+    }
+
+    @Test
+    fun `with only wanted grouped, an album both owned and wanted goes in the wanted section`() {
+        val both = mapOf(
+            DiscographyCategory.STUDIO_ALBUM to listOf(
+                AlbumUiModel("1", "Both", owned = true, wanted = true),
+                AlbumUiModel("2", "Plain", owned = false, wanted = false)
+            )
+        )
+        show(Grouping(wanted = true), data = both)
+
+        composeTestRule.onNodeWithTag("wanted_section_header").assertExists()
+        composeTestRule.onAllNodesWithText("Both").assertCountEquals(1)
     }
 }

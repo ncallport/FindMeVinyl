@@ -253,18 +253,6 @@ class AlbumRowTest {
     }
 
     @Test
-    fun `does not offer the Want toggle when the album is owned`() {
-        composeTestRule.setContent {
-            AlbumRow(
-                album = AlbumUiModel(id = "1", title = "Foxtrot", owned = true, wanted = false),
-                onToggleOwned = {}
-            )
-        }
-
-        composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
-    }
-
-    @Test
     fun `a wanted album has no Want pill, because there is nothing more to want`() {
         composeTestRule.setContent {
             AlbumRow(
@@ -308,7 +296,7 @@ class AlbumRowTest {
     }
 
     @Test
-    fun `an album that is owned never says Wanted, even if an older row still has both flags`() {
+    fun `an album that is both owned and wanted says so, and stays the owned colour`() {
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(id = "1", title = "Foxtrot", owned = true, wanted = true),
@@ -316,7 +304,25 @@ class AlbumRowTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Wanted").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Owned").assertExists()
+        composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).assertTextEquals("Wanted")
+        composeTestRule.onNodeWithTag("owned_toggle").assertTextEquals("Owned")
+        composeTestRule.onNodeWithTag("wanted_toggle").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an owned album that is not wanted offers the Want pill`() {
+        var wantedToggled = false
+        composeTestRule.setContent {
+            AlbumRow(
+                album = AlbumUiModel(id = "1", title = "Flesh + Blood", owned = true, wanted = false),
+                onToggleOwned = {},
+                onToggleWanted = { wantedToggled = true }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).assertDoesNotExist()
+        composeTestRule.onNodeWithTag("wanted_toggle").performClick()
+
+        assertTrue(wantedToggled)
     }
 }
