@@ -2,16 +2,23 @@ package com.nickallport.findmevinyl.favourites
 
 import com.nickallport.findmevinyl.ordering.Reorder
 import com.nickallport.findmevinyl.storage.ArtistDao
-import com.nickallport.findmevinyl.storage.ArtistEntity
+import com.nickallport.findmevinyl.storage.ArtistGroupDao
 import com.nickallport.findmevinyl.ui.favourites.FavouriteArtistUiModel
 
 /**
  * The favourite artists in the user's own order. Artists the user has not ordered yet (equal
  * positions, as after the upgrade that added them) stay in name order.
  */
-class FavouritesViewModel(private val artistDao: ArtistDao) {
+class FavouritesViewModel(private val artistDao: ArtistDao, private val groupDao: ArtistGroupDao) {
     suspend fun loadFavourites(): List<FavouriteArtistUiModel> {
-        return ordered().map { FavouriteArtistUiModel(id = it.id, name = it.name) }
+        return ordered().map {
+            val members = it.memberIds
+            if (members == null) {
+                FavouriteArtistUiModel(id = it.id, name = it.name)
+            } else {
+                FavouriteArtistUiModel(id = it.id, name = it.name, isGroup = true, memberIds = members, imageId = members.first())
+            }
+        }
     }
 
     suspend fun moveUp(artistId: String) = move(artistId, -1)
@@ -29,12 +36,31 @@ class FavouritesViewModel(private val artistDao: ArtistDao) {
         val order = named + current.map { it.id }.filter { it !in named }
         val positions = current.associate { it.id to it.position }
         order.forEachIndexed { index, id ->
-            if (positions[id] != index) artistDao.setPosition(id, index)
+            if (positions[id] != index) writePosition(id, index)
         }
     }
 
-    private suspend fun ordered(): List<ArtistEntity> =
-        artistDao.getAllFavourites().sortedWith(compareBy<ArtistEntity> { it.position }.thenBy { it.name.lowercase() })
+    /** One favourite in the list: an artist, or a group (with its member ids). */
+    private class Entry(val id: String, val name: String, val position: Int, val memberIds: List<String>? = null)
+
+    /**
+     * The favourites in the user's order: the artists that are not in a group, and the groups, as one list. An
+     * artist in a group is not listed, but keeps its own row, so it comes back where it was if the group is split.
+     */
+    private suspend fun ordered(): List<Entry> {
+        val members = groupDao.getAllMembers()
+        val inGroup = members.map { it.artistId }.toSet()
+        val membersOf = members.groupBy { it.groupId }.mapValues { (_, list) -> list.sortedBy { it.ordinal }.map { it.artistId } }
+        val artists = artistDao.getAllFavourites().filter { it.id !in inGroup }.map { Entry(it.id, it.name, it.position) }
+        val groups = groupDao.getGroups().mapNotNull { group ->
+            membersOf[group.id]?.takeIf { it.isNotEmpty() }?.let { Entry(group.id, group.name, group.position, it) }
+        }
+        return (artists + groups).sortedWith(compareBy<Entry> { it.position }.thenBy { it.name.lowercase() })
+    }
+
+    private suspend fun writePosition(id: String, position: Int) {
+        if (ArtistGroupViewModel.isGroupId(id)) groupDao.setPosition(id, position) else artistDao.setPosition(id, position)
+    }
 
     // Every artist is given its own position, so artists that were never ordered stop being ties.
     private suspend fun move(artistId: String, delta: Int) {
@@ -42,7 +68,7 @@ class FavouritesViewModel(private val artistDao: ArtistDao) {
         val moved = Reorder.swapped(current.map { it.id }, artistId, delta) ?: return
         val positions = current.associate { it.id to it.position }
         moved.forEachIndexed { index, id ->
-            if (positions[id] != index) artistDao.setPosition(id, index)
+            if (positions[id] != index) writePosition(id, index)
         }
     }
 }

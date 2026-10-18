@@ -70,6 +70,10 @@ fun DiscographyRoute(
     onRemoveFavourite: suspend (artistId: String) -> Unit = {},
     onOpenAlbum: (albumId: String, title: String) -> Unit = { _, _ -> },
     onOpenArtists: (() -> Unit)? = null,
+    /** Opens the page for joining the artist with others into a group. Without it the header has no such button. */
+    onJoinArtists: (() -> Unit)? = null,
+    /** The artist is already in a group, so the button says Edit group. */
+    inGroup: Boolean = false,
     settings: Settings = Settings.ShowEverything,
     /** Owned first was on the last time this artist was open. */
     startWithGrouping: Grouping = Grouping.None,
@@ -170,6 +174,8 @@ fun DiscographyRoute(
         DiscographyHeader(
             artistName = artistName,
             onOpenArtists = onOpenArtists,
+            onJoinArtists = onJoinArtists,
+            inGroup = inGroup,
             artistId = artistId,
             loadArtistImage = loadArtistImage,
             photoVersion = photoVersion,

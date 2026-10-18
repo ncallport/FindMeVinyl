@@ -44,7 +44,11 @@ fun DiscographyHeader(
     artistId: String? = null,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     photoVersion: Int = 0,
-    onChoosePhoto: (() -> Unit)? = null
+    onChoosePhoto: (() -> Unit)? = null,
+    /** Opens the page for joining this artist with others into a group. Without it there is no button. */
+    onJoinArtists: (() -> Unit)? = null,
+    /** The artist is already in a group, so the button edits that group. */
+    inGroup: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -78,6 +82,14 @@ fun DiscographyHeader(
                     modifier = Modifier.testTag("favourite_toggle")
                 ) {
                     Text(if (isFavourite) "Saved" else "Save")
+                }
+            }
+            if (onJoinArtists != null) {
+                OutlinedButton(
+                    onClick = onJoinArtists,
+                    modifier = Modifier.padding(top = 4.dp).testTag("join_artists_button")
+                ) {
+                    Text(if (inGroup) "Edit group" else "Join with another artist")
                 }
             }
         }

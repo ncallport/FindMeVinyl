@@ -243,4 +243,53 @@ class DiscographyHeaderTest {
         assertEquals(false, toggled)
         assertEquals(false, opened)
     }
+
+    // Joining artists into a group.
+
+    @Test
+    fun `has no join button unless it is given somewhere to go`() {
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {})
+        }
+
+        composeTestRule.onNodeWithTag("join_artists_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun `offers to join with another artist, and tapping it says so`() {
+        var joined = 0
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {}, onJoinArtists = { joined++ })
+        }
+
+        composeTestRule.onNodeWithTag("join_artists_button").assertTextEquals("Join with another artist")
+        composeTestRule.onNodeWithTag("join_artists_button").performClick()
+
+        assertEquals(1, joined)
+    }
+
+    @Test
+    fun `for an artist already in a group the button edits the group`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {}, onJoinArtists = {}, inGroup = true
+            )
+        }
+
+        composeTestRule.onNodeWithTag("join_artists_button").assertTextEquals("Edit group")
+    }
+
+    @Test
+    fun `the join button is on its own line below the others`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {}, onOpenArtists = {}, onJoinArtists = {}
+            )
+        }
+
+        val save = composeTestRule.onNodeWithTag("favourite_toggle").fetchSemanticsNode().positionInRoot.y
+        val join = composeTestRule.onNodeWithTag("join_artists_button").fetchSemanticsNode().positionInRoot.y
+        assertTrue(join > save)
+    }
 }
+

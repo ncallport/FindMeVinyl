@@ -191,4 +191,23 @@ class ScreenSaverTest {
         assertEquals(Screen.AddShop(null, shop), roundTrip(Screen.AddShop(null, shop)))
         assertEquals(Screen.FavouriteShops, Screen.AddShop(null, shop).backTarget())
     }
+
+    @Test
+    fun theJoinPageKeepsTheArtistAndWhereItWasOpenedFrom() {
+        val screen = Screen.JoinArtists("cave", "Nick Cave", Screen.Discography("cave", "Nick Cave", Screen.Search))
+        assertEquals(screen, roundTrip(screen))
+    }
+
+    @Test
+    fun aNameWithAnyCharactersSurvivesOnTheJoinPage() {
+        val screen = Screen.JoinArtists("x", "AC/DC | Sigur Rós, \"live\"", Screen.Search)
+        assertEquals(screen, roundTrip(screen))
+    }
+
+    @Test
+    fun backFromTheJoinPageGoesToTheDiscographyItWasOpenedFrom() {
+        val discography = Screen.Discography("cave", "Nick Cave", Screen.Search)
+        assertEquals(discography, Screen.JoinArtists("cave", "Nick Cave", discography).backTarget())
+    }
 }
+

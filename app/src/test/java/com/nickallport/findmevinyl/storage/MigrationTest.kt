@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
             .allowMainThreadQueries()
             .build()
 
@@ -837,6 +837,29 @@ class MigrationTest {
         val foxtrot = database.albumDao().getById("1")!!
         assertEquals("release-9", foxtrot.myPressingId)
         assertEquals("1972, Portugal, Charisma", foxtrot.myPressingText)
+        database.close()
+    }
+
+    @Test
+    fun `a version 10 database gets the group tables and keeps its artists`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        assertEquals(listOf("Genesis"), database.artistDao().getAllFavourites().map { it.name })
+        assertEquals(emptyList<ArtistGroupEntity>(), database.artistGroupDao().getGroups())
+        assertEquals(emptyList<ArtistGroupMemberEntity>(), database.artistGroupDao().getAllMembers())
+        database.close()
+    }
+
+    @Test
+    fun `an upgraded database can keep a group of artists`() = runBlocking {
+        createVersion10Database()
+        val database = openMigrated()
+
+        database.artistGroupDao().insertGroup(ArtistGroupEntity("group/1", "Genesis and Gabriel", 0))
+        database.artistGroupDao().insertMembers(listOf(ArtistGroupMemberEntity("artist-1", "group/1", "Genesis", 0)))
+
+        assertEquals("group/1", database.artistGroupDao().groupIdOf("artist-1"))
         database.close()
     }
 }

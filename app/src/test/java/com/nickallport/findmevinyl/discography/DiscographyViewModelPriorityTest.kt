@@ -78,7 +78,7 @@ class DiscographyViewModelPriorityTest {
 
         viewModel.saveFavourite("x", "Roxy Music")
 
-        val names = FavouritesViewModel(database.artistDao()).loadFavourites().map { it.name }
+        val names = FavouritesViewModel(database.artistDao(), database.artistGroupDao()).loadFavourites().map { it.name }
         assertEquals(listOf("Roxy Music", "Ramones", "Genesis"), names)
     }
 
@@ -89,7 +89,7 @@ class DiscographyViewModelPriorityTest {
 
         viewModel.saveFavourite("x", "Roxy Music")
 
-        val names = FavouritesViewModel(database.artistDao()).loadFavourites().map { it.name }
+        val names = FavouritesViewModel(database.artistDao(), database.artistGroupDao()).loadFavourites().map { it.name }
         assertEquals(listOf("Roxy Music", "Abba", "Zed"), names)
     }
 
@@ -97,7 +97,7 @@ class DiscographyViewModelPriorityTest {
     fun `a new favourite is first after the others were moved, which rewrites their positions`() = runBlocking {
         viewModel.saveFavourite("g", "Genesis")
         viewModel.saveFavourite("r", "Ramones")
-        val favourites = FavouritesViewModel(database.artistDao())
+        val favourites = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
         favourites.moveDown("r")
 
         viewModel.saveFavourite("x", "Roxy Music")

@@ -19,6 +19,12 @@ internal sealed class Screen {
         val artistName: String,
         val backTo: Screen
     ) : Screen()
+    /** Joining the artist with others into a group, or changing the group it is in. [backTo] is its discography. */
+    data class JoinArtists(
+        val artistId: String,
+        val artistName: String,
+        val backTo: Screen
+    ) : Screen()
     /** One shop, with the region it was found in, for its public holidays and the layout of its address. */
     data class ShopDetail(
         val shop: com.nickallport.findmevinyl.shops.Shop,
@@ -53,6 +59,7 @@ internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Home -> null
     is Screen.Discography -> backTo
     is Screen.AlbumDetail -> backTo
+    is Screen.JoinArtists -> backTo
     is Screen.ShopDetail -> backTo
     is Screen.FavouriteShops -> Screen.Shops
     is Screen.AddShop -> Screen.FavouriteShops
@@ -79,6 +86,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
             listOf("discography", value.artistId, value.artistName) + save(value.backTo)
         is Screen.AlbumDetail ->
             listOf("album", value.albumId, value.title, value.artistId, value.artistName) + save(value.backTo)
+        is Screen.JoinArtists -> listOf("join", value.artistId, value.artistName) + save(value.backTo)
     }
 
     override fun restore(value: List<String>): Screen? = when (value.firstOrNull()) {
@@ -107,6 +115,9 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         }
         "album" -> restore(value.drop(5))?.let {
             Screen.AlbumDetail(value[1], value[2], value[3], value[4], it)
+        }
+        "join" -> restore(value.drop(3))?.let {
+            Screen.JoinArtists(value[1], value[2], it)
         }
         else -> null
     }
