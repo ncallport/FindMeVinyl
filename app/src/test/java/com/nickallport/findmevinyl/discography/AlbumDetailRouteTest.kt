@@ -101,7 +101,7 @@ class AlbumDetailRouteTest {
 
         assertEquals("1" to false, told)
         composeTestRule.onNodeWithTag("detail_owned_toggle").assertTextEquals("Owned")
-        composeTestRule.onNodeWithTag("detail_want_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_want_toggle").assertTextEquals("+ Want")
     }
 
     @Test

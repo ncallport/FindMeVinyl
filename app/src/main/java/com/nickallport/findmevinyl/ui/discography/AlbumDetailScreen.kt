@@ -114,9 +114,10 @@ fun AlbumDetailScreen(
                     OutlinedButton(onClick = onToggleOwned, modifier = Modifier.testTag("detail_owned_toggle")) {
                         Text("Mark as owned")
                     }
-                    OutlinedButton(onClick = onToggleWanted, modifier = Modifier.testTag("detail_want_toggle")) {
-                        Text(if (album.wanted) "Wanted" else "+ Want")
-                    }
+                }
+                // An owned album can be wanted too, such as a worn copy to replace.
+                OutlinedButton(onClick = onToggleWanted, modifier = Modifier.testTag("detail_want_toggle")) {
+                    Text(if (album.wanted) "Wanted" else "+ Want")
                 }
             }
             if (album.owned) {

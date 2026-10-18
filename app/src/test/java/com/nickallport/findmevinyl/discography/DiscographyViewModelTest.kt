@@ -622,14 +622,14 @@ class DiscographyViewModelTest {
     }
 
     @Test
-    fun `marking a wanted album as owned clears its want`() = runBlocking {
+    fun `marking a wanted album as owned keeps its want`() = runBlocking {
         database.albumDao().insert(album("1", wanted = true))
 
         viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis")
 
         val saved = database.albumDao().getAlbumsForArtist("some-id")[0]
         assertTrue(saved.owned)
-        assertEquals(false, saved.wanted)
+        assertTrue(saved.wanted)
     }
 
     @Test
@@ -640,8 +640,20 @@ class DiscographyViewModelTest {
         viewModel.toggleOwned("1", currentlyOwned = false, artistId = "some-id", artistName = "Genesis")
 
         val albums = database.albumDao().getAlbumsForArtist("some-id").sortedBy { it.id }
-        assertEquals(false, albums[0].wanted)
+        assertTrue(albums[0].wanted)
         assertTrue(albums[1].wanted)
+
+    }
+
+    @Test
+    fun `an owned album can be wanted, and wanting it keeps it owned`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+
+        viewModel.toggleWanted("1", currentlyWanted = false, artistId = "some-id", artistName = "Genesis")
+
+        val saved = database.albumDao().getAlbumsForArtist("some-id")[0]
+        assertTrue(saved.owned)
+        assertTrue(saved.wanted)
     }
 
     @Test

@@ -150,3 +150,13 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         db.execSQL("ALTER TABLE `artist_groups` ADD COLUMN `autoGenre` TEXT")
     }
 }
+
+/**
+ * An album can now be owned and wanted at once. Until now an owned album was never wanted, and older rows with both
+ * flags were left off the want list, so their want is cleared: only wants the user makes from now on show up.
+ */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("UPDATE `albums` SET `wanted` = 0 WHERE `owned` = 1 AND `wanted` = 1")
+    }
+}

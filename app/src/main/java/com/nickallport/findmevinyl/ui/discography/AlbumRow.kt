@@ -105,12 +105,13 @@ fun AlbumRow(
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats
                 )
-                // An owned album is never wanted. Rows saved before that rule can have both flags.
-                if (album.wanted && !album.owned) {
+                // An album can be both: a copy you own and want another of. It keeps the owned colour.
+                if (album.wanted) {
                     Text(
                         text = "Wanted",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = if (album.owned) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.testTag("album_wanted_label")
                     )
                 }
             }
@@ -132,16 +133,16 @@ fun AlbumRow(
                         content = if (album.wanted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer,
                         onClick = onToggleOwned
                     )
-                    // Once it is wanted there is nothing more to want. It comes off the list on the Wants page.
-                    if (!album.wanted) {
-                        Pill(
-                            text = "+ Want",
-                            tag = "wanted_toggle",
-                            container = MaterialTheme.colorScheme.secondaryContainer,
-                            content = MaterialTheme.colorScheme.onSecondaryContainer,
-                            onClick = onToggleWanted
-                        )
-                    }
+                }
+                // Once it is wanted there is nothing more to want. It comes off the list on the Wants page.
+                if (!album.wanted) {
+                    Pill(
+                        text = "+ Want",
+                        tag = "wanted_toggle",
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        onClick = onToggleWanted
+                    )
                 }
             }
         }
