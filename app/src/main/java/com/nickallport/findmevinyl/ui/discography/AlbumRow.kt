@@ -49,7 +49,10 @@ data class AlbumUiModel(
     /** The format the album is wanted on (a label such as LP), or null for any. */
     val wantFormat: String? = null,
     /** The copies the user owns, each with its format and a note, in the order they were listed. */
-    val copies: List<AlbumCopy> = emptyList()
+    val copies: List<AlbumCopy> = emptyList(),
+    /** For an album added by hand: the description and the tracklist the user typed. */
+    val description: String? = null,
+    val tracks: List<String> = emptyList()
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.

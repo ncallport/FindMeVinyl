@@ -1165,4 +1165,48 @@ class BackupViewModelTest {
         assertNull(fresh.albumDao().getById("mb-1")!!.formats)
         fresh.close()
     }
+
+    @Test
+    fun `the description and the tracks of an album added by hand come back`() = runBlocking {
+        database.albumDao().insert(
+            custom().copy(userDescription = "BBC Radio 1, 1983", userTracks = """["Harvest Home","Fields of Fire"]""")
+        )
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("custom/1")!!
+        assertEquals("BBC Radio 1, 1983", restored.userDescription)
+        assertEquals(listOf("Harvest Home", "Fields of Fire"), com.nickallport.findmevinyl.discography.UserTracks.decode(restored.userTracks))
+        fresh.close()
+    }
+
+    @Test
+    fun `a long description and too many tracks in a file are cut when restoring, and blank tracks dropped`() = runBlocking {
+        val tracks = (1..150).joinToString(",") { "\"Track $it\"" }
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"custom/a","artistId":"artist-1","title":"A","category":"LIVE_ALBUM","owned":true,"description":"${"x".repeat(900)}","tracks":["", "One", $tracks]}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("custom/a")!!
+        assertEquals(500, restored.userDescription!!.length)
+        val kept = com.nickallport.findmevinyl.discography.UserTracks.decode(restored.userTracks)
+        assertEquals(100, kept.size)
+        assertEquals("One", kept.first())
+        fresh.close()
+    }
+
+    @Test
+    fun `a description or tracks in a file are ignored for an album from MusicBrainz`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"mb-1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"description":"x","tracks":["One"]}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("mb-1")!!.userDescription)
+        assertNull(fresh.albumDao().getById("mb-1")!!.userTracks)
+        fresh.close()
+    }
 }

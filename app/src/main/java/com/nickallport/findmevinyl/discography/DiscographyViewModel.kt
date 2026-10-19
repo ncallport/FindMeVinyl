@@ -279,7 +279,9 @@ class DiscographyViewModel(
         myPressingId = album.myPressingId,
         myPressingText = album.myPressingText,
         wantFormat = album.wantFormat,
-        copies = copies.map { AlbumCopy(it.format, it.note) }
+        copies = copies.map { AlbumCopy(it.format, it.note) },
+        description = album.userDescription,
+        tracks = UserTracks.decode(album.userTracks)
     )
 
     /**
@@ -454,7 +456,8 @@ class DiscographyViewModel(
         albumDao.insert(
             AlbumEntity(
                 id = id, artistId = owner, title = clean.first, category = draft.category.name, firstReleaseDate = clean.second,
-                owned = true, wanted = false, formats = "", statuses = statusOf(draft)
+                owned = true, wanted = false, formats = "", statuses = statusOf(draft),
+                userDescription = UserTracks.cleanDescription(draft.description), userTracks = UserTracks.encode(draft.tracks)
             )
         )
         saveFavourite(artistId, artistName)
@@ -469,7 +472,9 @@ class DiscographyViewModel(
             title = album.title,
             year = album.firstReleaseDate.orEmpty(),
             category = categoryFrom(album.category),
-            bootleg = album.statuses == ReleaseStatuses.BOOTLEG
+            bootleg = album.statuses == ReleaseStatuses.BOOTLEG,
+            description = album.userDescription.orEmpty(),
+            tracks = UserTracks.decode(album.userTracks)
         )
     }
 
@@ -477,7 +482,10 @@ class DiscographyViewModel(
     suspend fun updateAlbum(albumId: String, draft: AlbumDraft): Boolean {
         if (!CustomAlbums.isCustom(albumId)) return false
         val clean = draft.cleaned() ?: return false
-        return albumDao.updateCustomAlbum(albumId, clean.first, clean.second, draft.category.name, statusOf(draft)) > 0
+        return albumDao.updateCustomAlbum(
+            albumId, clean.first, clean.second, draft.category.name, statusOf(draft),
+            UserTracks.cleanDescription(draft.description), UserTracks.encode(draft.tracks)
+        ) > 0
     }
 
     /** Takes an album added by hand away, with its copies. False when it is not one or is not there. */

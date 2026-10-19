@@ -15,4 +15,15 @@ object Reorder {
             it[to] = id
         }
     }
+
+    /** [items] with the one at [index] swapped with its neighbour ([delta] -1 is up, 1 is down), or null at an end. */
+    fun <T> swappedAt(items: List<T>, index: Int, delta: Int): List<T>? {
+        val to = index + delta
+        if (index !in items.indices || to !in items.indices) return null
+        return items.toMutableList().also {
+            val moved = it[index]
+            it[index] = it[to]
+            it[to] = moved
+        }
+    }
 }

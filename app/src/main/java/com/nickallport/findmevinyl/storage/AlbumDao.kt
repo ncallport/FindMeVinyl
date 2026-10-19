@@ -32,8 +32,11 @@ interface AlbumDao {
     suspend fun setChecked(albumId: String, formats: String, statuses: String, checkedAt: Long): Int
 
     /** Changes an album added by hand. An album from MusicBrainz is never changed this way. */
-    @Query("UPDATE albums SET title = :title, firstReleaseDate = :date, category = :category, statuses = :statuses WHERE id = :albumId AND id LIKE 'custom/%'")
-    suspend fun updateCustomAlbum(albumId: String, title: String, date: String?, category: String, statuses: String): Int
+    @Query("UPDATE albums SET title = :title, firstReleaseDate = :date, category = :category, statuses = :statuses, userDescription = :description, userTracks = :tracks WHERE id = :albumId AND id LIKE 'custom/%'")
+    suspend fun updateCustomAlbum(
+        albumId: String, title: String, date: String?, category: String, statuses: String,
+        description: String?, tracks: String?
+    ): Int
 
     /** Removes an album added by hand. An album from MusicBrainz is never removed this way. */
     @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")

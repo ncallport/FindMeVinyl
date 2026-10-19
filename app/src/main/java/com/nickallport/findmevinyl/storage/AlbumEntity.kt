@@ -48,5 +48,9 @@ data class AlbumEntity(
     val wantFormat: String? = null,
     /** The user's note for each format of their copy, as JSON with the label as the key (see `FormatNotes`). Null: none. */
     @Deprecated("Copied into album_copies by MIGRATION_19_20, no longer read or written.")
-    val userFormatNotes: String? = null
+    val userFormatNotes: String? = null,
+    /** A description the user typed for an album they added by hand. Null: none. */
+    val userDescription: String? = null,
+    /** The tracklist the user typed for an album added by hand, as a JSON list of titles (see `UserTracks`). Null: none. */
+    val userTracks: String? = null
 )
