@@ -396,4 +396,20 @@ class DiscographyVisibilityTest {
         assertEquals(listOf("7\""), shown.userFormats)
         assertEquals(listOf("LP"), shown.formats)
     }
+
+    @Test
+    fun `a bootleg you own or want stays shown when bootlegs are hidden, and one you do not is hidden`() {
+        val input = grouped(
+            studio to listOf(
+                withStatuses("owned", listOf("Bootleg"), owned = true),
+                withStatuses("wanted", listOf("Bootleg"), wanted = true),
+                withStatuses("neither", listOf("Bootleg"))
+            )
+        )
+
+        val result = DiscographyVisibility.apply(input, Settings.ShowEverything.copy(hideBootlegs = true))
+
+        assertEquals(listOf("owned", "wanted"), ids(result, studio))
+        assertEquals(1, result.hiddenCount)
+    }
 }

@@ -341,7 +341,7 @@ class AlbumRowTest {
     // The copies the user owns, one to a line.
 
     @Test
-    fun `each copy is on its own line, as format, a colon and the description`() {
+    fun `each copy is on its own line, as Owned on, the format, a colon and the description`() {
         composeTestRule.setContent {
             AlbumRow(
                 album = AlbumUiModel(
@@ -352,9 +352,9 @@ class AlbumRowTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("album_copy_0", useUnmergedTree = true).assertTextEquals("LP: Green cover")
-        composeTestRule.onNodeWithTag("album_copy_1", useUnmergedTree = true).assertTextEquals("LP: Blue cover, torn spine")
-        composeTestRule.onNodeWithTag("album_copy_2", useUnmergedTree = true).assertTextEquals("CD")
+        composeTestRule.onNodeWithTag("album_copy_0", useUnmergedTree = true).assertTextEquals("Owned on LP: Green cover")
+        composeTestRule.onNodeWithTag("album_copy_1", useUnmergedTree = true).assertTextEquals("Owned on LP: Blue cover, torn spine")
+        composeTestRule.onNodeWithTag("album_copy_2", useUnmergedTree = true).assertTextEquals("Owned on CD")
     }
 
     @Test
@@ -383,5 +383,57 @@ class AlbumRowTest {
         val wanted = composeTestRule.onNodeWithTag("album_wanted_label", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
         assertTrue(formats < copy)
         assertTrue(copy < wanted)
+    }
+
+    // A bootleg is flagged under the formats.
+
+    private fun row(album: AlbumUiModel) = composeTestRule.setContent { AlbumRow(album = album, onToggleOwned = {}) }
+
+    private fun bootlegLabel() = composeTestRule.onNodeWithTag("album_bootleg", useUnmergedTree = true)
+
+    @Test
+    fun `an album whose releases are all bootlegs says Bootleg`() {
+        row(AlbumUiModel(id = "1", title = "Live in a Pub", owned = false, wanted = false, statuses = listOf("Bootleg")))
+
+        bootlegLabel().assertTextEquals("Bootleg")
+    }
+
+    @Test
+    fun `an album with a bootleg and a promo but no official release is still a bootleg`() {
+        row(AlbumUiModel(id = "1", title = "Live in a Pub", owned = false, wanted = false, statuses = listOf("Bootleg", "Promotion")))
+
+        bootlegLabel().assertTextEquals("Bootleg")
+    }
+
+    @Test
+    fun `an album with an official release is not flagged, nor one with no bootleg, nor one not looked up`() {
+        row(AlbumUiModel(id = "1", title = "A", owned = false, wanted = false, statuses = listOf("Bootleg", "Official")))
+        bootlegLabel().assertDoesNotExist()
+    }
+
+    @Test
+    fun `an album with no bootleg release is not flagged`() {
+        row(AlbumUiModel(id = "1", title = "A", owned = false, wanted = false, statuses = listOf("Promotion")))
+        bootlegLabel().assertDoesNotExist()
+    }
+
+    @Test
+    fun `an album whose statuses are not known, or none are listed, is not flagged`() {
+        row(AlbumUiModel(id = "1", title = "A", owned = false, wanted = false, statuses = null))
+        bootlegLabel().assertDoesNotExist()
+    }
+
+    @Test
+    fun `the bootleg flag is under the formats and above the copies`() {
+        row(
+            AlbumUiModel(
+                id = "1", title = "Live in a Pub", owned = true, wanted = false, formats = listOf("LP"),
+                statuses = listOf("Bootleg"), copies = listOf(AlbumCopy("LP", "Green vinyl"))
+            )
+        )
+
+        fun top(tag: String) = composeTestRule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
+        assertTrue(top("format_labels") < top("album_bootleg"))
+        assertTrue(top("album_bootleg") < top("album_copy_0"))
     }
 }
