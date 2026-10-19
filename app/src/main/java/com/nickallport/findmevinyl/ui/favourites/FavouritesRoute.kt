@@ -27,6 +27,7 @@ fun FavouritesRoute(
     grid: Boolean = false,
     onReorder: suspend (List<String>) -> Unit = {},
     groupByGenre: Boolean = false,
+    sortAz: Boolean = false,
     /** Changes when the favourites should be read again, such as after a genre was found for one. */
     reloadKey: Int = 0
 ) {
@@ -48,6 +49,7 @@ fun FavouritesRoute(
             loadArtistImage = loadArtistImage,
             grid = grid,
             groupByGenre = groupByGenre,
+            sortAz = sortAz,
             // After a move the list is read again, so it shows what is stored.
             onMoveUp = { id -> coroutineScope.launch { onMoveUp(id); artists = load() } },
             onMoveDown = { id -> coroutineScope.launch { onMoveDown(id); artists = load() } },
