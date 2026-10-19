@@ -105,13 +105,13 @@ class DiscographyViewModelStatusesTest {
     }
 
     @Test
-    fun `an album the releases do not mention keeps no statuses`() = runBlocking {
+    fun `an album the releases do not mention is saved with no statuses listed, and so stays shown`() = runBlocking {
         album("a"); album("z")
         enqueue(page(1, release("a", "Official")))
 
         viewModel().checkAllFormats("artist")
 
-        assertNull(stored("z").statuses)
+        assertEquals("", stored("z").statuses)
     }
 
     @Test

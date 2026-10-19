@@ -149,14 +149,49 @@ class DiscographyViewModelBulkFormatsTest {
     }
 
     @Test
-    fun `an album that none of the releases belong to is left unchecked`() = runBlocking {
+    fun `an album that none of the releases belong to is saved as checked with nothing found, so the check is not asked for again`() = runBlocking {
         album("a"); album("unseen")
         enqueue(page(1, release("a", "CD")))
 
         viewModel().checkAllFormats("artist")
 
-        assertNull(stored("unseen").formats)
-        assertNull(stored("unseen").formatsCheckedAt)
+        assertEquals("", stored("unseen").formats)
+        assertEquals("", stored("unseen").statuses)
+        assertEquals(now, stored("unseen").formatsCheckedAt)
+        val saved = viewModel().loadSaved("artist").groupedAlbums.values.flatten().single { it.id == "unseen" }
+        assertEquals(emptyList<String>(), saved.formats)
+        assertEquals(emptyList<String>(), saved.statuses)
+        assertEquals(false, saved.formatsStale)
+    }
+
+    @Test
+    fun `an album the releases do not cover keeps the formats and statuses an earlier lookup found, and only gets a new date`() = runBlocking {
+        album("a")
+        database.albumDao().insert(
+            AlbumEntity(
+                "old", "artist", "Old", "STUDIO_ALBUM", null, owned = false, wanted = false,
+                formats = "CD", formatsCheckedAt = 1L, statuses = "Official"
+            )
+        )
+        enqueue(page(1, release("a", "CD")))
+
+        viewModel().checkAllFormats("artist")
+
+        assertEquals("CD", stored("old").formats)
+        assertEquals("Official", stored("old").statuses)
+        assertEquals(now, stored("old").formatsCheckedAt)
+    }
+
+    @Test
+    fun `an album the releases do not cover keeps what a lookup found for formats, and gets no statuses made up`() = runBlocking {
+        album("a")
+        album("looked-up", formats = "CD", checkedAt = now)
+        enqueue(page(1, release("a", "CD")))
+
+        viewModel().checkAllFormats("artist")
+
+        assertEquals("CD", stored("looked-up").formats)
+        assertEquals("", stored("looked-up").statuses)
     }
 
     @Test
