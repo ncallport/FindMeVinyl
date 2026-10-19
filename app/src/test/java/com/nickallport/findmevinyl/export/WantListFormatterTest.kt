@@ -6,7 +6,7 @@ import org.junit.Test
 class WantListFormatterTest {
 
     @Test
-    fun `formats a want list grouped by artist, with a header`() {
+    fun `formats a want list as one numbered line for each album, in the order given, with a header`() {
         val items = listOf(
             WantedAlbumExportItem("Genesis", "Foxtrot"),
             WantedAlbumExportItem("Pink Floyd", "Animals"),
@@ -18,12 +18,9 @@ class WantListFormatterTest {
         val expected = """
             My vinyl want list:
 
-            Genesis
-            - Foxtrot
-            - Selling England by the Pound
-
-            Pink Floyd
-            - Animals
+            1. Genesis - Foxtrot
+            2. Pink Floyd - Animals
+            3. Genesis - Selling England by the Pound
         """.trimIndent()
 
         assertEquals(expected, result)
@@ -52,7 +49,7 @@ class WantListFormatterTest {
         )
 
         assertEquals(
-            "It's my birthday soon, here are some ideas.\n\nMy vinyl want list:\n\nGenesis\n- Foxtrot",
+            "It's my birthday soon, here are some ideas.\n\nMy vinyl want list:\n\n1. Genesis - Foxtrot",
             result
         )
     }
@@ -61,8 +58,8 @@ class WantListFormatterTest {
     fun `a message is trimmed, and a blank one is left out`() {
         val items = listOf(WantedAlbumExportItem("Genesis", "Foxtrot"))
 
-        assertEquals("Hello\n\nMy vinyl want list:\n\nGenesis\n- Foxtrot", WantListFormatter.format(items, intro = "  Hello  \n"))
-        assertEquals("My vinyl want list:\n\nGenesis\n- Foxtrot", WantListFormatter.format(items, intro = "   \n "))
+        assertEquals("Hello\n\nMy vinyl want list:\n\n1. Genesis - Foxtrot", WantListFormatter.format(items, intro = "  Hello  \n"))
+        assertEquals("My vinyl want list:\n\n1. Genesis - Foxtrot", WantListFormatter.format(items, intro = "   \n "))
     }
 
     @Test
@@ -77,16 +74,16 @@ class WantListFormatterTest {
         val result = WantListFormatter.format(five, limit = 3)
 
         assertEquals(
-            "My vinyl want list (top 3 of 5):\n\nGenesis\n- Foxtrot\n- Trespass\n\nPink Floyd\n- Animals",
+            "My vinyl want list (top 3 of 5):\n\n1. Genesis - Foxtrot\n2. Genesis - Trespass\n3. Pink Floyd - Animals",
             result
         )
     }
 
     @Test
-    fun `a limit can stop in the middle of an artist`() {
+    fun `a limit of one takes just the first`() {
         val result = WantListFormatter.format(five, limit = 1)
 
-        assertEquals("My vinyl want list (top 1 of 5):\n\nGenesis\n- Foxtrot", result)
+        assertEquals("My vinyl want list (top 1 of 5):\n\n1. Genesis - Foxtrot", result)
     }
 
     @Test
@@ -106,16 +103,20 @@ class WantListFormatterTest {
     fun `a message and a limit go together`() {
         val result = WantListFormatter.format(five, intro = "Ideas:", limit = 2)
 
-        assertEquals("Ideas:\n\nMy vinyl want list (top 2 of 5):\n\nGenesis\n- Foxtrot\n- Trespass", result)
+        assertEquals("Ideas:\n\nMy vinyl want list (top 2 of 5):\n\n1. Genesis - Foxtrot\n2. Genesis - Trespass", result)
     }
 
     @Test
     fun `an album wanted on a format says so after its title`() {
         val items = listOf(
             WantedAlbumExportItem("Bob Dylan", "Desire", wantFormat = "LP"),
+            WantedAlbumExportItem("Big Country", "The Crossing", wantFormat = "CD"),
             WantedAlbumExportItem("Bob Dylan", "Infidels")
         )
 
-        assertEquals("My vinyl want list:\n\nBob Dylan\n- Desire (on LP)\n- Infidels", WantListFormatter.format(items))
+        assertEquals(
+            "My vinyl want list:\n\n1. Bob Dylan - Desire (on LP)\n2. Big Country - The Crossing (on CD)\n3. Bob Dylan - Infidels",
+            WantListFormatter.format(items)
+        )
     }
 }

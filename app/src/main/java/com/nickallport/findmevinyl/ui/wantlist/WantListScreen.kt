@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.text.KeyboardOptions
@@ -82,8 +82,6 @@ fun WantListScreen(
         return
     }
 
-    val byArtist = wanted.groupBy { it.artistName }.toList()
-
     Column(modifier = modifier) {
         FilledTonalButton(
             onClick = { showShareOptions = true },
@@ -95,54 +93,50 @@ fun WantListScreen(
         }
 
         LazyColumn(modifier = Modifier.weight(1f)) {
-            // One card for each artist, with their wanted albums inside it.
-            items(byArtist, key = { it.first }) { (artistName, albums) ->
+            // One card for each want, in the user's own order: the artist and the album, the format if one is wanted,
+            // and the buttons to move it and to remove it.
+            itemsIndexed(wanted, key = { _, album -> album.albumId }) { index, album ->
                 ListCard {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = artistName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        albums.forEachIndexed { index, album ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = album.albumTitle, style = MaterialTheme.typography.bodyLarge)
-                                    album.wantFormat?.let {
-                                        Text(
-                                            text = "on $it",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.testTag("want_format_${album.albumId}")
-                                        )
-                                    }
-                                }
-                                // An artist with one album has nothing to move it past.
-                                if (albums.size > 1) {
-                                    MoveButtons(
-                                        name = album.albumTitle,
-                                        upTag = "want_up_${album.albumId}",
-                                        downTag = "want_down_${album.albumId}",
-                                        canMoveUp = index > 0,
-                                        canMoveDown = index < albums.lastIndex,
-                                        onMoveUp = { onMoveUp(album.albumId) },
-                                        onMoveDown = { onMoveDown(album.albumId) }
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { pendingRemoval = album },
-                                    modifier = Modifier.testTag("want_remove_${album.albumId}").size(40.dp)
-                                ) {
-                                    Icon(
-                                        Glyphs.Delete,
-                                        contentDescription = "Remove ${album.albumTitle} from wants",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${album.artistName} - ${album.albumTitle}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.testTag("want_title_${album.albumId}")
+                            )
+                            album.wantFormat?.let {
+                                Text(
+                                    text = "on $it",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.testTag("want_format_${album.albumId}")
+                                )
                             }
+                        }
+                        // With one want there is nothing to move it past.
+                        if (wanted.size > 1) {
+                            MoveButtons(
+                                name = album.albumTitle,
+                                upTag = "want_up_${album.albumId}",
+                                downTag = "want_down_${album.albumId}",
+                                canMoveUp = index > 0,
+                                canMoveDown = index < wanted.lastIndex,
+                                onMoveUp = { onMoveUp(album.albumId) },
+                                onMoveDown = { onMoveDown(album.albumId) }
+                            )
+                        }
+                        IconButton(
+                            onClick = { pendingRemoval = album },
+                            modifier = Modifier.testTag("want_remove_${album.albumId}").size(40.dp)
+                        ) {
+                            Icon(
+                                Glyphs.Delete,
+                                contentDescription = "Remove ${album.albumTitle} from wants",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

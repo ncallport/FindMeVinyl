@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.storage
 
+import com.nickallport.findmevinyl.discography.ReleaseDates
 import com.nickallport.findmevinyl.discography.FormatNotes
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import androidx.room.migration.Migration
@@ -222,5 +223,50 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
             )
         }
         db.execSQL("UPDATE `albums` SET `userNote` = NULL")
+    }
+}
+
+private class WantMigrationRow(
+    val id: String, val artistId: String, val artistName: String, val artistPosition: Int,
+    val wantPosition: Int, val date: String?, val title: String
+)
+
+/**
+ * The want list is one list in the user's own order, not a list for each artist. Until now `wantPosition` was the place
+ * among the wanted albums of the same artist, and the artists came in the order of the favourites. Every wanted album
+ * is given its place in the whole list, in the order the user saw: artists as ordered in the favourites (a group in its
+ * own place), then each artist's albums as ordered, with the old ways of settling a tie.
+ */
+val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val rows = db.query(
+            """
+            SELECT albums.id, COALESCE(artist_groups.id, albums.artistId),
+                   COALESCE(artist_groups.name, favourite_artists.name, ''),
+                   COALESCE(artist_groups.position, favourite_artists.position, 2147483647),
+                   albums.wantPosition, albums.firstReleaseDate, albums.title
+            FROM albums
+            LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
+            LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId
+            LEFT JOIN favourite_artists ON albums.artistId = favourite_artists.id
+            WHERE albums.wanted = 1
+            """.trimIndent()
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    add(WantMigrationRow(c.getString(0), c.getString(1), c.getString(2), c.getInt(3), c.getInt(4), c.getString(5), c.getString(6)))
+                }
+            }
+        }
+        rows.sortedWith(
+            compareBy<WantMigrationRow> { it.artistPosition }
+                .thenBy { it.artistName.lowercase() }
+                .thenBy { it.artistId }
+                .thenBy { it.wantPosition }
+                .thenBy(nullsLast<String>()) { ReleaseDates.sortKey(it.date) }
+                .thenBy { it.title }
+        ).forEachIndexed { place, row ->
+            db.execSQL("UPDATE `albums` SET `wantPosition` = ? WHERE `id` = ?", arrayOf<Any?>(place, row.id))
+        }
     }
 }

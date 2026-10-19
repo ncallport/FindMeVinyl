@@ -148,9 +148,8 @@ class WantListGroupsTest {
 
         val text = viewModel.exportText(ShareOptions())
 
-        assertTrue(text.contains("Nick Cave, all of it"))
-        assertTrue(text.contains("From Her to Eternity"))
-        assertTrue(text.contains("Henry's Dream"))
-        assertEquals(1, Regex("Nick Cave, all of it").findAll(text).count())
+        assertTrue(text.contains("1. Nick Cave, all of it - From Her to Eternity"))
+        assertTrue(text.contains("2. Nick Cave, all of it - Henry's Dream"))
+        assertEquals(2, Regex("Nick Cave, all of it").findAll(text).count())
     }
 }

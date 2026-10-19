@@ -34,24 +34,23 @@ class WantListScreenTest {
     )
 
     @Test
-    fun `shows each artist and their wanted albums`() {
+    fun `each want is a block with the artist and the album, whoever it is by`() {
         composeTestRule.setContent {
             WantListScreen(wanted = sample, onShare = {})
         }
 
-        composeTestRule.onNodeWithText("ABC").assertExists()
-        composeTestRule.onNodeWithText("Lexicon of Love").assertExists()
-        composeTestRule.onNodeWithText("Avalon").assertExists()
-        composeTestRule.onNodeWithText("Siren").assertExists()
+        composeTestRule.onNodeWithTag("want_title_1").assertTextEquals("ABC - Lexicon of Love")
+        composeTestRule.onNodeWithTag("want_title_2").assertTextEquals("Roxy Music - Avalon")
+        composeTestRule.onNodeWithTag("want_title_3").assertTextEquals("Roxy Music - Siren")
     }
 
     @Test
-    fun `shows an artist's name once even when they have several albums`() {
+    fun `an artist's name is on every block, as the list is not grouped by artist`() {
         composeTestRule.setContent {
             WantListScreen(wanted = sample, onShare = {})
         }
 
-        composeTestRule.onAllNodesWithText("Roxy Music").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Roxy Music - ", substring = true).assertCountEquals(2)
     }
 
     @Test
@@ -205,33 +204,35 @@ class WantListScreenTest {
     }
 
     @Test
-    fun `an artist with several albums has buttons to move each album`() {
+    fun `every block has buttons to move it`() {
         composeTestRule.setContent {
             WantListScreen(wanted = sample, onShare = {})
         }
 
-        composeTestRule.onNodeWithTag("want_down_2").assertIsEnabled()
+        composeTestRule.onNodeWithTag("want_down_1").assertIsEnabled()
+        composeTestRule.onNodeWithTag("want_up_2").assertIsEnabled()
         composeTestRule.onNodeWithTag("want_up_3").assertIsEnabled()
     }
 
     @Test
-    fun `the first album of an artist cannot move up and the last cannot move down`() {
+    fun `the first want cannot move up and the last cannot move down`() {
         composeTestRule.setContent {
             WantListScreen(wanted = sample, onShare = {})
         }
 
-        composeTestRule.onNodeWithTag("want_up_2").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("want_up_1").assertIsNotEnabled()
         composeTestRule.onNodeWithTag("want_down_3").assertIsNotEnabled()
     }
 
     @Test
-    fun `an artist with one album has nothing to move past, so no move buttons`() {
+    fun `one want on its own has nothing to move past, so no move buttons`() {
         composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {})
+            WantListScreen(wanted = listOf(sample[0]), onShare = {})
         }
 
         composeTestRule.onNodeWithTag("want_up_1").assertDoesNotExist()
         composeTestRule.onNodeWithTag("want_down_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("want_remove_1").assertExists()
     }
 
     @Test
@@ -261,24 +262,24 @@ class WantListScreenTest {
     }
 
     @Test
-    fun `shows the artists and albums in the order given`() {
+    fun `shows the wants in the order given, even when the artists are mixed`() {
         val ordered = listOf(
             WantedAlbumUiModel("2", "Roxy Music", "Siren"),
-            WantedAlbumUiModel("3", "Roxy Music", "Avalon"),
-            WantedAlbumUiModel("1", "ABC", "Lexicon of Love")
+            WantedAlbumUiModel("1", "ABC", "Lexicon of Love"),
+            WantedAlbumUiModel("3", "Roxy Music", "Avalon")
         )
         composeTestRule.setContent {
             WantListScreen(wanted = ordered, onShare = {})
         }
 
-        val tops = listOf("Roxy Music", "Siren", "Avalon", "ABC").map {
-            composeTestRule.onNodeWithText(it).fetchSemanticsNode().positionInRoot.y
+        val tops = listOf("2", "1", "3").map {
+            composeTestRule.onNodeWithTag("want_title_$it").fetchSemanticsNode().positionInRoot.y
         }
         assertEquals(tops.sorted(), tops)
     }
 
     @Test
-    fun `every wanted album has a button to remove it, even an artist's only one`() {
+    fun `every want has a button to remove it`() {
         composeTestRule.setContent {
             WantListScreen(wanted = sample, onShare = {})
         }
@@ -358,6 +359,6 @@ class WantListScreenTest {
         }
 
         composeTestRule.onNodeWithTag("want_format_1", useUnmergedTree = true).assertTextEquals("on LP")
-        composeTestRule.onNodeWithText("Desire").assertExists()
+        composeTestRule.onNodeWithText("Desire", substring = true).assertExists()
     }
 }

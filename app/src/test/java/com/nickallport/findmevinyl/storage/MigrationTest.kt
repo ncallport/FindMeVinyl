@@ -451,7 +451,7 @@ class MigrationTest {
 
     private fun openMigrated(): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
             .allowMainThreadQueries()
             .build()
 
@@ -599,7 +599,7 @@ class MigrationTest {
         assertEquals(listOf("Foxtrot", "Trespass"), albums.map { it.title })
         assertTrue(albums[0].owned)
         assertTrue(albums[1].wanted)
-        assertEquals(listOf(3, 1), albums.map { it.wantPosition })
+        assertEquals(listOf(3, 0), albums.map { it.wantPosition }) // only wanted albums are renumbered, in the one list
         assertEquals(2, database.artistDao().getById("artist-1")?.position)
         assertEquals("https://commons.test/a.jpg", database.artistImageDao().get("artist-1")?.imageUrl)
         assertEquals("{}", database.albumDetailsDao().get("1")?.json)
@@ -631,7 +631,7 @@ class MigrationTest {
         assertEquals(listOf("Foxtrot", "Trespass"), albums.map { it.title })
         assertTrue(albums[0].owned)
         assertTrue(albums[1].wanted)
-        assertEquals(listOf(3, 1), albums.map { it.wantPosition })
+        assertEquals(listOf(3, 0), albums.map { it.wantPosition }) // only wanted albums are renumbered, in the one list
         assertEquals(2, database.artistDao().getById("artist-1")?.position)
         assertEquals("https://commons.test/a.jpg", database.artistImageDao().get("artist-1")?.imageUrl)
         assertEquals("{}", database.albumDetailsDao().get("1")?.json)
@@ -663,7 +663,7 @@ class MigrationTest {
         assertTrue(albums[0].owned)
         assertTrue(albums[1].wanted)
         assertEquals("CD", albums[0].formats)
-        assertEquals(listOf(3, 1), albums.map { it.wantPosition })
+        assertEquals(listOf(3, 0), albums.map { it.wantPosition }) // only wanted albums are renumbered, in the one list
         assertEquals(2, database.artistDao().getById("artist-1")?.position)
         assertEquals("artist-1-7.jpg", database.artistUserPhotoDao().get("artist-1")?.fileName)
         database.close()

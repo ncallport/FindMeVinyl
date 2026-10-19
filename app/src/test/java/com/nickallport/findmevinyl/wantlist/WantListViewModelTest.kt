@@ -42,7 +42,7 @@ class WantListViewModelTest {
     }
 
     @Test
-    fun `orders by artist name ignoring case, then release date with undated last`() = runBlocking {
+    fun `albums not yet put in order are by release date with undated last, whoever they are by`() = runBlocking {
         database.artistDao().insert(ArtistEntity("r", "roxy music", null, null))
         database.artistDao().insert(ArtistEntity("a", "ABC", null, null))
         wantedAlbum("1", "r", "Avalon", "1982-05-31")
@@ -53,7 +53,7 @@ class WantListViewModelTest {
         val wanted = viewModel.loadWantList()
 
         assertEquals(
-            listOf("Lexicon of Love", "Roxy Music", "Avalon", "Undated"),
+            listOf("Roxy Music", "Avalon", "Lexicon of Love", "Undated"),
             wanted.map { it.albumTitle }
         )
     }
@@ -76,7 +76,7 @@ class WantListViewModelTest {
     }
 
     @Test
-    fun `export text groups wanted albums under their artist`() = runBlocking {
+    fun `export text is one numbered line for each wanted album, with the artist`() = runBlocking {
         database.artistDao().insert(ArtistEntity("r", "roxy music", null, null))
         database.artistDao().insert(ArtistEntity("a", "ABC", null, null))
         wantedAlbum("1", "r", "Avalon", "1982-05-31")
@@ -86,12 +86,9 @@ class WantListViewModelTest {
         val expected = """
             My vinyl want list:
 
-            ABC
-            - Lexicon of Love
-
-            roxy music
-            - Roxy Music
-            - Avalon
+            1. roxy music - Roxy Music
+            2. roxy music - Avalon
+            3. ABC - Lexicon of Love
         """.trimIndent()
 
         assertEquals(expected, viewModel.exportText())
@@ -109,13 +106,13 @@ class WantListViewModelTest {
     private suspend fun titles() = viewModel.loadWantList().map { it.albumTitle }
 
     @Test
-    fun `lists artists in the order the user chose for favourites, not by name`() = runBlocking {
+    fun `the order of the artists in the favourites makes no difference, the order of the wants decides`() = runBlocking {
         artist("a", "ABC", position = 1)
         artist("r", "Roxy Music", position = 0)
-        wanted("1", "a", "Lexicon of Love")
-        wanted("2", "r", "Avalon")
+        wanted("1", "a", "Lexicon of Love", wantPosition = 0)
+        wanted("2", "r", "Avalon", wantPosition = 1)
 
-        assertEquals(listOf("Avalon", "Lexicon of Love"), titles())
+        assertEquals(listOf("Lexicon of Love", "Avalon"), titles())
     }
 
     @Test
@@ -132,19 +129,16 @@ class WantListViewModelTest {
     fun `the share text follows the same order`() = runBlocking {
         artist("a", "ABC", position = 1)
         artist("r", "Roxy Music", position = 0)
-        wanted("1", "a", "Lexicon of Love")
+        wanted("1", "a", "Lexicon of Love", wantPosition = 2)
         wanted("2", "r", "Avalon", wantPosition = 1)
         wanted("3", "r", "Siren", wantPosition = 0)
 
         val expected = """
             My vinyl want list:
 
-            Roxy Music
-            - Siren
-            - Avalon
-
-            ABC
-            - Lexicon of Love
+            1. Roxy Music - Siren
+            2. Roxy Music - Avalon
+            3. ABC - Lexicon of Love
         """.trimIndent()
 
         assertEquals(expected, viewModel.exportText())
@@ -174,18 +168,23 @@ class WantListViewModelTest {
     }
 
     @Test
-    fun `an album never moves past its own artist's albums`() = runBlocking {
+    fun `an album moves past albums by other artists, as it is one list`() = runBlocking {
         artist("a", "ABC", position = 0)
         artist("r", "Roxy Music", position = 1)
-        wanted("1", "a", "Lexicon of Love")
-        wanted("2", "r", "Avalon")
-        wanted("3", "r", "Siren", wantPosition = 1)
+        wanted("1", "a", "Lexicon of Love", wantPosition = 0)
+        wanted("2", "r", "Avalon", wantPosition = 1)
+        wanted("3", "r", "Siren", wantPosition = 2)
 
         viewModel.moveUp("2")
-        viewModel.moveDown("3")
-        viewModel.moveDown("1")
+        assertEquals(listOf("Avalon", "Lexicon of Love", "Siren"), titles())
 
-        assertEquals(listOf("Lexicon of Love", "Avalon", "Siren"), titles())
+        viewModel.moveDown("1")
+        assertEquals(listOf("Avalon", "Siren", "Lexicon of Love"), titles())
+
+        // The first cannot move up and the last cannot move down.
+        viewModel.moveUp("2")
+        viewModel.moveDown("1")
+        assertEquals(listOf("Avalon", "Siren", "Lexicon of Love"), titles())
     }
 
     @Test
@@ -329,7 +328,7 @@ class WantListViewModelTest {
 
         val text = viewModel.exportText(ShareOptions(intro = "For my birthday", limit = null))
 
-        assertEquals("For my birthday\n\nMy vinyl want list:\n\nABC\n- Lexicon of Love", text)
+        assertEquals("For my birthday\n\nMy vinyl want list:\n\n1. ABC - Lexicon of Love", text)
     }
 
     @Test
@@ -341,10 +340,11 @@ class WantListViewModelTest {
         wantedAlbum("3", "a", "Lexicon of Love", "1982-06-21")
         database.albumDao().setWantPosition("1", 0)
         database.albumDao().setWantPosition("2", 1)
+        database.albumDao().setWantPosition("3", 2)
 
         val text = viewModel.exportText(ShareOptions(limit = 2))
 
-        assertEquals("My vinyl want list (top 2 of 3):\n\nRoxy Music\n- Avalon\n- Siren", text)
+        assertEquals("My vinyl want list (top 2 of 3):\n\n1. Roxy Music - Avalon\n2. Roxy Music - Siren", text)
     }
 
     @Test
@@ -361,6 +361,8 @@ class WantListViewModelTest {
         database.artistDao().insert(ArtistEntity("a", "Abba", null, null, 1, "pop"))
         wantedAlbum("1", "z", "Z album", "1980")
         wantedAlbum("2", "a", "A album", "1980")
+        database.albumDao().setWantPosition("1", 0)
+        database.albumDao().setWantPosition("2", 1)
 
         assertEquals(listOf("Z album", "A album"), viewModel.loadWantList().map { it.albumTitle })
     }

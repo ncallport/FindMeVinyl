@@ -33,8 +33,8 @@ class WantListRouteTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Lexicon of Love").assertExists()
-        composeTestRule.onNodeWithText("Avalon").assertExists()
+        composeTestRule.onNodeWithText("Lexicon of Love", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Avalon", substring = true).assertExists()
     }
 
     @Test
@@ -158,8 +158,8 @@ class WantListRouteTest {
         composeTestRule.waitForIdle()
 
         assertEquals(listOf("2"), removed)
-        composeTestRule.onNodeWithText("Siren").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Avalon").assertExists()
+        composeTestRule.onNodeWithTag("want_title_2").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("want_title_1").assertExists()
     }
 
     @Test
