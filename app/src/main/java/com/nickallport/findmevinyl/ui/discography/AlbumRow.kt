@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.ui.text.style.TextOverflow
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
@@ -112,6 +113,16 @@ fun AlbumRow(
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats
                 )
+                // The copies the user owns, one to a line: the format, and the description if there is one.
+                album.copies.forEachIndexed { index, copy ->
+                    Text(
+                        text = if (copy.note.isNullOrBlank()) copy.format else "${copy.format}: ${copy.note}",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("album_copy_$index")
+                    )
+                }
                 // An album can be both: a copy you own and want another of. It keeps the owned colour.
                 if (album.wanted) {
                     Text(

@@ -79,7 +79,7 @@ class MyCopySectionTest {
         show(owned)
 
         composeTestRule.onNodeWithTag("my_copy_section").assertExists()
-        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Add my copies")
+        composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Add a copy")
         composeTestRule.onNodeWithTag("my_copy_summary").assertDoesNotExist()
     }
 
@@ -121,7 +121,6 @@ class MyCopySectionTest {
         show(owned)
         tap("my_copy_edit")
 
-        tap("my_copy_add")
         tap("my_copy_0_format_CD")
         type("my_copy_0_note", "part of Mum's collection")
         tap("my_copy_save")
@@ -135,7 +134,6 @@ class MyCopySectionTest {
         show(owned)
         tap("my_copy_edit")
 
-        tap("my_copy_add")
         type("my_copy_0_note", "green cover")
         tap("my_copy_add")
         type("my_copy_1_note", "blue cover")
@@ -183,7 +181,6 @@ class MyCopySectionTest {
     fun `a note longer than the limit is cut as it is typed`() {
         show(owned)
         tap("my_copy_edit")
-        tap("my_copy_add")
 
         type("my_copy_0_note", "x".repeat(600))
         type("my_copy_note", "y".repeat(600))
@@ -198,7 +195,7 @@ class MyCopySectionTest {
         show(owned)
         tap("my_copy_edit")
 
-        repeat(20) { tap("my_copy_add") }
+        repeat(19) { tap("my_copy_add") }
 
         composeTestRule.onNodeWithTag("my_copy_add").assertDoesNotExist()
     }
@@ -218,7 +215,6 @@ class MyCopySectionTest {
         }
         waitForIdle()
         onNodeWithTag("my_copy_edit").performScrollTo().performClick()
-        onNodeWithTag("my_copy_add").performScrollTo().performClick()
         onNodeWithTag("my_copy_0_format_CD").performScrollTo().performClick()
         onNodeWithTag("my_copy_0_note").performScrollTo().performTextReplacement("Portuguese")
         onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("Album note")
@@ -239,5 +235,27 @@ class MyCopySectionTest {
         composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
             .assertTextContains("LP: Blue sleeve", substring = true)
             .assertTextContains("Album note: Green sleeve", substring = true)
+    }
+
+    @Test
+    fun `adding the first copy opens the editor with a copy ready, its formats to choose from and its note`() {
+        show(owned)
+
+        tap("my_copy_edit")
+
+        composeTestRule.onNodeWithTag("my_copy_0_format_LP").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("my_copy_0_format_CD").performScrollTo().assertIsNotSelected()
+        composeTestRule.onNodeWithTag("my_copy_0_note").performScrollTo().assertExists()
+        composeTestRule.onNodeWithTag("my_copy_1_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun `saving straight away keeps one copy with the format and no description`() {
+        show(owned)
+        tap("my_copy_edit")
+
+        tap("my_copy_save")
+
+        assertEquals(listOf(listOf(AlbumCopy("LP")) to ""), saved)
     }
 }
