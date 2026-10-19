@@ -30,18 +30,17 @@ import com.nickallport.findmevinyl.discography.ReleaseFormats
 
 /**
  * The copies of an album the user owns. Each copy has a format and a note of its own, such as "part of Mum's collection"
- * or "green cover", and there can be several, even on the same format. There is also one note about the album itself.
- * [onSave] gets the copies in the order listed and the album's note.
+ * or "green cover", and there can be several, even on the same format. [onSave] gets the copies in the order listed.
  *
  * The page's own pressing can be chosen as the copy here too ("This is my pressing"), and the choice cleared.
  *
- * Whether the editor is open, and the copies and notes typed in it, are kept over a rotation.
+ * Whether the editor is open, and the copies typed in it, are kept over a rotation.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MyCopySection(
     album: AlbumUiModel,
-    onSave: (copies: List<AlbumCopy>, note: String) -> Unit,
+    onSave: (copies: List<AlbumCopy>) -> Unit,
     modifier: Modifier = Modifier,
     /** The pressing the page is showing, which "This is my pressing" would choose. Null when it is not known. */
     shownPressing: Pressing? = null,
@@ -51,17 +50,13 @@ fun MyCopySection(
     var editing by rememberSaveable(album.id) { mutableStateOf(false) }
     // The copies being edited, as text (see [CopyDrafts]), which a rotation can keep.
     var drafts by rememberSaveable(album.id) { mutableStateOf("") }
-    var note by rememberSaveable(album.id) { mutableStateOf("") }
 
     Column(modifier = modifier.fillMaxWidth().testTag("my_copy_section")) {
         Text(text = "My copies", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
 
         if (!editing) {
-            val summary = (
-                album.copies.map { if (it.note.isNullOrBlank()) it.format else "${it.format}: ${it.note}" } +
-                    listOfNotNull(album.note?.takeIf { it.isNotBlank() }?.let { "Album note: $it" })
-                ).joinToString("\n")
+            val summary = album.copies.joinToString("\n") { if (it.note.isNullOrBlank()) it.format else "${it.format}: ${it.note}" }
             if (summary.isNotEmpty()) {
                 Text(text = summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("my_copy_summary"))
                 Spacer(Modifier.height(8.dp))
@@ -79,7 +74,6 @@ fun MyCopySection(
                     onClick = {
                         // With no copies yet the editor opens with one ready to fill in, its formats to choose from.
                         drafts = CopyDrafts.encode(album.copies.ifEmpty { listOf(AlbumCopy(ReleaseFormats.LP)) })
-                        note = album.note.orEmpty()
                         editing = true
                     },
                     modifier = Modifier.testTag("my_copy_edit")
@@ -138,18 +132,10 @@ fun MyCopySection(
                 ) { Text("Add a copy") }
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it.take(MAX_NOTE_LENGTH) },
-                label = { Text("Note about the album, such as the country or language") },
-                minLines = 2,
-                modifier = Modifier.fillMaxWidth().testTag("my_copy_note")
-            )
-            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        onSave(copies, note)
+                        onSave(copies)
                         editing = false
                     },
                     modifier = Modifier.testTag("my_copy_save")

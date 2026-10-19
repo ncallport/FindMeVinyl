@@ -333,7 +333,6 @@ private fun DiscographyUiState.Success.withSavedValuesFrom(saved: DiscographyUiS
                 userFormats = savedAlbum.userFormats,
                 copies = savedAlbum.copies,
                 wantFormat = savedAlbum.wantFormat,
-                note = savedAlbum.note,
                 myPressingId = savedAlbum.myPressingId,
                 myPressingText = savedAlbum.myPressingText
             )

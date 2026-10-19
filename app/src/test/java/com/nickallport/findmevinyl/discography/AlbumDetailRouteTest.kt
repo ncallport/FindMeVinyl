@@ -213,16 +213,16 @@ class AlbumDetailRouteTest {
     @Test
     fun `saving the copy hands it over and the page then shows what is stored`() {
         album = AlbumUiModel("1", "Trespass", owned = true, wanted = false)
-        val saves = mutableListOf<Triple<String, List<AlbumCopy>, String>>()
+        val saves = mutableListOf<Pair<String, List<AlbumCopy>>>()
         composeTestRule.setContent {
             FindMeVinylTheme {
                 AlbumDetailRoute(
                     albumId = "1", title = "Trespass", artistName = "Genesis",
                     loadDetails = { details }, loadAlbum = { album },
                     onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
-                    saveCopies = { id, copies, note ->
-                        saves.add(Triple(id, copies, note))
-                        album = album.copy(userFormats = copies.map { it.format }, copies = copies, note = note)
+                    saveCopies = { id, copies ->
+                        saves.add(id to copies)
+                        album = album.copy(userFormats = copies.map { it.format }, copies = copies)
                     }
                 )
             }
@@ -233,7 +233,7 @@ class AlbumDetailRouteTest {
         composeTestRule.onNodeWithTag("my_copy_save").performScrollTo().performClick()
         composeTestRule.waitForIdle()
 
-        assertEquals(listOf(Triple("1", listOf(AlbumCopy("LP")), "")), saves)
+        assertEquals(listOf("1" to listOf(AlbumCopy("LP"))), saves)
         composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo().assertTextEquals("LP")
     }
 

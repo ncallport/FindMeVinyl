@@ -36,11 +36,10 @@ class AlbumCopyDaoTest {
         AlbumCopyEntity(albumId = albumId, format = format, note = note, position = position)
 
     @Test
-    fun `an album has no copies and no note to begin with`() = runBlocking {
+    fun `an album has no copies to begin with`() = runBlocking {
         dao.insert(album())
 
         assertEquals(emptyList<AlbumCopyEntity>(), dao.getCopies("1"))
-        assertNull(dao.getById("1")!!.userNote)
     }
 
     @Test
@@ -89,33 +88,19 @@ class AlbumCopyDaoTest {
     }
 
     @Test
-    fun `saves the note about the album, and null clears it`() = runBlocking {
-        dao.insert(album())
-
-        dao.setNote("1", "BMG vinyl")
-        assertEquals("BMG vinyl", dao.getById("1")!!.userNote)
-
-        dao.setNote("1", null)
-        assertNull(dao.getById("1")!!.userNote)
-    }
-
-    @Test
-    fun `syncing the discography again does not touch the copies or the note`() = runBlocking {
+    fun `syncing the discography again does not touch the copies`() = runBlocking {
         dao.insert(album())
         dao.insertCopies(listOf(copy("LP", "BMG vinyl")))
-        dao.setNote("1", "2018")
 
         dao.insertAllIfNotExist(listOf(album()))
 
         assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
-        assertEquals("2018", dao.getById("1")!!.userNote)
     }
 
     @Test
-    fun `a lookup of the release formats does not touch the copies or the note`() = runBlocking {
+    fun `a lookup of the release formats does not touch the copies`() = runBlocking {
         dao.insert(album())
         dao.insertCopies(listOf(copy("LP", "BMG vinyl")))
-        dao.setNote("1", "2018")
 
         dao.setChecked("1", "CD", "Official", 5L)
         dao.setFormats("1", "CD", 6L)
@@ -123,7 +108,6 @@ class AlbumCopyDaoTest {
         val saved = dao.getById("1")!!
         assertEquals("CD", saved.formats)
         assertEquals(listOf("LP"), dao.getCopies("1").map { it.format })
-        assertEquals("2018", saved.userNote)
     }
 
     @Test
@@ -135,14 +119,6 @@ class AlbumCopyDaoTest {
         assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
     }
 
-    @Test
-    fun `an album with only a note is in the backup even when it is neither owned nor wanted`() = runBlocking {
-        dao.insert(album("1").copy(owned = false))
-        dao.insert(album("2").copy(owned = false))
-        dao.setNote("1", "Kept after I sold it")
-
-        assertEquals(listOf("1"), dao.getOwnedOrWanted().map { it.id })
-    }
 
     // The pressing the user chose as theirs.
 

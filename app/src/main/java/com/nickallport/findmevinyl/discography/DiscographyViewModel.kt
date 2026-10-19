@@ -263,7 +263,6 @@ class DiscographyViewModel(
         formatsStale = album.formatsCheckedAt?.let { now - it > formatRefreshAfterMillis } ?: false,
         statuses = album.statuses?.let(ReleaseStatuses::decode),
         userFormats = copies.map { it.format }.distinct().sortedBy { ReleaseFormats.displayOrder.indexOf(it) },
-        note = album.userNote,
         myPressingId = album.myPressingId,
         myPressingText = album.myPressingText,
         wantFormat = album.wantFormat,
@@ -279,12 +278,12 @@ class DiscographyViewModel(
     }
 
     /**
-     * Keeps the copies of an album the user owns, each with a format and a note, and a note about the album. They
-     * replace the copies kept before. A format that is not a label is dropped, a note is trimmed and cut, a blank note
+     * Keeps the copies of an album the user owns, each with a format and a description. They replace the copies kept
+     * before. A format that is not a label is dropped, a note is trimmed and cut, a blank note
      * is not kept, and at most [MAX_COPIES] are kept. Several copies on the same format are fine. A lookup never
      * touches them. An album wanted on a format is no longer wanted once one of the copies is on that format.
      */
-    suspend fun saveCopies(albumId: String, copies: List<AlbumCopy>, note: String) {
+    suspend fun saveCopies(albumId: String, copies: List<AlbumCopy>) {
         val kept = copies.filter { it.format in ReleaseFormats.displayOrder }.take(MAX_COPIES)
             .mapIndexed { position, copy ->
                 AlbumCopyEntity(
@@ -295,7 +294,6 @@ class DiscographyViewModel(
         // The new copies go in before the old ones go, so an interruption leaves too many, never too few.
         val ids = if (kept.isEmpty()) emptyList() else albumDao.insertCopies(kept)
         albumDao.deleteCopiesExcept(albumId, ids)
-        albumDao.setNote(albumId, note.trim().take(MAX_NOTE_LENGTH).ifEmpty { null })
 
         val album = albumDao.getById(albumId) ?: return
         val wantedOn = album.wantFormat
