@@ -122,4 +122,32 @@ class FavouritesScreenSortTest {
 
         assertOrder("1", "2", "3", "4")
     }
+
+    @Test
+    fun `a leading The is ignored, so The Smiths is under S`() {
+        val named = listOf(
+            FavouriteArtistUiModel("1", "Talk Talk"),
+            FavouriteArtistUiModel("2", "The Smiths"),
+            FavouriteArtistUiModel("3", "Simple Minds"),
+            FavouriteArtistUiModel("4", "the cure"),
+            FavouriteArtistUiModel("5", "Big Country")
+        )
+        composeTestRule.setContent { FavouritesScreen(artists = named, onArtistSelected = {}, sortAz = true) }
+
+        assertOrder("5", "4", "3", "2", "1")
+    }
+
+    @Test
+    fun `only the word The is ignored, not a name that starts with those letters, nor The on its own`() {
+        val named = listOf(
+            FavouriteArtistUiModel("1", "Theatre of Hate"),
+            FavouriteArtistUiModel("2", "The"),
+            FavouriteArtistUiModel("3", "Sparks"),
+            FavouriteArtistUiModel("4", "Nick Cave")
+        )
+        composeTestRule.setContent { FavouritesScreen(artists = named, onArtistSelected = {}, sortAz = true) }
+
+        // Nick Cave under N, Sparks under S, then "The" and "Theatre of Hate" under T.
+        assertOrder("4", "3", "2", "1")
+    }
 }

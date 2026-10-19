@@ -127,7 +127,7 @@ fun FavouritesScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
                         .testTag(if (groupByGenre) "favourites_genre_hint" else "favourites_az_hint")
                 )
-                val shown = if (sortAz) artists.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }) else artists
+                val shown = if (sortAz) artists.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { sortKey(it.name) }) else artists
                 // One section for each genre, or just one without a heading when it is only sorted.
                 val sections = if (groupByGenre) FavouriteGenreGroups.group(shown)
                 else listOf(FavouriteGenreGroups.Section(null, shown))
@@ -457,4 +457,10 @@ private fun ArtistTile(
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         )
     }
+}
+
+/** The name to sort by: capitals do not count, and neither does a leading "The", so The Smiths is under S. */
+private fun sortKey(name: String): String {
+    val trimmed = name.trim()
+    return if (trimmed.length > 4 && trimmed.startsWith("the ", ignoreCase = true)) trimmed.substring(4).trimStart() else trimmed
 }
