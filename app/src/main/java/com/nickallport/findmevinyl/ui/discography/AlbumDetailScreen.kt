@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilterChip
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import com.nickallport.findmevinyl.discography.PressingSummary
@@ -42,6 +43,10 @@ import com.nickallport.findmevinyl.ui.common.SquareImage
 sealed class AlbumDetailState {
     object Loading : AlbumDetailState()
     object Failed : AlbumDetailState()
+
+    /** The album was added by hand, so MusicBrainz has no details for it and none are asked for. */
+    object AddedByHand : AlbumDetailState()
+
     /**
      * [switchingTo] is the release being loaded after the user chose another pressing, and
      * [switchFailed] says the last such choice could not be loaded. The details stay as they were.
@@ -80,7 +85,9 @@ fun AlbumDetailScreen(
     /** Chooses the format a wanted album is wanted on, or null for any. */
     onSetWantFormat: (String?) -> Unit = {},
     /** Opens the artist's page. When null the artist's name is plain text. */
-    onOpenArtist: (() -> Unit)? = null
+    onOpenArtist: (() -> Unit)? = null,
+    /** Opens the page for changing an album added by hand. Without it there is no button. */
+    onEditAlbum: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -110,6 +117,9 @@ fun AlbumDetailScreen(
                 .then(if (onOpenArtist != null) Modifier.clickable(onClick = onOpenArtist) else Modifier)
                 .testTag("detail_artist")
         )
+        if (onEditAlbum != null) {
+            TextButton(onClick = onEditAlbum, modifier = Modifier.testTag("detail_edit_album")) { Text("Edit this album") }
+        }
 
         if (album != null) {
             Spacer(Modifier.height(16.dp))
@@ -167,6 +177,11 @@ fun AlbumDetailScreen(
         Spacer(Modifier.height(16.dp))
         when (state) {
             AlbumDetailState.Loading -> RecordSpinner(modifier = Modifier.testTag("detail_loading"))
+            AlbumDetailState.AddedByHand -> Text(
+                text = "You added this album yourself, so MusicBrainz has no details for it.",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.testTag("detail_added_by_hand")
+            )
             AlbumDetailState.Failed -> {
                 Text("Couldn't load the details", style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(8.dp))

@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl
 
+import com.nickallport.findmevinyl.discography.CustomAlbums
+import com.nickallport.findmevinyl.discography.AddAlbumRoute
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -432,6 +434,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
+                                onAddAlbum = { currentScreen = Screen.AddAlbum(screen.artistId, screen.artistName, null, screen) },
                                 onOpenAlbum = { albumId, title ->
                                     currentScreen = Screen.AlbumDetail(
                                         albumId, title, screen.artistId, screen.artistName, screen
@@ -455,6 +458,32 @@ class MainActivity : ComponentActivity() {
                                 ungroup = { id -> artistGroupViewModel.ungroup(id) },
                                 // Saved or split up: the favourites show the result.
                                 onDone = { currentScreen = Screen.Search },
+                                onCancel = { currentScreen = screen.backTo }
+                            )
+                        }
+                        is Screen.AddAlbum -> {
+                            val editing = screen.editingAlbumId
+                            AddAlbumRoute(
+                                artistName = screen.artistName,
+                                editingAlbumId = editing,
+                                loadDraft = { id -> discographyViewModel.loadDraft(id) },
+                                save = { draft ->
+                                    if (editing != null) {
+                                        discographyViewModel.updateAlbum(editing, draft)
+                                    } else {
+                                        discographyViewModel.addAlbum(screen.artistId, screen.artistName, draft) != null
+                                    }
+                                },
+                                delete = { if (editing != null) discographyViewModel.deleteAlbum(editing) },
+                                showHiddenNote = settings.hideBootlegs,
+                                onOpenSettings = { currentScreen = Screen.Settings },
+                                // Changed: back to the album's page with its new title. Added: back to the discography.
+                                onSaved = { draft ->
+                                    val from = screen.backTo
+                                    currentScreen = if (from is Screen.AlbumDetail) from.copy(title = draft.title.trim()) else from
+                                },
+                                // Deleted: the album's page is gone, so back to the discography behind it.
+                                onDeleted = { currentScreen = (screen.backTo as? Screen.AlbumDetail)?.backTo ?: screen.backTo },
                                 onCancel = { currentScreen = screen.backTo }
                             )
                         }
@@ -482,6 +511,11 @@ class MainActivity : ComponentActivity() {
                                 saveCopies = { albumId, copies -> discographyViewModel.saveCopies(albumId, copies) },
                                 saveWantFormat = { albumId, format -> discographyViewModel.saveWantFormat(albumId, format) },
                                 saveMyPressing = { albumId, pressing -> discographyViewModel.saveMyPressing(albumId, pressing) },
+                                onEditAlbum = if (CustomAlbums.isCustom(screen.albumId)) {
+                                    { currentScreen = Screen.AddAlbum(screen.artistId, screen.artistName, screen.albumId, screen) }
+                                } else {
+                                    null
+                                },
                                 // The page the album was opened from is the artist's, or the group's.
                                 onOpenArtist = {
                                     currentScreen = screen.backTo as? Screen.Discography

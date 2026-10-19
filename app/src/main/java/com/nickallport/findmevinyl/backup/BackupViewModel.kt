@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.backup
 
+import com.nickallport.findmevinyl.discography.ReleaseStatuses
+import com.nickallport.findmevinyl.discography.MAX_ALBUM_TITLE_LENGTH
+import com.nickallport.findmevinyl.discography.CustomAlbums
 import com.nickallport.findmevinyl.discography.MAX_COPIES
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
 import com.nickallport.findmevinyl.discography.FormatNotes
@@ -82,7 +85,8 @@ class BackupViewModel(
                 BackupAlbum(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
                     null, null, it.myPressingId, it.myPressingText, it.wantFormat, null,
-                    copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) }
+                    copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) },
+                    it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) }
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -218,20 +222,28 @@ class BackupViewModel(
                 } ?: ReleaseFormats.decodeUser(album.userFormats).map { it to oldNotes[it] }
                 ).plus(listOfNotNull(oldAlbumNote?.let { ReleaseFormats.LP to it })).take(MAX_COPIES)
             val hasCopy = copies.isNotEmpty()
+            // An album added by hand is not on MusicBrainz, so it is kept whole: it needs a title, and is saved as looked at.
+            val addedByHand = CustomAlbums.isCustom(id)
+            if (addedByHand && album.title.isNullOrBlank()) continue
             // Only a label is kept, and only for an album that is wanted.
             val wantFormat = album.wantFormat?.takeIf { wanted && it in ReleaseFormats.displayOrder }
             // A chosen pressing needs its id, and its line is cut to the length the app keeps.
             val pressingId = album.myPressingId?.trim()?.takeIf { it.isNotEmpty() }
             val pressingText = if (pressingId == null) null else album.myPressingText?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
-            if (!owned && !wanted && !hasCopy && pressingId == null) continue
+            if (!owned && !wanted && !hasCopy && pressingId == null && !addedByHand) continue
 
             val existing = albumDao.getById(id)
             var changed = false
             if (existing == null) {
                 albumDao.insertIfNotExists(
                     AlbumEntity(
-                        id, artistId, album.title.orEmpty(), album.category ?: "OTHER", album.firstReleaseDate,
+                        id, artistId, if (addedByHand) album.title.orEmpty().trim().take(MAX_ALBUM_TITLE_LENGTH) else album.title.orEmpty(),
+                        album.category ?: "OTHER", album.firstReleaseDate,
                         owned, wanted, wantPosition = album.wantPosition ?: 0,
+                        formats = if (addedByHand) "" else null,
+                        statuses = if (addedByHand) {
+                            if (ReleaseStatuses.decode(album.statuses.orEmpty()) == listOf(ReleaseStatuses.BOOTLEG)) ReleaseStatuses.BOOTLEG else ReleaseStatuses.OFFICIAL
+                        } else null,
                         myPressingId = pressingId, myPressingText = pressingText, wantFormat = wantFormat
                     )
                 )

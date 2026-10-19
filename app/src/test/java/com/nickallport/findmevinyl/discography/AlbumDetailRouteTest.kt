@@ -332,5 +332,28 @@ class AlbumDetailRouteTest {
         assertEquals(listOf<Pair<String, Pressing?>>("1" to null), saved)
         composeTestRule.onNodeWithTag("my_pressing_text").assertDoesNotExist()
     }
-}
 
+    @Test
+    fun `an album added by hand asks for no details, says so, and can be edited`() {
+        var asked = 0
+        var edits = 0
+        album = AlbumUiModel("custom/1", "Live in a Pub", owned = true, wanted = false)
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailRoute(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country",
+                    loadDetails = { asked++; null }, loadAlbum = { album },
+                    onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
+                    onEditAlbum = { edits++ }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_added_by_hand").performScrollTo().assertExists()
+        composeTestRule.onNodeWithTag("detail_retry").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_edit_album").performScrollTo().performClick()
+        assertEquals(0, asked)
+        assertEquals(1, edits)
+    }
+}

@@ -42,7 +42,9 @@ fun AlbumDetailRoute(
     /** Keeps the format a wanted album is wanted on, or null for any. The album is read again after it. */
     saveWantFormat: suspend (albumId: String, format: String?) -> Unit = { _, _ -> },
     /** Opens the artist's page. When null the artist's name is plain text. */
-    onOpenArtist: (() -> Unit)? = null
+    onOpenArtist: (() -> Unit)? = null,
+    /** Opens the page for changing an album added by hand. Only given for one. */
+    onEditAlbum: (() -> Unit)? = null
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -55,6 +57,11 @@ fun AlbumDetailRoute(
     LaunchedEffect(albumId, attempt) {
         switchingTo = null
         switchFailed = false
+        // An album added by hand is not on MusicBrainz, so nothing is asked.
+        if (CustomAlbums.isCustom(albumId)) {
+            state = AlbumDetailState.AddedByHand
+            return@LaunchedEffect
+        }
         state = AlbumDetailState.Loading
         state = loadDetails(albumId)?.let { AlbumDetailState.Loaded(it) } ?: AlbumDetailState.Failed
     }
@@ -117,6 +124,7 @@ fun AlbumDetailRoute(
             }
         },
         onOpenArtist = onOpenArtist,
+        onEditAlbum = onEditAlbum,
         onSetWantFormat = { format ->
             coroutineScope.launch {
                 saveWantFormat(albumId, format)

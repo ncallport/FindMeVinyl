@@ -50,7 +50,9 @@ fun DiscographyHeader(
     /** The artist is already in a group, so the button edits that group. */
     inGroup: Boolean = false,
     /** False on the page of a group, which is always kept, so there is nothing to save. */
-    showFavourite: Boolean = true
+    showFavourite: Boolean = true,
+    /** Opens the page for adding an album MusicBrainz does not list. Without it there is no button. */
+    onAddAlbum: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -94,6 +96,14 @@ fun DiscographyHeader(
                     modifier = Modifier.padding(top = 4.dp).testTag("join_artists_button")
                 ) {
                     Text(if (inGroup) "Edit group" else "Join with another artist")
+                }
+            }
+            if (onAddAlbum != null) {
+                OutlinedButton(
+                    onClick = onAddAlbum,
+                    modifier = Modifier.padding(top = 4.dp).testTag("add_album_button")
+                ) {
+                    Text("Add an album")
                 }
             }
         }

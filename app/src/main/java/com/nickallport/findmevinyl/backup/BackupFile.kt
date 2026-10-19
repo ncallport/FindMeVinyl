@@ -58,7 +58,9 @@ data class BackupAlbum(
     /** Written by older versions: the formats of the user's copy joined with `|`, and a note for each as JSON. */
     val userFormatNotes: String? = null,
     /** The copies the user owns, in order. Older files have `userFormats` instead. */
-    val copies: List<BackupCopy>? = null
+    val copies: List<BackupCopy>? = null,
+    /** Only for an album added by hand: Official or Bootleg. An album from MusicBrainz has its statuses looked up again. */
+    val statuses: String? = null
 )
 
 /** One copy of an album: a format label such as LP, and a note. */
