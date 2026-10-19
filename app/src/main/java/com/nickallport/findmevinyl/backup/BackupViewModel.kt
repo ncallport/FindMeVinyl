@@ -81,7 +81,7 @@ class BackupViewModel(
             albums = albums.map {
                 BackupAlbum(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
-                    null, it.userNote, it.myPressingId, it.myPressingText, it.wantFormat, null,
+                    null, null, it.myPressingId, it.myPressingText, it.wantFormat, null,
                     copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) }
                 )
             },
@@ -207,7 +207,8 @@ class BackupViewModel(
             val owned = album.owned == true
             val wanted = album.wanted == true
             // The details of a copy are checked as they are when the user saves them, whatever the file says.
-            val copyNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
+            // A file from an earlier version has a note about the album, which becomes a copy on LP, as it did on the phone.
+            val oldAlbumNote = album.userNote?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null }
             // A file from an older version has the formats in one text, and the notes in another.
             val oldNotes = FormatNotes.decode(album.userFormatNotes)
             val copies = (
@@ -215,8 +216,8 @@ class BackupViewModel(
                     c.format?.trim()?.takeIf { it in ReleaseFormats.displayOrder }
                         ?.let { it to c.note?.trim()?.take(MAX_NOTE_LENGTH)?.ifEmpty { null } }
                 } ?: ReleaseFormats.decodeUser(album.userFormats).map { it to oldNotes[it] }
-                ).take(MAX_COPIES)
-            val hasCopy = copies.isNotEmpty() || copyNote != null
+                ).plus(listOfNotNull(oldAlbumNote?.let { ReleaseFormats.LP to it })).take(MAX_COPIES)
+            val hasCopy = copies.isNotEmpty()
             // Only a label is kept, and only for an album that is wanted.
             val wantFormat = album.wantFormat?.takeIf { wanted && it in ReleaseFormats.displayOrder }
             // A chosen pressing needs its id, and its line is cut to the length the app keeps.
@@ -231,7 +232,6 @@ class BackupViewModel(
                     AlbumEntity(
                         id, artistId, album.title.orEmpty(), album.category ?: "OTHER", album.firstReleaseDate,
                         owned, wanted, wantPosition = album.wantPosition ?: 0,
-                        userNote = copyNote,
                         myPressingId = pressingId, myPressingText = pressingText, wantFormat = wantFormat
                     )
                 )
@@ -255,10 +255,6 @@ class BackupViewModel(
                 // Details already on the phone are kept: restoring only adds.
                 if (copies.isNotEmpty() && albumDao.getCopies(id).isEmpty()) {
                     albumDao.insertCopies(copies.mapIndexed { i, (format, note) -> AlbumCopyEntity(albumId = id, format = format, note = note, position = i) })
-                    changed = true
-                }
-                if (copyNote != null && existing.userNote == null) {
-                    albumDao.setNote(id, copyNote)
                     changed = true
                 }
                 if (pressingId != null && existing.myPressingId == null) {

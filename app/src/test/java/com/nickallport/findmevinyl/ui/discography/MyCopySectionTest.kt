@@ -29,11 +29,10 @@ class MyCopySectionTest {
     private val owned = AlbumUiModel("1", "The Crossing", owned = true, wanted = false, formats = listOf("CD"))
     private val withCopies = owned.copy(
         userFormats = listOf("LP"),
-        copies = listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover")),
-        note = "Mercury, 1983"
+        copies = listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover"))
     )
     private val noDetails = AlbumDetails(null, null, null, null, null, null, emptyList(), emptyList())
-    private val saved = mutableListOf<Pair<List<AlbumCopy>, String>>()
+    private val saved = mutableListOf<List<AlbumCopy>>()
 
     private fun show(album: AlbumUiModel?) {
         saved.clear()
@@ -43,7 +42,7 @@ class MyCopySectionTest {
                     albumId = "1", title = "The Crossing", artistName = "Big Country", album = album,
                     state = AlbumDetailState.Loaded(noDetails), onRetry = {}, onToggleOwned = {},
                     onToggleWanted = {}, loadCover = { null },
-                    onSaveCopy = { copies, note -> saved.add(copies to note) }
+                    onSaveCopy = { copies -> saved.add(copies) }
                 )
             }
         }
@@ -84,13 +83,12 @@ class MyCopySectionTest {
     }
 
     @Test
-    fun `the summary lists each copy with its note, and the note about the album`() {
+    fun `the summary lists each copy with its description`() {
         show(withCopies)
 
         composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
             .assertTextContains("LP: green cover", substring = true)
             .assertTextContains("LP: blue cover", substring = true)
-            .assertTextContains("Mercury, 1983", substring = true)
         composeTestRule.onNodeWithTag("my_copy_edit").performScrollTo().assertTextContains("Edit my copies")
     }
 
@@ -113,7 +111,7 @@ class MyCopySectionTest {
         composeTestRule.onNodeWithTag("my_copy_1_format_LP").performScrollTo().assertIsSelected()
         composeTestRule.onNodeWithTag("my_copy_1_note").performScrollTo().assertTextContains("blue cover")
         composeTestRule.onNodeWithTag("my_copy_2_note").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Mercury, 1983")
+        composeTestRule.onNodeWithTag("my_copy_note").assertDoesNotExist()
     }
 
     @Test
@@ -125,7 +123,7 @@ class MyCopySectionTest {
         type("my_copy_0_note", "part of Mum's collection")
         tap("my_copy_save")
 
-        assertEquals(listOf(listOf(AlbumCopy("CD", "part of Mum's collection")) to ""), saved)
+        assertEquals(listOf(listOf(AlbumCopy("CD", "part of Mum's collection"))), saved)
         composeTestRule.onNodeWithTag("my_copy_save").assertDoesNotExist()
     }
 
@@ -139,7 +137,7 @@ class MyCopySectionTest {
         type("my_copy_1_note", "blue cover")
         tap("my_copy_save")
 
-        assertEquals(listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover")), saved.single().first)
+        assertEquals(listOf(AlbumCopy("LP", "green cover"), AlbumCopy("LP", "blue cover")), saved.single())
     }
 
     @Test
@@ -150,18 +148,7 @@ class MyCopySectionTest {
         tap("my_copy_0_remove")
         tap("my_copy_save")
 
-        assertEquals(listOf(AlbumCopy("LP", "blue cover")), saved.single().first)
-    }
-
-    @Test
-    fun `the note about the album is handed over with the copies`() {
-        show(withCopies)
-        tap("my_copy_edit")
-
-        type("my_copy_note", "Mercury, 1983, Scotland")
-        tap("my_copy_save")
-
-        assertEquals("Mercury, 1983, Scotland", saved.single().second)
+        assertEquals(listOf(AlbumCopy("LP", "blue cover")), saved.single())
     }
 
     @Test
@@ -172,22 +159,20 @@ class MyCopySectionTest {
 
         tap("my_copy_cancel")
 
-        assertEquals(emptyList<Pair<List<AlbumCopy>, String>>(), saved)
+        assertEquals(emptyList<List<AlbumCopy>>(), saved)
         composeTestRule.onNodeWithTag("my_copy_save").assertDoesNotExist()
         composeTestRule.onNodeWithTag("my_copy_summary").assertExists()
     }
 
     @Test
-    fun `a note longer than the limit is cut as it is typed`() {
+    fun `a description longer than the limit is cut as it is typed`() {
         show(owned)
         tap("my_copy_edit")
 
         type("my_copy_0_note", "x".repeat(600))
-        type("my_copy_note", "y".repeat(600))
         tap("my_copy_save")
 
-        assertEquals(500, saved.single().first.single().note!!.length)
-        assertEquals(500, saved.single().second.length)
+        assertEquals(500, saved.single().single().note!!.length)
     }
 
     @Test
@@ -217,7 +202,6 @@ class MyCopySectionTest {
         onNodeWithTag("my_copy_edit").performScrollTo().performClick()
         onNodeWithTag("my_copy_0_format_CD").performScrollTo().performClick()
         onNodeWithTag("my_copy_0_note").performScrollTo().performTextReplacement("Portuguese")
-        onNodeWithTag("my_copy_note").performScrollTo().performTextReplacement("Album note")
         waitForIdle()
 
         restorationTester.emulateSaveAndRestore()
@@ -225,16 +209,6 @@ class MyCopySectionTest {
 
         onNodeWithTag("my_copy_0_format_CD").performScrollTo().assertIsSelected()
         onNodeWithTag("my_copy_0_note").performScrollTo().assertTextContains("Portuguese")
-        onNodeWithTag("my_copy_note").performScrollTo().assertTextContains("Album note")
-    }
-
-    @Test
-    fun `the note about the album is labelled, so it is not taken for a copy`() {
-        show(owned.copy(copies = listOf(AlbumCopy("LP", "Blue sleeve")), note = "Green sleeve"))
-
-        composeTestRule.onNodeWithTag("my_copy_summary").performScrollTo()
-            .assertTextContains("LP: Blue sleeve", substring = true)
-            .assertTextContains("Album note: Green sleeve", substring = true)
     }
 
     @Test
@@ -256,6 +230,6 @@ class MyCopySectionTest {
 
         tap("my_copy_save")
 
-        assertEquals(listOf(listOf(AlbumCopy("LP")) to ""), saved)
+        assertEquals(listOf(listOf(AlbumCopy("LP"))), saved)
     }
 }

@@ -603,68 +603,62 @@ class BackupViewModelTest {
 
     // The copies of an album the user owns.
 
-    private suspend fun copies(vararg copies: Pair<String, String?>, note: String? = null, id: String = "1", db: AppDatabase = database) {
+    private suspend fun copies(vararg copies: Pair<String, String?>, id: String = "1", db: AppDatabase = database) {
         db.albumDao().insertCopies(copies.mapIndexed { i, (format, text) -> AlbumCopyEntity(albumId = id, format = format, note = text, position = i) })
-        if (note != null) db.albumDao().setNote(id, note)
     }
 
     private suspend fun copiesOf(id: String = "1", db: AppDatabase = database) = db.albumDao().getCopies(id).map { it.format to it.note }
 
     @Test
-    fun `the backup carries the copies and the note about the album`() = runBlocking {
+    fun `the backup carries the copies`() = runBlocking {
         database.albumDao().insert(album("1", owned = true))
-        copies("LP" to "green cover", "LP" to "blue cover", note = "BMG vinyl")
+        copies("LP" to "green cover", "LP" to "blue cover")
 
         val text = String(entries(backup()).getValue("backup.json"))
 
         assertTrue(text.contains("\"format\":\"LP\""))
         assertTrue(text.contains("\"note\":\"green cover\""))
         assertTrue(text.contains("\"note\":\"blue cover\""))
-        assertTrue(text.contains("\"userNote\":\"BMG vinyl\""))
     }
 
     @Test
-    fun `restoring into an empty phone brings the copies back, in order, with the note`() = runBlocking {
+    fun `restoring into an empty phone brings the copies back, in order`() = runBlocking {
         database.albumDao().insert(album("1", owned = true))
-        copies("LP" to "green cover", "CD" to null, "LP" to "blue cover", note = "BMG vinyl")
+        copies("LP" to "green cover", "CD" to null, "LP" to "blue cover")
         val saved = backup()
         val fresh = emptyDatabase()
 
         restore(saved, viewModel(fresh))
 
         assertEquals(listOf("LP" to "green cover", "CD" to null, "LP" to "blue cover"), copiesOf(db = fresh))
-        assertEquals("BMG vinyl", fresh.albumDao().getById("1")!!.userNote)
         fresh.close()
     }
 
     @Test
-    fun `an album that was sold but has a note is kept by the backup`() = runBlocking {
+    fun `an album that was sold but has copies recorded is kept by the backup`() = runBlocking {
         database.albumDao().insert(album("1"))
-        database.albumDao().setNote("1", "Sold in 2020")
+        copies("LP" to "Sold in 2020")
         val saved = backup()
         val fresh = emptyDatabase()
 
         restore(saved, viewModel(fresh))
 
-        val restored = fresh.albumDao().getById("1")!!
-        assertEquals("Sold in 2020", restored.userNote)
-        assertFalse(restored.owned)
+        assertEquals(listOf("LP" to "Sold in 2020"), copiesOf(db = fresh))
+        assertFalse(fresh.albumDao().getById("1")!!.owned)
         fresh.close()
     }
 
     @Test
     fun `copies already on the phone are not replaced by the ones in the backup`() = runBlocking {
         database.albumDao().insert(album("1", owned = true))
-        copies("LP" to "from the backup", note = "from the backup")
+        copies("LP" to "from the backup")
         val saved = backup()
         database.albumDao().deleteCopiesExcept("1", emptyList())
         copies("CD" to "written on the phone")
-        database.albumDao().setNote("1", "written on the phone")
 
         restore(saved)
 
         assertEquals(listOf("CD" to "written on the phone"), copiesOf())
-        assertEquals("written on the phone", database.albumDao().getById("1")!!.userNote)
     }
 
     @Test
@@ -681,16 +675,15 @@ class BackupViewModelTest {
     }
 
     @Test
-    fun `a copy on something that is not a format is dropped and long notes are cut when restoring`() = runBlocking {
+    fun `a copy on something that is not a format is dropped and long descriptions are cut when restoring`() = runBlocking {
         val note = "x".repeat(2000)
-        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"userNote":"$note","copies":[{"format":"LP","note":"$note"},{"format":"nonsense","note":"x"},{"note":"no format"}]}]}"""
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"copies":[{"format":"LP","note":"$note"},{"format":"nonsense","note":"x"},{"note":"no format"}]}]}"""
         val fresh = emptyDatabase()
 
         restore(zipOf(json(text)), viewModel(fresh))
 
         assertEquals(listOf("LP"), copiesOf(db = fresh).map { it.first })
         assertEquals(500, copiesOf(db = fresh).single().second!!.length)
-        assertEquals(500, fresh.albumDao().getById("1")!!.userNote!!.length)
         fresh.close()
     }
 
@@ -702,6 +695,18 @@ class BackupViewModelTest {
         restore(zipOf(json(text)), viewModel(fresh))
 
         assertEquals(listOf("LP" to null, "CD" to "from Mum"), copiesOf(db = fresh))
+        fresh.close()
+    }
+
+    @Test
+    fun `the note about the album in an earlier backup restores as one more copy, on LP`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"userNote":"Green sleeve","copies":[{"format":"LP","note":"Blue sleeve"}]},{"id":"2","artistId":"artist-1","title":"B","category":"STUDIO_ALBUM","owned":true,"userNote":"BMG vinyl, 2018"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertEquals(listOf("LP" to "Blue sleeve", "LP" to "Green sleeve"), copiesOf("1", fresh))
+        assertEquals(listOf("LP" to "BMG vinyl, 2018"), copiesOf("2", fresh))
         fresh.close()
     }
 
@@ -778,13 +783,13 @@ class BackupViewModelTest {
         database.albumDao().setMyPressing("1", "release-9", "1989, Portugal")
         val saved = backup()
         database.albumDao().setMyPressing("1", null, null)
-        database.albumDao().setNote("1", "a note written on the phone")
+        copies("CD" to "written on the phone")
 
         val result = restore(saved) as RestoreResult.Done
 
         val merged = database.albumDao().getById("1")!!
         assertEquals("release-9", merged.myPressingId)
-        assertEquals("a note written on the phone", merged.userNote)
+        assertEquals(listOf("CD" to "written on the phone"), copiesOf())
         assertEquals(1, result.albums)
     }
 

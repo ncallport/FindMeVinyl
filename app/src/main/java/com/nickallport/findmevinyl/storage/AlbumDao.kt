@@ -31,10 +31,6 @@ interface AlbumDao {
     @Query("UPDATE albums SET formats = :formats, statuses = :statuses, formatsCheckedAt = :checkedAt WHERE id = :albumId")
     suspend fun setChecked(albumId: String, formats: String, statuses: String, checkedAt: Long): Int
 
-    /** Saves the user's note about the album, or clears it with null. Nothing else about the album changes. */
-    @Query("UPDATE albums SET userNote = :note WHERE id = :albumId")
-    suspend fun setNote(albumId: String, note: String?): Int
-
     /** The copies of the album the user owns, in the order they were listed. */
     @Query("SELECT * FROM album_copies WHERE albumId = :albumId ORDER BY position, id")
     suspend fun getCopies(albumId: String): List<AlbumCopyEntity>
@@ -56,7 +52,7 @@ interface AlbumDao {
 
     /** Every album the user owns or wants, or has recorded details of a copy for, for a backup. */
     @Query(
-        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR userNote IS NOT NULL OR myPressingId IS NOT NULL " +
+        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR myPressingId IS NOT NULL " +
             "OR EXISTS (SELECT 1 FROM album_copies WHERE album_copies.albumId = albums.id)"
     )
     suspend fun getOwnedOrWanted(): List<AlbumEntity>

@@ -202,3 +202,25 @@ val MIGRATION_19_20 = object : Migration(19, 20) {
         }
     }
 }
+
+/**
+ * The note about the album is gone: a copy has its own description. An album that had a note gets one more copy, on LP
+ * with the note as its description, for the user to change if the format is wrong, and the note is cleared.
+ */
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val notes = db.query("SELECT id, userNote FROM albums WHERE userNote IS NOT NULL AND TRIM(userNote) != ''").use { c ->
+            buildList { while (c.moveToNext()) add(c.getString(0) to c.getString(1).trim()) }
+        }
+        for ((albumId, note) in notes) {
+            val next = db.query("SELECT COALESCE(MAX(position) + 1, 0) FROM album_copies WHERE albumId = ?", arrayOf<Any?>(albumId)).use { c ->
+                if (c.moveToFirst()) c.getInt(0) else 0
+            }
+            db.execSQL(
+                "INSERT INTO `album_copies` (`albumId`, `format`, `note`, `position`) VALUES (?, 'LP', ?, ?)",
+                arrayOf<Any?>(albumId, note, next)
+            )
+        }
+        db.execSQL("UPDATE `albums` SET `userNote` = NULL")
+    }
+}

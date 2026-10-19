@@ -32,6 +32,7 @@ data class AlbumEntity(
     @Deprecated("Copied into album_copies by MIGRATION_19_20, no longer read or written.")
     val userFormats: String? = null,
     /** The user's own note about their copy, such as the country or the language of the sleeve. Null: none. */
+    @Deprecated("Moved into a copy by MIGRATION_20_21, no longer read or written.")
     val userNote: String? = null,
     /** The MusicBrainz release the user says is their copy, chosen from the album's pressings. Null: none chosen. */
     val myPressingId: String? = null,
