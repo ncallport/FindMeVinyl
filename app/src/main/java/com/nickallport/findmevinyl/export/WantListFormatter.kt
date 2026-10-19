@@ -17,7 +17,7 @@ data class ShareOptions(
 
 object WantListFormatter {
     /**
-     * The want list as text, grouped by artist in the order given. A message goes above it, and a limit
+     * The want list as text, one numbered line for each album in the order given. A message goes above it, and a limit
      * keeps only the first albums, with the header saying how many of how many. A limit that is not a
      * positive number, or is as big as the list, shares everything.
      */
@@ -30,13 +30,10 @@ object WantListFormatter {
         val top = if (message.isEmpty()) header else "$message\n\n$header"
         if (shown.isEmpty()) return top
 
-        val grouped = shown.groupBy { it.artistName }
-        val body = grouped.entries.joinToString("\n\n") { (artist, albums) ->
-            buildString {
-                append(artist)
-                albums.forEach { append("\n- ${it.albumTitle}" + (it.wantFormat?.let { f -> " (on $f)" } ?: "")) }
-            }
-        }
+        // One line for each album, numbered in the user's own order: the artist, the album, and the format if one is wanted.
+        val body = shown.mapIndexed { index, item ->
+            "${index + 1}. ${item.artistName} - ${item.albumTitle}" + (item.wantFormat?.let { " (on $it)" } ?: "")
+        }.joinToString("\n")
 
         return "$top\n\n$body"
     }

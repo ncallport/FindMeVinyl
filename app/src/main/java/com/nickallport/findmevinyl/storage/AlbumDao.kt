@@ -75,13 +75,13 @@ interface AlbumDao {
     @Query("UPDATE albums SET wantPosition = :position WHERE id = :albumId")
     suspend fun setWantPosition(albumId: String, position: Int): Int
 
-    /** Wants the album and puts it last in its artist's want list. An album already wanted keeps its place. */
+    /** Wants the album and puts it last in the want list. An album already wanted keeps its place. */
     @Query(
         """
         UPDATE albums SET wanted = 1,
             wantPosition = CASE WHEN wanted = 1 THEN wantPosition ELSE
                 (SELECT COALESCE(MAX(other.wantPosition), -1) + 1 FROM albums AS other
-                 WHERE other.artistId = albums.artistId AND other.wanted = 1
+                 WHERE other.wanted = 1
                    AND other.id != albums.id) END
         WHERE id = :albumId
         """

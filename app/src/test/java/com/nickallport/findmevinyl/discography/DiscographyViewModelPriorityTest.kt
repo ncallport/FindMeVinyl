@@ -131,14 +131,14 @@ class DiscographyViewModelPriorityTest {
     }
 
     @Test
-    fun `the want order of one artist does not depend on another artist`() = runBlocking {
+    fun `a new want goes last in the whole list, whoever the album is by`() = runBlocking {
         album("1", "g"); album("2", "r")
 
         viewModel.toggleWanted("1", false, "g", "Genesis")
         viewModel.toggleWanted("2", false, "r", "Ramones")
 
         assertEquals(0, wantPosition("1"))
-        assertEquals(0, wantPosition("2"))
+        assertEquals(1, wantPosition("2"))
     }
 
     @Test
