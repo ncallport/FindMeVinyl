@@ -177,11 +177,29 @@ fun AlbumDetailScreen(
         Spacer(Modifier.height(16.dp))
         when (state) {
             AlbumDetailState.Loading -> RecordSpinner(modifier = Modifier.testTag("detail_loading"))
-            AlbumDetailState.AddedByHand -> Text(
-                text = "You added this album yourself, so MusicBrainz has no details for it.",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.testTag("detail_added_by_hand")
-            )
+            AlbumDetailState.AddedByHand -> Column(modifier = Modifier.fillMaxWidth()) {
+                album?.description?.let {
+                    Text(text = it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("detail_description"))
+                    Spacer(Modifier.height(12.dp))
+                }
+                if (album != null && album.tracks.isNotEmpty()) {
+                    Text(text = "Tracklist", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    album.tracks.forEachIndexed { index, track ->
+                        Text(
+                            text = "${index + 1}. $track",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(top = 4.dp).testTag("detail_user_track_$index")
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+                Text(
+                    text = "You added this album yourself, so MusicBrainz has no details for it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("detail_added_by_hand")
+                )
+            }
             AlbumDetailState.Failed -> {
                 Text("Couldn't load the details", style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(8.dp))

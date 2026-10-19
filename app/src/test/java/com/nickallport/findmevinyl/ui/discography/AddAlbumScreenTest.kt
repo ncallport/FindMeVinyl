@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -207,5 +208,114 @@ class AddAlbumScreenTest {
 
         composeTestRule.onNodeWithTag("add_album_delete_confirm").assertDoesNotExist()
         assertEquals(0, deleted)
+    }
+
+    // A description and a tracklist.
+
+    private fun addTrack(title: String) {
+        type("add_album_track_input", title)
+        tap("add_album_track_add")
+    }
+
+    @Test
+    fun `there is an optional description box`() {
+        show()
+
+        type("add_album_title", "Live in a Pub")
+        type("add_album_description", "BBC Radio 1, 1983")
+        tap("add_album_save")
+
+        assertEquals("BBC Radio 1, 1983", saved.single().description)
+    }
+
+    @Test
+    fun `tracks are added one at a time, and are listed in order, numbered`() {
+        show()
+
+        addTrack("Harvest Home")
+        addTrack("Fields of Fire")
+
+        composeTestRule.onNodeWithTag("add_album_track_0").performScrollTo().assertTextContains("1. Harvest Home")
+        composeTestRule.onNodeWithTag("add_album_track_1").performScrollTo().assertTextContains("2. Fields of Fire")
+        composeTestRule.onNodeWithTag("add_album_track_2").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the box for the next track is emptied after one is added`() {
+        show()
+
+        addTrack("Harvest Home")
+
+        composeTestRule.onNodeWithTag("add_album_track_add").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a blank track cannot be added`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_track_add").performScrollTo().assertIsNotEnabled()
+        type("add_album_track_input", "   ")
+        composeTestRule.onNodeWithTag("add_album_track_add").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a track can be removed`() {
+        show()
+        addTrack("One"); addTrack("Two"); addTrack("Three")
+
+        tap("add_album_track_remove_1")
+
+        composeTestRule.onNodeWithTag("add_album_track_0").performScrollTo().assertTextContains("1. One")
+        composeTestRule.onNodeWithTag("add_album_track_1").performScrollTo().assertTextContains("2. Three")
+        composeTestRule.onNodeWithTag("add_album_track_2").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a track can be moved up and down, and the first cannot go up nor the last down`() {
+        show()
+        addTrack("One"); addTrack("Two"); addTrack("Three")
+
+        composeTestRule.onNodeWithTag("add_album_track_up_0").performScrollTo().assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("add_album_track_down_2").performScrollTo().assertIsNotEnabled()
+
+        tap("add_album_track_up_2")
+        composeTestRule.onNodeWithTag("add_album_track_1").performScrollTo().assertTextContains("2. Three")
+        tap("add_album_track_down_0")
+        composeTestRule.onNodeWithTag("add_album_track_0").performScrollTo().assertTextContains("1. Three")
+        composeTestRule.onNodeWithTag("add_album_track_1").performScrollTo().assertTextContains("2. One")
+    }
+
+    @Test
+    fun `saving hands over the tracks in order`() {
+        show()
+        type("add_album_title", "Live in a Pub")
+        addTrack("One"); addTrack("Two")
+        tap("add_album_track_up_1")
+
+        tap("add_album_save")
+
+        assertEquals(listOf("Two", "One"), saved.single().tracks)
+    }
+
+    @Test
+    fun `changing an album shows its description and tracks`() {
+        show(initial = earlier.copy(description = "BBC", tracks = listOf("One", "Two")), editing = true)
+
+        composeTestRule.onNodeWithTag("add_album_description").performScrollTo().assertTextContains("BBC")
+        composeTestRule.onNodeWithTag("add_album_track_1").performScrollTo().assertTextContains("2. Two")
+    }
+
+    @Test
+    fun `the keyboard's Done adds the track, and a blank one is not added`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_track_input").performScrollTo().performImeAction()
+        composeTestRule.onNodeWithTag("add_album_track_0").assertDoesNotExist()
+
+        type("add_album_track_input", "Harvest Home")
+        composeTestRule.onNodeWithTag("add_album_track_input").performImeAction()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("add_album_track_0").performScrollTo().assertTextContains("1. Harvest Home")
     }
 }

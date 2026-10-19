@@ -453,4 +453,38 @@ class AlbumDetailScreenTest {
 
         composeTestRule.onNodeWithTag("detail_edit_album").assertDoesNotExist()
     }
+
+    @Test
+    fun `an album added by hand shows its description and its tracklist`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailScreen(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country",
+                    album = notOwned.copy(owned = true, description = "BBC Radio 1, 1983", tracks = listOf("Harvest Home", "Fields of Fire")),
+                    state = AlbumDetailState.AddedByHand, onRetry = {}, onToggleOwned = {}, onToggleWanted = {}, loadCover = { null }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_description").performScrollTo().assertTextEquals("BBC Radio 1, 1983")
+        composeTestRule.onNodeWithTag("detail_user_track_0").performScrollTo().assertTextEquals("1. Harvest Home")
+        composeTestRule.onNodeWithTag("detail_user_track_1").performScrollTo().assertTextEquals("2. Fields of Fire")
+    }
+
+    @Test
+    fun `with no description and no tracks nothing of the kind is shown`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailScreen(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country", album = notOwned.copy(owned = true),
+                    state = AlbumDetailState.AddedByHand, onRetry = {}, onToggleOwned = {}, onToggleWanted = {}, loadCover = { null }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_description").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_user_track_0").assertDoesNotExist()
+    }
 }

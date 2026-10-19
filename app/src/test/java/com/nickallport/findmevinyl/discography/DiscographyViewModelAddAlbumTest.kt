@@ -245,4 +245,76 @@ class DiscographyViewModelAddAlbumTest {
         assertEquals("Bootleg", saved.statuses)
         assertNull(saved.formatsCheckedAt)
     }
+
+    // A description and a tracklist.
+
+    private val withTracks = live.copy(description = "BBC Radio 1, 1983", tracks = listOf("Harvest Home", "Fields of Fire"))
+
+    @Test
+    fun `an album is saved with a description and a tracklist, and they are read back`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withTracks)!!
+
+        assertEquals(withTracks, viewModel.loadDraft(id))
+        val album = viewModel.loadAlbum(id)!!
+        assertEquals("BBC Radio 1, 1983", album.description)
+        assertEquals(listOf("Harvest Home", "Fields of Fire"), album.tracks)
+    }
+
+    @Test
+    fun `without them an album has no description and no tracks`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", live)!!
+
+        val album = viewModel.loadAlbum(id)!!
+
+        assertNull(album.description)
+        assertEquals(emptyList<String>(), album.tracks)
+        assertEquals("", viewModel.loadDraft(id)!!.description)
+        assertEquals(emptyList<String>(), viewModel.loadDraft(id)!!.tracks)
+    }
+
+    @Test
+    fun `the description is trimmed and cut, and a blank one is not kept`() = runBlocking {
+        val long = viewModel.addAlbum("artist-1", "Big Country", live.copy(description = "  " + "x".repeat(900) + "  "))!!
+        assertEquals(500, stored(long).userDescription!!.length)
+
+        val blank = viewModel.addAlbum("artist-1", "Big Country", live.copy(description = "   "))!!
+        assertNull(stored(blank).userDescription)
+    }
+
+    @Test
+    fun `tracks are trimmed, blank ones dropped, long titles cut, and the order kept`() = runBlocking {
+        val id = viewModel.addAlbum(
+            "artist-1", "Big Country",
+            live.copy(tracks = listOf("  One ", "", "   ", "Two", "y".repeat(500), "Two"))
+        )!!
+
+        val tracks = viewModel.loadAlbum(id)!!.tracks
+        assertEquals(listOf("One", "Two", "y".repeat(200), "Two"), tracks)
+    }
+
+    @Test
+    fun `no more than a hundred tracks are kept`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", live.copy(tracks = List(150) { "Track $it" }))!!
+
+        assertEquals(100, viewModel.loadAlbum(id)!!.tracks.size)
+        assertEquals("Track 0", viewModel.loadAlbum(id)!!.tracks.first())
+    }
+
+    @Test
+    fun `changing an album replaces its description and its tracks`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withTracks)!!
+
+        assertTrue(viewModel.updateAlbum(id, live.copy(description = "", tracks = listOf("Only one"))))
+
+        val album = viewModel.loadAlbum(id)!!
+        assertNull(album.description)
+        assertEquals(listOf("Only one"), album.tracks)
+    }
+
+    @Test
+    fun `a title with a comma or a quote in a track survives`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", live.copy(tracks = listOf("Look Away, Look Away", "\"Quoted\" | pipe")))!!
+
+        assertEquals(listOf("Look Away, Look Away", "\"Quoted\" | pipe"), viewModel.loadAlbum(id)!!.tracks)
+    }
 }

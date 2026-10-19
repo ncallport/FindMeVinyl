@@ -60,7 +60,10 @@ data class BackupAlbum(
     /** The copies the user owns, in order. Older files have `userFormats` instead. */
     val copies: List<BackupCopy>? = null,
     /** Only for an album added by hand: Official or Bootleg. An album from MusicBrainz has its statuses looked up again. */
-    val statuses: String? = null
+    val statuses: String? = null,
+    /** Only for an album added by hand: what the user typed about it, and its tracklist. */
+    val description: String? = null,
+    val tracks: List<String>? = null
 )
 
 /** One copy of an album: a format label such as LP, and a note. */

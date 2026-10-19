@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.backup
 
+import com.nickallport.findmevinyl.discography.UserTracks
 import com.nickallport.findmevinyl.discography.ReleaseStatuses
 import com.nickallport.findmevinyl.discography.MAX_ALBUM_TITLE_LENGTH
 import com.nickallport.findmevinyl.discography.CustomAlbums
@@ -86,7 +87,9 @@ class BackupViewModel(
                     it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
                     null, null, it.myPressingId, it.myPressingText, it.wantFormat, null,
                     copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) },
-                    it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) }
+                    it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) },
+                    it.userDescription.takeIf { _ -> CustomAlbums.isCustom(it.id) },
+                    UserTracks.decode(it.userTracks).takeIf { _ -> CustomAlbums.isCustom(it.id) }
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -241,6 +244,8 @@ class BackupViewModel(
                         album.category ?: "OTHER", album.firstReleaseDate,
                         owned, wanted, wantPosition = album.wantPosition ?: 0,
                         formats = if (addedByHand) "" else null,
+                        userDescription = if (addedByHand) album.description?.let(UserTracks::cleanDescription) else null,
+                        userTracks = if (addedByHand) UserTracks.encode(album.tracks.orEmpty()) else null,
                         statuses = if (addedByHand) {
                             if (ReleaseStatuses.decode(album.statuses.orEmpty()) == listOf(ReleaseStatuses.BOOTLEG)) ReleaseStatuses.BOOTLEG else ReleaseStatuses.OFFICIAL
                         } else null,

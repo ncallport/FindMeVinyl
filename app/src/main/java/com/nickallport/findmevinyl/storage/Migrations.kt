@@ -270,3 +270,11 @@ val MIGRATION_21_22 = object : Migration(21, 22) {
         }
     }
 }
+
+/** An album added by hand can have a description and a tracklist the user typed. */
+val MIGRATION_22_23 = object : Migration(22, 23) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userDescription` TEXT")
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userTracks` TEXT")
+    }
+}

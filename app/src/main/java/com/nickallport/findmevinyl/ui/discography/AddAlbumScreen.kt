@@ -1,5 +1,16 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import com.nickallport.findmevinyl.discography.MAX_TRACK_TITLE_LENGTH
+import com.nickallport.findmevinyl.discography.MAX_USER_TRACKS
+import com.nickallport.findmevinyl.discography.MAX_NOTE_LENGTH
+import com.nickallport.findmevinyl.ui.common.MoveButtons
+import com.nickallport.findmevinyl.ui.brand.Glyphs
+import com.nickallport.findmevinyl.ordering.Reorder
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -71,9 +82,17 @@ fun AddAlbumScreen(
     var year by rememberSaveable { mutableStateOf(initial?.year.orEmpty()) }
     var kind by rememberSaveable { mutableStateOf((initial?.category ?: DiscographyCategory.LIVE_ALBUM).name) }
     var bootleg by rememberSaveable { mutableStateOf(initial?.bootleg ?: false) }
+    var description by rememberSaveable { mutableStateOf(initial?.description.orEmpty()) }
+    // The tracks, one to a line (a title never has a line break in it), and the title being typed for the next.
+    var tracksText by rememberSaveable { mutableStateOf(initial?.tracks.orEmpty().joinToString("\n")) }
+    var trackInput by rememberSaveable { mutableStateOf("") }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
 
-    val draft = AlbumDraft(title, year, DiscographyCategory.valueOf(kind), bootleg)
+    val tracks = if (tracksText.isEmpty()) emptyList() else tracksText.split("\n")
+    val draft = AlbumDraft(title, year, DiscographyCategory.valueOf(kind), bootleg, description, tracks)
+    fun setTracks(list: List<String>) {
+        tracksText = list.joinToString("\n")
+    }
     val yearOk = year.isBlank() || AlbumDraft(title.ifBlank { "x" }, year, DiscographyCategory.OTHER, false).cleaned() != null
     val valid = draft.cleaned() != null
 
@@ -155,6 +174,63 @@ fun AddAlbumScreen(
         ) {
             Text(text = "This is a bootleg", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Switch(checked = bootleg, onCheckedChange = null)
+        }
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it.take(MAX_NOTE_LENGTH) },
+            label = { Text("Description (optional), such as where it is from") },
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth().testTag("add_album_description")
+        )
+
+        Text(text = "Tracklist (optional)", style = MaterialTheme.typography.labelLarge)
+        tracks.forEachIndexed { index, track ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "${index + 1}. $track",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f).testTag("add_album_track_$index")
+                )
+                MoveButtons(
+                    name = track,
+                    upTag = "add_album_track_up_$index",
+                    downTag = "add_album_track_down_$index",
+                    canMoveUp = index > 0,
+                    canMoveDown = index < tracks.lastIndex,
+                    onMoveUp = { Reorder.swappedAt(tracks, index, -1)?.let(::setTracks) },
+                    onMoveDown = { Reorder.swappedAt(tracks, index, 1)?.let(::setTracks) }
+                )
+                IconButton(
+                    onClick = { setTracks(tracks.filterIndexed { i, _ -> i != index }) },
+                    modifier = Modifier.testTag("add_album_track_remove_$index").size(40.dp)
+                ) {
+                    Icon(Glyphs.Delete, contentDescription = "Remove $track", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val next = trackInput.replace("\n", " ").trim()
+            val canAdd = next.isNotEmpty() && tracks.size < MAX_USER_TRACKS
+            val addTrack = {
+                setTracks(tracks + next)
+                trackInput = ""
+            }
+            OutlinedTextField(
+                value = trackInput,
+                onValueChange = { trackInput = it.replace("\n", " ").take(MAX_TRACK_TITLE_LENGTH) },
+                label = { Text(if (tracks.isEmpty()) "First track" else "Next track") },
+                singleLine = true,
+                // The keyboard's Done adds the track, so a whole tracklist can be typed without leaving the keyboard.
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (canAdd) addTrack() }),
+                modifier = Modifier.weight(1f).testTag("add_album_track_input")
+            )
+            OutlinedButton(
+                onClick = addTrack,
+                enabled = canAdd,
+                modifier = Modifier.testTag("add_album_track_add")
+            ) { Text("Add track") }
         }
 
         Spacer(Modifier.height(8.dp))
