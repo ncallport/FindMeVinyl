@@ -425,4 +425,32 @@ class AlbumDetailScreenTest {
 
         composeTestRule.onNodeWithTag("detail_artist").assertHasNoClickAction()
     }
+
+    @Test
+    fun `an album added by hand has an Edit this album button, and says there are no details`() {
+        var edits = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailScreen(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country", album = notOwned.copy(owned = true),
+                    state = AlbumDetailState.AddedByHand, onRetry = {}, onToggleOwned = {}, onToggleWanted = {},
+                    loadCover = { null }, onEditAlbum = { edits++ }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_added_by_hand").performScrollTo().assertExists()
+        composeTestRule.onNodeWithTag("detail_edit_album").performScrollTo().performClick()
+        assertEquals(1, edits)
+        composeTestRule.onNodeWithTag("detail_loading").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_retry").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an album from MusicBrainz has no Edit this album button`() {
+        show()
+
+        composeTestRule.onNodeWithTag("detail_edit_album").assertDoesNotExist()
+    }
 }

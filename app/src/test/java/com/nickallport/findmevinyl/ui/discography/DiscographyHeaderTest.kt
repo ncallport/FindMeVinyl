@@ -314,4 +314,25 @@ class DiscographyHeaderTest {
 
         composeTestRule.onNodeWithTag("favourite_toggle").assertExists()
     }
+
+    @Test
+    fun `has an Add an album button that reports a tap`() {
+        var taps = 0
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Big Country", isFavourite = false, onToggleFavourite = {}, onAddAlbum = { taps++ })
+        }
+
+        composeTestRule.onNodeWithTag("add_album_button").performClick()
+
+        assertEquals(1, taps)
+    }
+
+    @Test
+    fun `has no Add an album button without a way to add one`() {
+        composeTestRule.setContent {
+            DiscographyHeader(artistName = "Big Country", isFavourite = false, onToggleFavourite = {})
+        }
+
+        composeTestRule.onNodeWithTag("add_album_button").assertDoesNotExist()
+    }
 }

@@ -31,6 +31,14 @@ interface AlbumDao {
     @Query("UPDATE albums SET formats = :formats, statuses = :statuses, formatsCheckedAt = :checkedAt WHERE id = :albumId")
     suspend fun setChecked(albumId: String, formats: String, statuses: String, checkedAt: Long): Int
 
+    /** Changes an album added by hand. An album from MusicBrainz is never changed this way. */
+    @Query("UPDATE albums SET title = :title, firstReleaseDate = :date, category = :category, statuses = :statuses WHERE id = :albumId AND id LIKE 'custom/%'")
+    suspend fun updateCustomAlbum(albumId: String, title: String, date: String?, category: String, statuses: String): Int
+
+    /** Removes an album added by hand. An album from MusicBrainz is never removed this way. */
+    @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")
+    suspend fun deleteCustomAlbum(albumId: String): Int
+
     /** The copies of the album the user owns, in the order they were listed. */
     @Query("SELECT * FROM album_copies WHERE albumId = :albumId ORDER BY position, id")
     suspend fun getCopies(albumId: String): List<AlbumCopyEntity>
@@ -52,7 +60,7 @@ interface AlbumDao {
 
     /** Every album the user owns or wants, or has recorded details of a copy for, for a backup. */
     @Query(
-        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR myPressingId IS NOT NULL " +
+        "SELECT * FROM albums WHERE owned = 1 OR wanted = 1 OR myPressingId IS NOT NULL OR id LIKE 'custom/%' " +
             "OR EXISTS (SELECT 1 FROM album_copies WHERE album_copies.albumId = albums.id)"
     )
     suspend fun getOwnedOrWanted(): List<AlbumEntity>

@@ -125,8 +125,8 @@ class DiscographyViewModel(
 
     // Formats or statuses never looked up, or looked up too long ago.
     private fun needsCheck(album: AlbumEntity): Boolean =
-        album.formats == null || album.statuses == null ||
-            album.formatsCheckedAt?.let { clock() - it > formatRefreshAfterMillis } != false
+        !CustomAlbums.isCustom(album.id) && (album.formats == null || album.statuses == null ||
+            album.formatsCheckedAt?.let { clock() - it > formatRefreshAfterMillis } != false)
 
     private suspend fun checkArtistFormats(
         artistId: String,
@@ -190,6 +190,8 @@ class DiscographyViewModel(
         // every visit. It keeps formats and statuses an earlier lookup found, and has none otherwise.
         val sawReleases = progress.formatsByAlbum.isNotEmpty()
         for (album in albumDao.getAlbumsForArtist(artistId)) {
+            // An album added by hand is not on MusicBrainz, so it is not part of the check.
+            if (CustomAlbums.isCustom(album.id)) continue
             val names = progress.formatsByAlbum[album.id]
             if (names == null) {
                 if (!sawReleases || !needsCheck(album)) continue
@@ -211,6 +213,7 @@ class DiscographyViewModel(
      * caller that is cancelled meanwhile still leaves the formats stored.
      */
     suspend fun loadFormats(albumId: String): List<String>? {
+        if (CustomAlbums.isCustom(albumId)) return emptyList()
         return try {
             val names = throttle.run {
                 val releases = api.getReleasesForReleaseGroup(releaseGroupId = albumId)
@@ -425,7 +428,8 @@ class DiscographyViewModel(
             // Every saved album came from MusicBrainz, so once as many are saved as it lists, there
             // is nothing new in the pages still to come. That makes reopening an artist one request.
             val nowSaved = loadSaved(artistId)
-            val savedCount = nowSaved.groupedAlbums.values.sumOf { it.size }
+            // Albums added by hand did not come from MusicBrainz, so they do not count towards its total.
+            val savedCount = nowSaved.groupedAlbums.values.sumOf { albums -> albums.count { !CustomAlbums.isCustom(it.id) } }
 
             val total = response.releaseGroupCount
             val finished = total == null ||
@@ -437,6 +441,54 @@ class DiscographyViewModel(
             if (finished) return@flow
         }
     }
+
+    /**
+     * Adds an album MusicBrainz does not list, owned, under the artist (or a group's first member). Null when the title
+     * is blank or the year is not four digits. It is saved as looked at, with no formats and an official or bootleg
+     * status, so nothing asks MusicBrainz about it. Adding it makes the artist a favourite, as owning an album does.
+     */
+    suspend fun addAlbum(artistId: String, artistName: String, draft: AlbumDraft): String? {
+        val clean = draft.cleaned() ?: return null
+        val owner = if (ArtistGroupViewModel.isGroupId(artistId)) memberIdsOf(artistId).firstOrNull() ?: return null else artistId
+        val id = CustomAlbums.newId()
+        albumDao.insert(
+            AlbumEntity(
+                id = id, artistId = owner, title = clean.first, category = draft.category.name, firstReleaseDate = clean.second,
+                owned = true, wanted = false, formats = "", statuses = statusOf(draft)
+            )
+        )
+        saveFavourite(artistId, artistName)
+        return id
+    }
+
+    /** What an album added by hand has now, to fill the form with. Null for an album from MusicBrainz or none. */
+    suspend fun loadDraft(albumId: String): AlbumDraft? {
+        if (!CustomAlbums.isCustom(albumId)) return null
+        val album = albumDao.getById(albumId) ?: return null
+        return AlbumDraft(
+            title = album.title,
+            year = album.firstReleaseDate.orEmpty(),
+            category = categoryFrom(album.category),
+            bootleg = album.statuses == ReleaseStatuses.BOOTLEG
+        )
+    }
+
+    /** Changes an album added by hand. False when it is not one, is not there, or the draft is not valid. */
+    suspend fun updateAlbum(albumId: String, draft: AlbumDraft): Boolean {
+        if (!CustomAlbums.isCustom(albumId)) return false
+        val clean = draft.cleaned() ?: return false
+        return albumDao.updateCustomAlbum(albumId, clean.first, clean.second, draft.category.name, statusOf(draft)) > 0
+    }
+
+    /** Takes an album added by hand away, with its copies. False when it is not one or is not there. */
+    suspend fun deleteAlbum(albumId: String): Boolean {
+        if (!CustomAlbums.isCustom(albumId)) return false
+        if (albumDao.deleteCustomAlbum(albumId) == 0) return false
+        albumDao.deleteCopiesExcept(albumId, emptyList())
+        return true
+    }
+
+    private fun statusOf(draft: AlbumDraft) = if (draft.bootleg) ReleaseStatuses.BOOTLEG else ReleaseStatuses.OFFICIAL
 
     private fun newAlbum(artistId: String, releaseGroup: ReleaseGroupDto) = AlbumEntity(
         id = releaseGroup.id,

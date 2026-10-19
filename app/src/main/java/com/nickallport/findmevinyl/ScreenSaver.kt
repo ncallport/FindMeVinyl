@@ -40,6 +40,16 @@ internal sealed class Screen {
         /** A shop added by hand that is being changed, instead of a new one being added. */
         val editing: com.nickallport.findmevinyl.shops.Shop? = null
     ) : Screen()
+    /**
+     * Adding an album MusicBrainz does not list to the artist's (or group's) discography, or, with [editingAlbumId], changing
+     * one added earlier. [backTo] is the discography, or the album's page, it came from.
+     */
+    data class AddAlbum(
+        val artistId: String,
+        val artistName: String,
+        val editingAlbumId: String? = null,
+        val backTo: Screen
+    ) : Screen()
     /** One album: its tracklist and details. [backTo] is the discography it was opened from. */
     data class AlbumDetail(
         val albumId: String,
@@ -60,6 +70,7 @@ internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.Discography -> backTo
     is Screen.AlbumDetail -> backTo
     is Screen.JoinArtists -> backTo
+    is Screen.AddAlbum -> backTo
     is Screen.ShopDetail -> backTo
     is Screen.FavouriteShops -> Screen.Shops
     is Screen.AddShop -> Screen.FavouriteShops
@@ -87,6 +98,8 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.AlbumDetail ->
             listOf("album", value.albumId, value.title, value.artistId, value.artistName) + save(value.backTo)
         is Screen.JoinArtists -> listOf("join", value.artistId, value.artistName) + save(value.backTo)
+        is Screen.AddAlbum ->
+            listOf("addalbum", value.artistId, value.artistName, value.editingAlbumId.orEmpty()) + save(value.backTo)
     }
 
     override fun restore(value: List<String>): Screen? = when (value.firstOrNull()) {
@@ -115,6 +128,9 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         }
         "album" -> restore(value.drop(5))?.let {
             Screen.AlbumDetail(value[1], value[2], value[3], value[4], it)
+        }
+        "addalbum" -> restore(value.drop(4))?.let {
+            Screen.AddAlbum(value[1], value[2], value[3].ifEmpty { null }, it)
         }
         "join" -> restore(value.drop(3))?.let {
             Screen.JoinArtists(value[1], value[2], it)

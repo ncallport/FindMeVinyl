@@ -1,0 +1,211 @@
+package com.nickallport.findmevinyl.ui.discography
+
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
+import com.nickallport.findmevinyl.discography.AlbumDraft
+import com.nickallport.findmevinyl.discography.DiscographyCategory
+import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/** The form for an album MusicBrainz does not list. */
+@RunWith(RobolectricTestRunner::class)
+class AddAlbumScreenTest {
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    private val saved = mutableListOf<AlbumDraft>()
+    private var cancelled = 0
+    private var deleted = 0
+    private var settingsOpened = 0
+
+    private fun show(initial: AlbumDraft? = null, editing: Boolean = false, showHiddenNote: Boolean = false) {
+        saved.clear()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AddAlbumScreen(
+                    artistName = "Big Country", editing = editing, initial = initial, showHiddenNote = showHiddenNote,
+                    onSave = { saved.add(it) }, onCancel = { cancelled++ }, onDelete = { deleted++ }, onOpenSettings = { settingsOpened++ }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun type(tag: String, text: String) {
+        composeTestRule.onNodeWithTag(tag).performScrollTo().performTextInput(text)
+        composeTestRule.waitForIdle()
+    }
+
+    private fun tap(tag: String) {
+        composeTestRule.onNodeWithTag(tag).performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `saving needs a title`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertIsNotEnabled()
+        type("add_album_title", "Live in a Pub")
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `a blank title does not count`() {
+        show()
+
+        type("add_album_title", "   ")
+
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `the year is optional, and a wrong one says so and stops saving`() {
+        show()
+        type("add_album_title", "Live in a Pub")
+
+        type("add_album_year", "83")
+
+        composeTestRule.onNodeWithTag("add_album_year_error").performScrollTo().assertTextContains("four digits", substring = true)
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertIsNotEnabled()
+
+        composeTestRule.onNodeWithTag("add_album_year").performScrollTo().performTextClearance()
+        composeTestRule.onNodeWithTag("add_album_year_error").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `it starts on a live album, not a bootleg`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_kind_LIVE_ALBUM").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("add_album_bootleg").performScrollTo().assertIsOff()
+    }
+
+    @Test
+    fun `saving hands over what was typed and chosen`() {
+        show()
+
+        type("add_album_title", "  Live in a Pub ")
+        type("add_album_year", "1983")
+        tap("add_album_kind_OTHER")
+        tap("add_album_bootleg")
+        tap("add_album_save")
+
+        assertEquals(listOf(AlbumDraft("  Live in a Pub ", "1983", DiscographyCategory.OTHER, bootleg = true)), saved)
+    }
+
+    @Test
+    fun `there is a kind to choose for each category`() {
+        show()
+
+        listOf("STUDIO_ALBUM", "LIVE_ALBUM", "COMPILATION", "EP", "SINGLE", "OTHER").forEach {
+            composeTestRule.onNodeWithTag("add_album_kind_$it").performScrollTo().assertExists()
+        }
+    }
+
+    @Test
+    fun `the name of the artist is on the page, and the page is for adding`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_artist").assertTextContains("Big Country")
+        composeTestRule.onNodeWithTag("add_album_title_text").assertTextContains("Add an album")
+        composeTestRule.onNodeWithTag("add_album_delete").assertDoesNotExist()
+    }
+
+    @Test
+    fun `cancelling saves nothing`() {
+        show()
+        type("add_album_title", "Live in a Pub")
+
+        tap("add_album_cancel")
+
+        assertEquals(1, cancelled)
+        assertEquals(emptyList<AlbumDraft>(), saved)
+    }
+
+    @Test
+    fun `a note says to check the album is not a hidden bootleg, when bootlegs are hidden`() {
+        show(showHiddenNote = true)
+
+        composeTestRule.onNodeWithTag("add_album_hidden_note").performScrollTo().assertTextContains("already listed", substring = true)
+        tap("add_album_open_settings")
+
+        assertEquals(1, settingsOpened)
+    }
+
+    @Test
+    fun `there is no such note when bootlegs are not hidden`() {
+        show(showHiddenNote = false)
+
+        composeTestRule.onNodeWithTag("add_album_hidden_note").assertDoesNotExist()
+    }
+
+    // Changing an album added earlier.
+
+    private val earlier = AlbumDraft("Live in a Pub", "1983", DiscographyCategory.LIVE_ALBUM, bootleg = true)
+
+    @Test
+    fun `changing an album shows what it has, and says it is a change`() {
+        show(initial = earlier, editing = true)
+
+        composeTestRule.onNodeWithTag("add_album_title").performScrollTo().assertTextContains("Live in a Pub")
+        composeTestRule.onNodeWithTag("add_album_year").performScrollTo().assertTextContains("1983")
+        composeTestRule.onNodeWithTag("add_album_bootleg").performScrollTo().assertIsOn()
+        composeTestRule.onNodeWithTag("add_album_title_text").assertTextContains("Edit album")
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().assertTextContains("Save changes")
+    }
+
+    @Test
+    fun `changing and saving hands over the new values`() {
+        show(initial = earlier, editing = true)
+
+        composeTestRule.onNodeWithTag("add_album_title").performScrollTo().performTextClearance()
+        type("add_album_title", "Live at the Pub")
+        tap("add_album_bootleg")
+        tap("add_album_save")
+
+        assertEquals(listOf(AlbumDraft("Live at the Pub", "1983", DiscographyCategory.LIVE_ALBUM, bootleg = false)), saved)
+    }
+
+    @Test
+    fun `an album can be deleted, after being asked`() {
+        show(initial = earlier, editing = true)
+
+        tap("add_album_delete")
+        composeTestRule.onNodeWithTag("add_album_delete_confirm").assertExists()
+        assertEquals(0, deleted)
+
+        composeTestRule.onNodeWithTag("add_album_delete_confirm").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(1, deleted)
+    }
+
+    @Test
+    fun `keeping the album closes the question and deletes nothing`() {
+        show(initial = earlier, editing = true)
+
+        tap("add_album_delete")
+        composeTestRule.onNodeWithTag("add_album_delete_cancel").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("add_album_delete_confirm").assertDoesNotExist()
+        assertEquals(0, deleted)
+    }
+}

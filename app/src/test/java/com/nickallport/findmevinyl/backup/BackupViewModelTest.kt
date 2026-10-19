@@ -1079,4 +1079,90 @@ class BackupViewModelTest {
 
         assertEquals("CD", database.albumDao().getById("1")!!.wantFormat)
     }
+
+    // Albums added by hand.
+
+    private fun custom(id: String = "custom/1", owned: Boolean = true, statuses: String = "Bootleg") = AlbumEntity(
+        id, "artist-1", "Live in a Pub", "LIVE_ALBUM", "1983", owned = owned, wanted = false, formats = "", statuses = statuses
+    )
+
+    @Test
+    fun `an album added by hand is in the backup even when it is neither owned nor wanted`() = runBlocking {
+        database.albumDao().insert(custom(owned = false))
+
+        val text = String(entries(backup()).getValue("backup.json"))
+
+        assertTrue(text.contains("custom/1"))
+        assertTrue(text.contains("Live in a Pub"))
+    }
+
+    @Test
+    fun `an album added by hand comes back with its title, kind, year and bootleg status, owned, and not to be looked up`() = runBlocking {
+        database.albumDao().insert(custom())
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        val restored = fresh.albumDao().getById("custom/1")!!
+        assertEquals("Live in a Pub", restored.title)
+        assertEquals("LIVE_ALBUM", restored.category)
+        assertEquals("1983", restored.firstReleaseDate)
+        assertEquals("artist-1", restored.artistId)
+        assertEquals("Bootleg", restored.statuses)
+        assertEquals("", restored.formats)
+        assertTrue(restored.owned)
+        fresh.close()
+    }
+
+    @Test
+    fun `an album added by hand that is not owned comes back too`() = runBlocking {
+        database.albumDao().insert(custom(owned = false))
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals(false, fresh.albumDao().getById("custom/1")!!.owned)
+        fresh.close()
+    }
+
+    @Test
+    fun `restoring it again changes nothing, and an album already on the phone is left as it is`() = runBlocking {
+        database.albumDao().insert(custom())
+        val saved = backup()
+
+        val second = restore(saved) as RestoreResult.Done
+
+        assertEquals(0, second.albums)
+        assertEquals("Live in a Pub", database.albumDao().getById("custom/1")!!.title)
+    }
+
+    @Test
+    fun `a status that is not one of the two is made official when restoring, and a title is needed`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[
+            {"id":"custom/a","artistId":"artist-1","title":"A","category":"LIVE_ALBUM","owned":true,"statuses":"Promotion|Whatever"},
+            {"id":"custom/b","artistId":"artist-1","title":"  ","category":"LIVE_ALBUM","owned":true,"statuses":"Bootleg"}
+        ]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertEquals("Official", fresh.albumDao().getById("custom/a")!!.statuses)
+        assertEquals("", fresh.albumDao().getById("custom/a")!!.formats)
+        assertNull(fresh.albumDao().getById("custom/b"))
+        fresh.close()
+    }
+
+    @Test
+    fun `statuses in a file are ignored for an album from MusicBrainz, which is looked up again`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"mb-1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"statuses":"Bootleg"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("mb-1")!!.statuses)
+        assertNull(fresh.albumDao().getById("mb-1")!!.formats)
+        fresh.close()
+    }
 }

@@ -725,4 +725,17 @@ class DiscographyViewModelTest {
 
         assertNull(state)
     }
+
+    @Test
+    fun `an album added by hand does not count as one MusicBrainz lists, so the pages are still asked for`() = runBlocking {
+        database.albumDao().insert(album("a"))
+        database.albumDao().insert(album("custom/mine"))
+        server.enqueue(page(2, "a"))
+        server.enqueue(page(2, "b"))
+
+        val states = paged(pageSize = 1).discography("some-id").toList().map { seen(it) }
+
+        assertEquals(2, server.requestCount)
+        assertEquals(listOf("a", "b", "custom/mine"), states.last().ids)
+    }
 }

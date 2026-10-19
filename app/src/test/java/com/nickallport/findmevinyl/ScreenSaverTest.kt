@@ -209,5 +209,28 @@ class ScreenSaverTest {
         val discography = Screen.Discography("cave", "Nick Cave", Screen.Search)
         assertEquals(discography, Screen.JoinArtists("cave", "Nick Cave", discography).backTarget())
     }
-}
 
+    @Test
+    fun theAddAlbumPageKeepsItsArtistAndWhereItCameFrom() {
+        val back = Screen.Discography("artist-1", "Big Country", Screen.Search)
+        val screen = Screen.AddAlbum("artist-1", "Big Country", null, back)
+
+        assertEquals(screen, roundTrip(screen))
+    }
+
+    @Test
+    fun theEditAlbumPageKeepsTheAlbumBeingChanged() {
+        val discography = Screen.Discography("artist-1", "Big Country", Screen.Search)
+        val back = Screen.AlbumDetail("custom/1", "Live in a Pub", "artist-1", "Big Country", discography)
+        val screen = Screen.AddAlbum("artist-1", "Big Country", "custom/1", back)
+
+        assertEquals(screen, roundTrip(screen))
+    }
+
+    @Test
+    fun backFromTheAddAlbumPageGoesToWhereItCameFrom() {
+        val back = Screen.Discography("artist-1", "Big Country", Screen.Search)
+
+        assertEquals(back, Screen.AddAlbum("artist-1", "Big Country", null, back).backTarget())
+    }
+}

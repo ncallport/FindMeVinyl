@@ -73,6 +73,8 @@ fun DiscographyRoute(
     onOpenArtists: (() -> Unit)? = null,
     /** Opens the page for joining the artist with others into a group. Without it the header has no such button. */
     onJoinArtists: (() -> Unit)? = null,
+    /** Opens the page for adding an album MusicBrainz does not list. Without it there is no button. */
+    onAddAlbum: (() -> Unit)? = null,
     /** The artist is already in a group, so the button says Edit group. */
     inGroup: Boolean = false,
     /** [artistId] is a group of artists: its albums are every member's, and it has no Save button, being always kept. */
@@ -188,6 +190,7 @@ fun DiscographyRoute(
             artistName = artistName,
             onOpenArtists = onOpenArtists,
             onJoinArtists = onJoinArtists,
+            onAddAlbum = onAddAlbum,
             inGroup = inGroup,
             showFavourite = !isGroup,
             artistId = artistId,
