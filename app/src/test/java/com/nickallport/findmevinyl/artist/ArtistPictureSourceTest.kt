@@ -129,5 +129,48 @@ class ArtistPictureSourceTest {
 
         assertSame(web, source.load("1c70a3fc-fe03-4b23-ba9c-873c33dcd814"))
     }
-}
 
+    // A bigger picture for the header of an artist's page.
+
+    @Test
+    fun `a large picture asks the web for the large one, and not for the small one`() = runBlocking {
+        val smallAsked = mutableListOf<String>()
+        val source = ArtistPictureSource(
+            userPhoto = { null }, webPicture = { id -> smallAsked.add(id); web }, largeWebPicture = { large }
+        )
+
+        assertSame(large, source.load("a", large = true))
+        assertEquals(emptyList<String>(), smallAsked)
+        assertSame(web, source.load("a"))
+    }
+
+    @Test
+    fun `the photo the user chose is shown for a large picture too, and the web is not asked`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val source = ArtistPictureSource(
+            userPhoto = { photo }, webPicture = { web }, largeWebPicture = { id -> asked.add(id); large }
+        )
+
+        assertSame(photo, source.load("a", large = true))
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `without a large source a large picture is the usual one`() = runBlocking {
+        val source = ArtistPictureSource(userPhoto = { null }, webPicture = { web })
+
+        assertSame(web, source.load("a", large = true))
+    }
+
+    @Test
+    fun `a group shows its first member's large picture`() = runBlocking {
+        val source = ArtistPictureSource(
+            userPhoto = { null }, webPicture = { web }, largeWebPicture = { id -> if (id == "first") large else null },
+            firstMemberOf = { "first" }
+        )
+
+        assertSame(large, source.load("group/1", large = true))
+    }
+
+    private val large = Bitmap.createBitmap(5, 5, Bitmap.Config.ARGB_8888)
+}

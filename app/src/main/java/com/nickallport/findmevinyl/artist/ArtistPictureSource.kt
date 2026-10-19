@@ -14,12 +14,16 @@ import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
 class ArtistPictureSource(
     private val userPhoto: suspend (artistId: String) -> Bitmap?,
     private val webPicture: suspend (artistId: String) -> Bitmap?,
-    private val firstMemberOf: suspend (groupId: String) -> String? = { null }
+    private val firstMemberOf: suspend (groupId: String) -> String? = { null },
+    /** The picture from the web at a bigger size, for the header of an artist's page. Without it the usual one is used. */
+    private val largeWebPicture: (suspend (artistId: String) -> Bitmap?)? = null
 ) {
-    suspend fun load(artistId: String): Bitmap? {
-        if (!ArtistGroupViewModel.isGroupId(artistId)) return userPhoto(artistId) ?: webPicture(artistId)
+    /** With [large], the picture from the web is the bigger one. A photo the user chose is the same either way. */
+    suspend fun load(artistId: String, large: Boolean = false): Bitmap? {
+        val web = if (large) largeWebPicture ?: webPicture else webPicture
+        if (!ArtistGroupViewModel.isGroupId(artistId)) return userPhoto(artistId) ?: web(artistId)
         userPhoto(artistId)?.let { return it }
         val first = firstMemberOf(artistId) ?: return null
-        return userPhoto(first) ?: webPicture(first)
+        return userPhoto(first) ?: web(first)
     }
 }

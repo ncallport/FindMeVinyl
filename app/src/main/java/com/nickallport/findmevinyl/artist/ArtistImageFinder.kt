@@ -55,8 +55,11 @@ class ArtistImageFinder(
             URLDecoder.decode(it.replace("+", "%2B"), "UTF-8")
         }
 
-    private companion object {
-        val wikidataItemPage = Regex("""^https?://(?:www\.)?wikidata\.org/wiki/(Q\d+)/?$""")
-        val commonsFilePage = Regex("""^https?://commons\.wikimedia\.org/wiki/File:(.+)$""")
+    companion object {
+        /** [url], an address [pictureUrl] made, asked for at [width] pixels instead. An address with no width is kept. */
+        fun atWidth(url: String, width: Int): String = url.replace(Regex("""([?&])width=\d+"""), "$1width=$width")
+
+        private val wikidataItemPage = Regex("""^https?://(?:www\.)?wikidata\.org/wiki/(Q\d+)/?$""")
+        private val commonsFilePage = Regex("""^https?://commons\.wikimedia\.org/wiki/File:(.+)$""")
     }
 }

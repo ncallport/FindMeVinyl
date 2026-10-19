@@ -211,4 +211,17 @@ class ArtistImageFinderTest {
             assertTrue(e.code() == 503)
         }
     }
+
+    @Test
+    fun `an address from Commons can be asked for at another width`() {
+        assertEquals(
+            "https://commons.test/wiki/Special:FilePath/A.jpg?width=400",
+            ArtistImageFinder.atWidth("https://commons.test/wiki/Special:FilePath/A.jpg?width=120", 400)
+        )
+    }
+
+    @Test
+    fun `an address with no width is left as it is`() {
+        assertEquals("https://example.test/a.jpg", ArtistImageFinder.atWidth("https://example.test/a.jpg", 400))
+    }
 }

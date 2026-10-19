@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import android.graphics.Bitmap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +36,7 @@ import com.nickallport.findmevinyl.ui.artist.ArtistImage
  * says Add photo or Change photo, and tapping either asks for a photo from the user. [photoVersion]
  * changes when the photo has, so the picture is loaded again.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiscographyHeader(
     artistName: String,
@@ -54,55 +57,51 @@ fun DiscographyHeader(
     /** Opens the page for adding an album MusicBrainz does not list. Without it there is no button. */
     onAddAlbum: (() -> Unit)? = null
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        if (onChoosePhoto != null && artistId != null) {
-            PhotoBlock(artistId, loadArtistImage, photoVersion, onChoosePhoto)
-        }
-        Column(modifier = Modifier.weight(1f)) {
+        // The picture and the name, and under both the buttons, which have the whole width to share a line.
+        Row {
+            if (onChoosePhoto != null && artistId != null) {
+                PhotoBlock(artistId, loadArtistImage, photoVersion, onChoosePhoto)
+            }
             Text(
                 text = artistName,
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f)
             )
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (onOpenArtists != null) {
-                    OutlinedButton(onClick = onOpenArtists, modifier = Modifier.testTag("artists_button")) {
-                        Text("Artists")
-                    }
+        }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (onOpenArtists != null) {
+                OutlinedButton(onClick = onOpenArtists, modifier = Modifier.testTag("artists_button")) {
+                    Text("Artists")
                 }
-                if (showFavourite) {
-                    // Saved is the quieter style, since there is nothing left to do.
-                    val colors = if (isFavourite) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors()
-                    Button(
-                        onClick = onToggleFavourite,
-                        colors = colors,
-                        modifier = Modifier.testTag("favourite_toggle")
-                    ) {
-                        Text(if (isFavourite) "Saved" else "Save")
-                    }
+            }
+            if (showFavourite) {
+                // Saved is the quieter style, since there is nothing left to do.
+                val colors = if (isFavourite) ButtonDefaults.filledTonalButtonColors() else ButtonDefaults.buttonColors()
+                Button(
+                    onClick = onToggleFavourite,
+                    colors = colors,
+                    modifier = Modifier.testTag("favourite_toggle")
+                ) {
+                    Text(if (isFavourite) "Saved" else "Save")
                 }
             }
             if (onJoinArtists != null) {
-                OutlinedButton(
-                    onClick = onJoinArtists,
-                    modifier = Modifier.padding(top = 4.dp).testTag("join_artists_button")
-                ) {
+                OutlinedButton(onClick = onJoinArtists, modifier = Modifier.testTag("join_artists_button")) {
                     Text(if (inGroup) "Edit group" else "Join with another artist")
                 }
             }
             if (onAddAlbum != null) {
-                OutlinedButton(
-                    onClick = onAddAlbum,
-                    modifier = Modifier.padding(top = 4.dp).testTag("add_album_button")
-                ) {
+                OutlinedButton(onClick = onAddAlbum, modifier = Modifier.testTag("add_album_button")) {
                     Text("Add an album")
                 }
             }
@@ -132,7 +131,7 @@ private fun PhotoBlock(
         ArtistImage(
             artistId = "$artistId#$photoVersion",
             loadImage = { loadArtistImage(artistId) },
-            size = 80.dp,
+            size = 120.dp,
             onShownChange = { shown = it }
         )
         Text(
