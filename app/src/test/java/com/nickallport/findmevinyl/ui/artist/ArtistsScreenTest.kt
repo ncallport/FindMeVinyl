@@ -364,4 +364,77 @@ class ArtistsScreenTest {
         assertTrue(genre.left >= grid.right)
         assertTrue(grid.left >= list.right)
     }
+
+    // Sorting the favourites from A to Z.
+
+    @Test
+    fun `has an A-Z switch next to Group by genre, off to begin with`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsNotSelected()
+        val genre = composeTestRule.onNodeWithTag("favourites_group_by_genre").fetchSemanticsNode().boundsInRoot
+        val az = composeTestRule.onNodeWithTag("favourites_sort_az").fetchSemanticsNode().boundsInRoot
+        assertEquals(genre.top, az.top, 1f)
+        assertTrue(az.left >= genre.right)
+    }
+
+    @Test
+    fun `switching A-Z on sorts the favourites, says so, and reports the choice`() {
+        val changes = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, onArtistSelected = {}, onSortedAzChange = { changes.add(it) },
+                    loadFavourites = { listOf(FavouriteArtistUiModel("1", "Roxy Music"), FavouriteArtistUiModel("2", "ABC")) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("favourite_up_1").assertExists()
+
+        composeTestRule.onNodeWithTag("favourites_sort_az").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsSelected()
+        composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_az_hint").assertExists()
+        assertEquals(listOf(true), changes)
+        val y = { id: String -> composeTestRule.onNodeWithTag("favourite_artist_$id").fetchSemanticsNode().boundsInRoot.top }
+        assertTrue(y("2") < y("1"))
+    }
+
+    @Test
+    fun `it starts sorted when the choice was kept`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startSortedAz = true)
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsSelected()
+    }
+
+    @Test
+    fun `switching A-Z off puts the user's own order back`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(
+                    onSearch = {}, onArtistSelected = {}, startSortedAz = true,
+                    loadFavourites = { listOf(FavouriteArtistUiModel("1", "Roxy Music"), FavouriteArtistUiModel("2", "ABC")) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_sort_az").performClick()
+        composeTestRule.waitForIdle()
+
+        val y = { id: String -> composeTestRule.onNodeWithTag("favourite_artist_$id").fetchSemanticsNode().boundsInRoot.top }
+        assertTrue(y("1") < y("2"))
+        composeTestRule.onNodeWithTag("favourite_up_2").assertExists()
+    }
 }

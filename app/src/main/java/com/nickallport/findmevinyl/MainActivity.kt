@@ -357,6 +357,8 @@ class MainActivity : ComponentActivity() {
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 startGroupedByGenre = favouritesLayoutStore.isGroupedByGenre(),
                                 onGroupedByGenreChange = { favouritesLayoutStore.setGroupedByGenre(it) },
+                                startSortedAz = favouritesLayoutStore.isSortedAz(),
+                                onSortedAzChange = { favouritesLayoutStore.setSortedAz(it) },
                                 fillGenreDefaults = { onFound -> artistGenreViewModel.fillDefaults(onFound) },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +42,7 @@ import com.nickallport.findmevinyl.ui.favourites.FavouritesRoute
  * The Artists page: a search field, and under it the favourite artists. Searching with the
  * keyboard's search key opens the results page.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ArtistsScreen(
     onSearch: (String) -> Unit,
@@ -58,6 +61,9 @@ fun ArtistsScreen(
     startGroupedByGenre: Boolean = false,
     /** Told when the user switches grouping by genre on or off, so the choice can be kept. */
     onGroupedByGenreChange: ((Boolean) -> Unit)? = null,
+    /** Whether the favourites start sorted from A to Z, and told when the user switches it. */
+    startSortedAz: Boolean = false,
+    onSortedAzChange: ((Boolean) -> Unit)? = null,
     /**
      * Finds the suggested genre of each favourite in the background, telling after each one that it did. Started when the
      * page opens. Without it nothing is looked for.
@@ -69,6 +75,7 @@ fun ArtistsScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
     var groupedByGenre by rememberSaveable { mutableStateOf(startGroupedByGenre) }
+    var sortedAz by rememberSaveable { mutableStateOf(startSortedAz) }
     // Counts the genres found, so the favourites are read again and the grouping follows.
     var genresFound by remember { mutableIntStateOf(0) }
     var findingGenres by remember { mutableStateOf(false) }
@@ -118,9 +125,8 @@ fun ArtistsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
                 )
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
@@ -144,6 +150,15 @@ fun ArtistsScreen(
                         label = { Text("Group by genre") },
                         modifier = Modifier.testTag("favourites_group_by_genre")
                     )
+                    FilterChip(
+                        selected = sortedAz,
+                        onClick = {
+                            sortedAz = !sortedAz
+                            onSortedAzChange?.invoke(sortedAz)
+                        },
+                        label = { Text("A-Z") },
+                        modifier = Modifier.testTag("favourites_sort_az")
+                    )
                 }
                 if (groupedByGenre && findingGenres) {
                     Text(
@@ -162,6 +177,7 @@ fun ArtistsScreen(
                     onReorder = onReorderFavourites,
                     grid = grid,
                     groupByGenre = groupedByGenre,
+                    sortAz = sortedAz,
                     reloadKey = genresFound
                 )
             }

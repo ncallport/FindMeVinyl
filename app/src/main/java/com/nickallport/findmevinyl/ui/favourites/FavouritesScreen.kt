@@ -98,7 +98,9 @@ fun FavouritesScreen(
     /** The ids in their new order, after a picture in the grid was dragged to a new place. */
     onReorder: (List<String>) -> Unit = {},
     /** Group the favourites by the genre chosen for each, in the list or the grid. The order cannot be changed meanwhile. */
-    groupByGenre: Boolean = false
+    groupByGenre: Boolean = false,
+    /** Sort the favourites from A to Z, to find one quickly. The order cannot be changed meanwhile, and comes back when it is off. */
+    sortAz: Boolean = false
 ) {
     if (artists.isEmpty()) {
         Text(
@@ -110,16 +112,25 @@ fun FavouritesScreen(
 
         Column(modifier = modifier) {
             val onShownChange: (Boolean) -> Unit = { shown -> picturesShown += if (shown) 1 else -1 }
-            if (groupByGenre) {
-                // The order of the favourites cannot be changed here: where a picture would go between sections
-                // means nothing. The order is the user's own, and is there again when the grouping is switched off.
+            if (groupByGenre || sortAz) {
+                // The order of the favourites cannot be changed here: where a picture would go between sections, or
+                // in an order of names, means nothing. The order is the user's own, and is there again when the
+                // grouping and the sorting are switched off.
                 Text(
-                    text = "Grouped by genre. Turn grouping off to change the order.",
+                    text = when {
+                        groupByGenre && sortAz -> "Grouped by genre and sorted A to Z. Turn them off to change the order."
+                        groupByGenre -> "Grouped by genre. Turn grouping off to change the order."
+                        else -> "Sorted A to Z. Turn it off to change the order."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp).testTag("favourites_genre_hint")
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                        .testTag(if (groupByGenre) "favourites_genre_hint" else "favourites_az_hint")
                 )
-                val sections = FavouriteGenreGroups.group(artists)
+                val shown = if (sortAz) artists.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { sortKey(it.name) }) else artists
+                // One section for each genre, or just one without a heading when it is only sorted.
+                val sections = if (groupByGenre) FavouriteGenreGroups.group(shown)
+                else listOf(FavouriteGenreGroups.Section(null, shown))
                 if (grid) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 76.dp),
@@ -129,9 +140,11 @@ fun FavouritesScreen(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         sections.forEach { section ->
-                            item(key = "genre-header-${section.genre ?: "none"}", span = { GridItemSpan(maxLineSpan) }) {
-                                // The grid already has 16 dp around it.
-                                GenreHeader(section, start = 8.dp)
+                            if (groupByGenre) {
+                                item(key = "genre-header-${section.genre ?: "none"}", span = { GridItemSpan(maxLineSpan) }) {
+                                    // The grid already has 16 dp around it.
+                                    GenreHeader(section, start = 8.dp)
+                                }
                             }
                             items(section.artists, key = { it.id }) { artist ->
                                 ArtistTile(
@@ -150,7 +163,9 @@ fun FavouritesScreen(
                 } else {
                     LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                         sections.forEach { section ->
-                            item(key = "genre-header-${section.genre ?: "none"}") { GenreHeader(section, start = 16.dp) }
+                            if (groupByGenre) {
+                                item(key = "genre-header-${section.genre ?: "none"}") { GenreHeader(section, start = 16.dp) }
+                            }
                             items(section.artists, key = { it.id }) { artist ->
                                 ArtistRow(artist, loadArtistImage, onArtistSelected, onShownChange, moves = null)
                             }
@@ -442,4 +457,10 @@ private fun ArtistTile(
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         )
     }
+}
+
+/** The name to sort by: capitals do not count, and neither does a leading "The", so The Smiths is under S. */
+private fun sortKey(name: String): String {
+    val trimmed = name.trim()
+    return if (trimmed.length > 4 && trimmed.startsWith("the ", ignoreCase = true)) trimmed.substring(4).trimStart() else trimmed
 }
