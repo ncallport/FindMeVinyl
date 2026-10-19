@@ -185,8 +185,18 @@ class DiscographyViewModel(
     private suspend fun saveChecked(artistId: String, progress: FormatCheckProgress): Int {
         val checkedAt = clock()
         var updated = 0
+        // An album that none of the artist's releases belong to (a compilation credited to someone else, say) was
+        // still looked for. It is saved as checked with whatever it had, so it does not ask for the whole check on
+        // every visit. It keeps formats and statuses an earlier lookup found, and has none otherwise.
+        val sawReleases = progress.formatsByAlbum.isNotEmpty()
         for (album in albumDao.getAlbumsForArtist(artistId)) {
-            val names = progress.formatsByAlbum[album.id] ?: continue
+            val names = progress.formatsByAlbum[album.id]
+            if (names == null) {
+                if (!sawReleases || !needsCheck(album)) continue
+                albumDao.setChecked(album.id, album.formats.orEmpty(), album.statuses.orEmpty(), checkedAt)
+                updated++
+                continue
+            }
             val statuses = progress.statusesByAlbum[album.id].orEmpty()
             albumDao.setChecked(album.id, ReleaseFormats.encode(names), ReleaseStatuses.encode(statuses), checkedAt)
             updated++
