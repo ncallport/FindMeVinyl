@@ -9,11 +9,11 @@ It is a hobby project. It has no accounts, no adverts and no server of its own. 
 <p>
   <img src="docs/screenshots/home.png" width="190" alt="The front screen with the logo and the Artists, Wants and Shops buttons">
   <img src="docs/screenshots/artists.png" width="190" alt="The Artists page: a search field and the favourite artists, in the order you chose">
-  <img src="docs/screenshots/discography.png" width="190" alt="An artist's discography with covers, formats and Owned and Want buttons">
-  <img src="docs/screenshots/album.png" width="190" alt="An album page with the cover, rating, pressing details and tracklist">
+  <img src="docs/screenshots/discography.png" width="190" alt="An artist's discography: owned albums at the top with the copies you own, one to a line, and a want for another format">
+  <img src="docs/screenshots/album.png" width="190" alt="An album page with the cover, Owned and Want buttons, the copies you own with a note each, and the pressing details">
 </p>
 <p>
-  <img src="docs/screenshots/wants.png" width="190" alt="The Wants page, grouped by artist, with buttons to reorder and remove">
+  <img src="docs/screenshots/wants.png" width="190" alt="The Wants page, grouped by artist, with the format wanted and buttons to reorder and remove">
   <img src="docs/screenshots/shops.png" width="190" alt="The Shops page: record shops near a position, nearest first, with whether each is open now">
   <img src="docs/screenshots/settings.png" width="190" alt="The Settings page with switches for what to hide">
 </p>
