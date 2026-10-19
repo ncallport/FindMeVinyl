@@ -52,5 +52,7 @@ data class AlbumEntity(
     /** A description the user typed for an album they added by hand. Null: none. */
     val userDescription: String? = null,
     /** The tracklist the user typed for an album added by hand, as a JSON list of titles (see `UserTracks`). Null: none. */
-    val userTracks: String? = null
+    val userTracks: String? = null,
+    /** The file name of the cover image the user chose for an album added by hand, in the album covers folder. Null: none. */
+    val userCover: String? = null
 )

@@ -39,6 +39,7 @@ import java.util.zip.ZipOutputStream
 
 private const val BACKUP_JSON = "backup.json"
 private const val PHOTO_PREFIX = "photos/"
+private const val COVER_PREFIX = "covers/"
 private const val MAX_JSON_BYTES = 20 * 1024 * 1024
 private const val MAX_PHOTO_BYTES = 5 * 1024 * 1024
 private const val MAX_ENTRIES = 5_000
@@ -61,7 +62,9 @@ class BackupViewModel(
     private val photoStore: ArtistPhotoStore,
     private val currentSettings: () -> Settings,
     private val applySettings: (Settings) -> Unit,
-    private val clock: () -> Long = System::currentTimeMillis
+    private val clock: () -> Long = System::currentTimeMillis,
+    /** Where the cover images of albums added by hand are kept. Without it they are not backed up or restored. */
+    private val coverStore: ArtistPhotoStore? = null
 ) {
     private val gson = Gson()
 
@@ -70,6 +73,10 @@ class BackupViewModel(
         val artists = database.artistDao().getAllFavourites().sortedWith(compareBy({ it.position }, { it.name }))
         val albums = database.albumDao().getOwnedOrWanted().sortedBy { it.id }
         val copiesOf = database.albumDao().getAllCopies().groupBy { it.albumId }
+        // The cover images of albums added by hand, by file name, for the ones whose file is there.
+        val coverBytes = albums.mapNotNull { album ->
+            album.userCover?.takeIf { CustomAlbums.isCustom(album.id) }?.let { name -> coverStore?.read(name)?.let { name to it } }
+        }.toMap()
         val photos = database.artistUserPhotoDao().getAll().sortedBy { it.artistId }
             .mapNotNull { record -> photoStore.read(record.fileName)?.let { record to it } }
 
@@ -89,7 +96,8 @@ class BackupViewModel(
                     copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) },
                     it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) },
                     it.userDescription.takeIf { _ -> CustomAlbums.isCustom(it.id) },
-                    UserTracks.decode(it.userTracks).takeIf { _ -> CustomAlbums.isCustom(it.id) }
+                    UserTracks.decode(it.userTracks).takeIf { _ -> CustomAlbums.isCustom(it.id) },
+                    it.userCover?.takeIf { name -> name in coverBytes }
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -116,6 +124,11 @@ class BackupViewModel(
         zip.closeEntry()
         for ((record, bytes) in photos) {
             zip.putNextEntry(ZipEntry(PHOTO_PREFIX + record.fileName))
+            zip.write(bytes)
+            zip.closeEntry()
+        }
+        for ((name, bytes) in coverBytes) {
+            zip.putNextEntry(ZipEntry(COVER_PREFIX + name))
             zip.write(bytes)
             zip.closeEntry()
         }
@@ -151,13 +164,16 @@ class BackupViewModel(
         if (version < 1) return@withContext RestoreResult.Failed("This is not a FindMeVinyl backup.")
 
         val written = mutableListOf<String>()
+        val writtenCovers = mutableListOf<String>()
         val counts = try {
-            database.withTransaction { merge(file, read.photos, written) }
+            database.withTransaction { merge(file, read.photos, read.covers, written, writtenCovers) }
         } catch (e: CancellationException) {
             written.forEach(photoStore::delete)
+            writtenCovers.forEach { coverStore?.delete(it) }
             throw e
         } catch (e: Exception) {
             written.forEach(photoStore::delete)
+            writtenCovers.forEach { coverStore?.delete(it) }
             return@withContext RestoreResult.Failed("The backup could not be restored, and nothing was changed.")
         }
 
@@ -165,11 +181,12 @@ class BackupViewModel(
         RestoreResult.Done(counts.artists, counts.albums, counts.photos, file.settings != null, counts.shops, counts.groups)
     }
 
-    private class ReadZip(val json: ByteArray?, val photos: Map<String, ByteArray>)
+    private class ReadZip(val json: ByteArray?, val photos: Map<String, ByteArray>, val covers: Map<String, ByteArray>)
 
     private fun readZip(input: InputStream): ReadZip {
         var json: ByteArray? = null
         val photos = mutableMapOf<String, ByteArray>()
+        val covers = mutableMapOf<String, ByteArray>()
         val zip = ZipInputStream(input)
         var entries = 0
         while (true) {
@@ -180,15 +197,23 @@ class BackupViewModel(
                     json = LimitedReader.read(zip, MAX_JSON_BYTES) ?: throw IllegalStateException("backup.json is too big")
                 entry.name.startsWith(PHOTO_PREFIX) ->
                     LimitedReader.read(zip, MAX_PHOTO_BYTES)?.let { photos[entry.name] = it }
+                entry.name.startsWith(COVER_PREFIX) ->
+                    LimitedReader.read(zip, MAX_PHOTO_BYTES)?.let { covers[entry.name] = it }
             }
         }
-        return ReadZip(json, photos)
+        return ReadZip(json, photos, covers)
     }
 
     private class Counts(val artists: Int, val albums: Int, val photos: Int, val shops: Int, val groups: Int)
 
     // Runs inside the transaction. Everything here only adds to what the phone has.
-    private suspend fun merge(file: BackupFile, photoBytes: Map<String, ByteArray>, written: MutableList<String>): Counts {
+    private suspend fun merge(
+        file: BackupFile,
+        photoBytes: Map<String, ByteArray>,
+        coverBytes: Map<String, ByteArray>,
+        written: MutableList<String>,
+        writtenCovers: MutableList<String>
+    ): Counts {
         val artistDao = database.artistDao()
         val albumDao = database.albumDao()
         val photoDao = database.artistUserPhotoDao()
@@ -276,6 +301,17 @@ class BackupViewModel(
                 }
                 if (pressingId != null && existing.myPressingId == null) {
                     albumDao.setMyPressing(id, pressingId, pressingText)
+                    changed = true
+                }
+            }
+            // The cover image of an album added by hand, when it has none yet. The file gets a name made here.
+            if (addedByHand && coverStore != null) {
+                val bytes = album.cover?.let { coverBytes[COVER_PREFIX + it] }
+                if (bytes != null && albumDao.getById(id)?.userCover == null && isPicture(bytes)) {
+                    val fileName = "${safeFileName(id)}-${clock()}.jpg"
+                    coverStore.write(fileName, bytes)
+                    writtenCovers.add(fileName)
+                    albumDao.setUserCover(id, fileName)
                     changed = true
                 }
             }

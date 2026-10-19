@@ -281,6 +281,7 @@ class DiscographyViewModel(
         wantFormat = album.wantFormat,
         copies = copies.map { AlbumCopy(it.format, it.note) },
         description = album.userDescription,
+        cover = album.userCover,
         tracks = UserTracks.decode(album.userTracks)
     )
 

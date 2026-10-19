@@ -52,6 +52,8 @@ data class AlbumUiModel(
     val copies: List<AlbumCopy> = emptyList(),
     /** For an album added by hand: the description and the tracklist the user typed. */
     val description: String? = null,
+    /** The file of the cover image the user chose, which changes when the cover does. */
+    val cover: String? = null,
     val tracks: List<String> = emptyList()
 ) {
     /**

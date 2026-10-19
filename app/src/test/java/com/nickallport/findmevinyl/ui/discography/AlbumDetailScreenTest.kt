@@ -487,4 +487,64 @@ class AlbumDetailScreenTest {
         composeTestRule.onNodeWithTag("detail_description").assertDoesNotExist()
         composeTestRule.onNodeWithTag("detail_user_track_0").assertDoesNotExist()
     }
+
+    // The cover image of an album added by hand.
+
+    private fun showAddedByHand(
+        album: AlbumUiModel = notOwned.copy(owned = true),
+        onChooseCover: (() -> Unit)? = {},
+        onRemoveCover: (() -> Unit)? = {}
+    ) {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailScreen(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country", album = album,
+                    state = AlbumDetailState.AddedByHand, onRetry = {}, onToggleOwned = {}, onToggleWanted = {},
+                    loadCover = { null }, onChooseCover = onChooseCover, onRemoveCover = onRemoveCover
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `an album with no cover offers to add one, and tapping asks to choose`() {
+        var chosen = 0
+        showAddedByHand(onChooseCover = { chosen++ })
+
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Add cover image")
+        composeTestRule.onNodeWithTag("detail_change_cover").performClick()
+
+        assertEquals(1, chosen)
+        composeTestRule.onNodeWithTag("detail_remove_cover").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an album with a cover offers to change it or remove it`() {
+        var removed = 0
+        showAddedByHand(album = notOwned.copy(owned = true, cover = "custom_1-1.jpg"), onRemoveCover = { removed++ })
+
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Change cover image")
+        composeTestRule.onNodeWithTag("detail_remove_cover").performScrollTo().performClick()
+
+        assertEquals(1, removed)
+    }
+
+    @Test
+    fun `tapping the cover picture also asks to choose`() {
+        var chosen = 0
+        showAddedByHand(onChooseCover = { chosen++ })
+
+        composeTestRule.onNodeWithTag("detail_cover_placeholder", useUnmergedTree = true).performClick()
+
+        assertEquals(1, chosen)
+    }
+
+    @Test
+    fun `without a way to choose a cover there are no cover buttons, as for an album from MusicBrainz`() {
+        show()
+
+        composeTestRule.onNodeWithTag("detail_change_cover").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("detail_remove_cover").assertDoesNotExist()
+    }
 }

@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl
 
+import com.nickallport.findmevinyl.discography.AlbumCoverViewModel
 import com.nickallport.findmevinyl.discography.CustomAlbums
 import com.nickallport.findmevinyl.discography.AddAlbumRoute
 import android.os.Bundle
@@ -82,6 +83,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_19_20
 import com.nickallport.findmevinyl.storage.MIGRATION_20_21
 import com.nickallport.findmevinyl.storage.MIGRATION_21_22
 import com.nickallport.findmevinyl.storage.MIGRATION_22_23
+import com.nickallport.findmevinyl.storage.MIGRATION_23_24
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -246,7 +248,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -256,11 +258,14 @@ class MainActivity : ComponentActivity() {
         val groupingStore = GroupingStore(getSharedPreferences("owned_first", MODE_PRIVATE))
         val appSettings = AppSettings(SettingsStore(getSharedPreferences("settings", MODE_PRIVATE)))
 
+        val coverStore = ArtistPhotoStore(File(filesDir, "album_covers"))
+        val albumCoverViewModel = AlbumCoverViewModel(database.albumDao(), coverStore)
         val backupViewModel = BackupViewModel(
             database,
             ArtistPhotoStore(File(filesDir, "artist_photos")),
             currentSettings = { appSettings.settings.value },
-            applySettings = { appSettings.set(it) }
+            applySettings = { appSettings.set(it) },
+            coverStore = coverStore
         )
 
         val api = MusicBrainzApiFactory.create()
@@ -445,7 +450,8 @@ class MainActivity : ComponentActivity() {
                                         albumId, title, screen.artistId, screen.artistName, screen
                                     )
                                 },
-                                loadCover = { id -> CoverArtLoader.shared.load(id) },
+                                // An album added by hand has the cover the user chose, and the others the Cover Art Archive's.
+                                loadCover = { id -> if (CustomAlbums.isCustom(id)) albumCoverViewModel.loadCover(id) else CoverArtLoader.shared.load(id) },
                                 loadFormats = { id -> discographyViewModel.loadFormats(id) },
                                 checkAllFormats = { id, onProgress -> discographyViewModel.checkAllFormats(id, onProgress) }
                             )
@@ -474,18 +480,29 @@ class MainActivity : ComponentActivity() {
                                 loadDraft = { id -> discographyViewModel.loadDraft(id) },
                                 save = { draft ->
                                     if (editing != null) {
-                                        discographyViewModel.updateAlbum(editing, draft)
+                                        editing.takeIf { discographyViewModel.updateAlbum(it, draft) }
                                     } else {
-                                        discographyViewModel.addAlbum(screen.artistId, screen.artistName, draft) != null
+                                        discographyViewModel.addAlbum(screen.artistId, screen.artistName, draft)
                                     }
                                 },
-                                delete = { if (editing != null) discographyViewModel.deleteAlbum(editing) },
+                                delete = {
+                                    if (editing != null) {
+                                        // The cover image goes with the album.
+                                        albumCoverViewModel.removeCover(editing)
+                                        discographyViewModel.deleteAlbum(editing)
+                                    }
+                                },
                                 showHiddenNote = settings.hideBootlegs,
                                 onOpenSettings = { currentScreen = Screen.Settings },
-                                // Changed: back to the album's page with its new title. Added: back to the discography.
-                                onSaved = { draft ->
+                                // Changed: back to the album's page with its new title. Added: on to the new album's page,
+                                // where its cover image and copies can be added, with Back going to the discography.
+                                onSaved = { draft, albumId ->
                                     val from = screen.backTo
-                                    currentScreen = if (from is Screen.AlbumDetail) from.copy(title = draft.title.trim()) else from
+                                    currentScreen = if (from is Screen.AlbumDetail) {
+                                        from.copy(title = draft.title.trim())
+                                    } else {
+                                        Screen.AlbumDetail(albumId, draft.title.trim(), screen.artistId, screen.artistName, from)
+                                    }
                                 },
                                 // Deleted: the album's page is gone, so back to the discography behind it.
                                 onDeleted = { currentScreen = (screen.backTo as? Screen.AlbumDetail)?.backTo ?: screen.backTo },
@@ -509,7 +526,28 @@ class MainActivity : ComponentActivity() {
                                         albumId, currentlyWanted, screen.artistId, screen.artistName
                                     )
                                 },
-                                loadCover = { id -> CoverArtLoader.shared.loadLarge(id) },
+                                loadCover = { id -> if (CustomAlbums.isCustom(id)) albumCoverViewModel.loadCover(id) else CoverArtLoader.shared.loadLarge(id) },
+                                chooseCover = if (CustomAlbums.isCustom(screen.albumId)) {
+                                    { albumId ->
+                                        when (val picked = pickPhoto()) {
+                                            PickedPhoto.NoneChosen -> false
+                                            PickedPhoto.Unreadable -> {
+                                                Toast.makeText(this@MainActivity, "Couldn't use that image", Toast.LENGTH_SHORT).show()
+                                                false
+                                            }
+                                            is PickedPhoto.Bytes -> albumCoverViewModel.saveCover(albumId, picked.bytes).also { saved ->
+                                                if (!saved) Toast.makeText(this@MainActivity, "Couldn't use that image", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
+                                removeCover = if (CustomAlbums.isCustom(screen.albumId)) {
+                                    { albumId -> albumCoverViewModel.removeCover(albumId) }
+                                } else {
+                                    null
+                                },
                                 loadPressing = { albumId, releaseId ->
                                     albumDetailsViewModel.selectPressing(albumId, releaseId)
                                 },

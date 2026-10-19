@@ -38,6 +38,10 @@ interface AlbumDao {
         description: String?, tracks: String?
     ): Int
 
+    /** Records the cover image file of an album added by hand, or none with null. An album from MusicBrainz takes none. */
+    @Query("UPDATE albums SET userCover = :fileName WHERE id = :albumId AND id LIKE 'custom/%'")
+    suspend fun setUserCover(albumId: String, fileName: String?): Int
+
     /** Removes an album added by hand. An album from MusicBrainz is never removed this way. */
     @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun deleteCustomAlbum(albumId: String): Int

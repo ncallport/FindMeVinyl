@@ -44,7 +44,11 @@ fun AlbumDetailRoute(
     /** Opens the artist's page. When null the artist's name is plain text. */
     onOpenArtist: (() -> Unit)? = null,
     /** Opens the page for changing an album added by hand. Only given for one. */
-    onEditAlbum: (() -> Unit)? = null
+    onEditAlbum: (() -> Unit)? = null,
+    /** Asks the user for a cover image and keeps it, saying whether it did. Only given for an album added by hand. */
+    chooseCover: (suspend (albumId: String) -> Boolean)? = null,
+    /** Takes the cover image away. */
+    removeCover: (suspend (albumId: String) -> Unit)? = null
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -125,6 +129,8 @@ fun AlbumDetailRoute(
         },
         onOpenArtist = onOpenArtist,
         onEditAlbum = onEditAlbum,
+        onChooseCover = chooseCover?.let { choose -> { coroutineScope.launch { if (choose(albumId)) album = loadAlbum(albumId) } } },
+        onRemoveCover = removeCover?.let { remove -> { coroutineScope.launch { remove(albumId); album = loadAlbum(albumId) } } },
         onSetWantFormat = { format ->
             coroutineScope.launch {
                 saveWantFormat(albumId, format)

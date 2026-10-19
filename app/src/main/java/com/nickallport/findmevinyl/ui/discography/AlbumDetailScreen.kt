@@ -87,7 +87,11 @@ fun AlbumDetailScreen(
     /** Opens the artist's page. When null the artist's name is plain text. */
     onOpenArtist: (() -> Unit)? = null,
     /** Opens the page for changing an album added by hand. Without it there is no button. */
-    onEditAlbum: (() -> Unit)? = null
+    onEditAlbum: (() -> Unit)? = null,
+    /** Asks the user to choose a cover image, for an album added by hand. Without it there is no button. */
+    onChooseCover: (() -> Unit)? = null,
+    /** Takes the chosen cover image away. */
+    onRemoveCover: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -96,13 +100,25 @@ fun AlbumDetailScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // The cover chosen for an album added by hand is part of the key, so the picture is loaded again when it changes.
         SquareImage(
-            key = albumId,
-            load = loadCover,
+            key = "$albumId#${album?.cover.orEmpty()}",
+            load = { loadCover(albumId) },
             imageTag = "detail_cover_image",
             placeholderTag = "detail_cover_placeholder",
+            modifier = if (onChooseCover != null) Modifier.clickable(onClick = onChooseCover) else Modifier,
             size = 220.dp
         )
+        if (onChooseCover != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onChooseCover, modifier = Modifier.testTag("detail_change_cover")) {
+                    Text(if (album?.cover != null) "Change cover image" else "Add cover image")
+                }
+                if (album?.cover != null && onRemoveCover != null) {
+                    TextButton(onClick = onRemoveCover, modifier = Modifier.testTag("detail_remove_cover")) { Text("Remove cover image") }
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Text(
             text = title,

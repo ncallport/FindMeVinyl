@@ -113,7 +113,7 @@ fun AddAlbumScreen(
         )
         if (!editing) {
             Text(
-                text = "For an album you have that MusicBrainz does not list. It starts as owned.",
+                text = "For an album you have that MusicBrainz does not list. It starts as owned, and its page lets you add a cover image and its copies.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
