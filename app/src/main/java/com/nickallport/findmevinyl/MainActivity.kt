@@ -277,6 +277,10 @@ class MainActivity : ComponentActivity() {
         val artistPictures = ArtistPictureSource(
             userPhoto = { id -> artistPhotoViewModel.loadPhoto(id) },
             webPicture = { id -> artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(it) } },
+            // The header of an artist's page shows it bigger, so it asks Commons for more pixels.
+            largeWebPicture = { id ->
+                artistImageViewModel.loadImageUrl(id)?.let { ImageLoader.shared.load(ArtistImageFinder.atWidth(it, 400)) }
+            },
             // A group shows the photo chosen for it, and otherwise its first member's picture.
             firstMemberOf = { groupId -> database.artistGroupDao().getMembers(groupId).firstOrNull()?.artistId }
         )
@@ -419,7 +423,7 @@ class MainActivity : ComponentActivity() {
                                 onGroupingChange = { groupingStore.set(screen.artistId, it) },
                                 settings = settings,
                                 onOpenSettings = { currentScreen = Screen.Settings },
-                                loadArtistImage = { id -> artistPictures.load(id) },
+                                loadArtistImage = { id -> artistPictures.load(id, large = true) },
                                 onChoosePhoto = { id ->
                                     when (val picked = pickPhoto()) {
                                         PickedPhoto.NoneChosen -> false

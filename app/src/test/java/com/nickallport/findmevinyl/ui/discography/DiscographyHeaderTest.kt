@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -280,7 +282,7 @@ class DiscographyHeaderTest {
     }
 
     @Test
-    fun `the join button is on its own line below the others`() {
+    fun `the join button shares the line with the others when they fit`() {
         composeTestRule.setContent {
             DiscographyHeader(
                 artistName = "Nick Cave", isFavourite = false, onToggleFavourite = {}, onOpenArtists = {}, onJoinArtists = {}
@@ -289,7 +291,7 @@ class DiscographyHeaderTest {
 
         val save = composeTestRule.onNodeWithTag("favourite_toggle").fetchSemanticsNode().positionInRoot.y
         val join = composeTestRule.onNodeWithTag("join_artists_button").fetchSemanticsNode().positionInRoot.y
-        assertTrue(join > save)
+        assertEquals(save, join, 1f)
     }
 
     @Test
@@ -334,5 +336,70 @@ class DiscographyHeaderTest {
         }
 
         composeTestRule.onNodeWithTag("add_album_button").assertDoesNotExist()
+    }
+
+    // The buttons share a line when they fit, and the photo is bigger.
+
+    private fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+    private fun x(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.x
+
+    @Test
+    fun `on a group's page Artists, Edit group and Add an album are on one line, in that order`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Nick Cave, all of it", isFavourite = true, onToggleFavourite = {}, onOpenArtists = {},
+                onJoinArtists = {}, inGroup = true, showFavourite = false, onAddAlbum = {}
+            )
+        }
+
+        assertEquals(y("artists_button"), y("join_artists_button"), 1f)
+        assertEquals(y("artists_button"), y("add_album_button"), 1f)
+        assertTrue(x("artists_button") < x("join_artists_button"))
+        assertTrue(x("join_artists_button") < x("add_album_button"))
+    }
+
+    @Test
+    fun `the buttons are below the name and the picture, under all of them`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {}, onOpenArtists = {},
+                onJoinArtists = {}, onAddAlbum = {}, artistId = "a", onChoosePhoto = {}, loadArtistImage = { picture() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        val photoBottom = composeTestRule.onNodeWithTag("change_photo").fetchSemanticsNode().boundsInRoot.bottom
+        assertTrue(y("artists_button") >= photoBottom - 1f)
+        assertTrue(y("artists_button") > composeTestRule.onNodeWithText("Roxy Music").fetchSemanticsNode().positionInRoot.y)
+    }
+
+    @Test
+    fun `the buttons wrap onto another line when they do not all fit`() {
+        composeTestRule.setContent {
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.width(200.dp)) {
+                DiscographyHeader(
+                    artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {}, onOpenArtists = {},
+                    onJoinArtists = {}, onAddAlbum = {}
+                )
+            }
+        }
+
+        assertTrue(y("add_album_button") > y("artists_button"))
+        composeTestRule.onNodeWithTag("add_album_button").assertExists()
+    }
+
+    @Test
+    fun `the photo is bigger than it was`() {
+        composeTestRule.setContent {
+            DiscographyHeader(
+                artistName = "Roxy Music", isFavourite = false, onToggleFavourite = {},
+                artistId = "a", onChoosePhoto = {}, loadArtistImage = { picture() }
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        val width = composeTestRule.onNodeWithTag("change_photo").fetchSemanticsNode().boundsInRoot.width
+        val density = composeTestRule.density.density
+        assertTrue("the photo is ${width / density} dp wide", width / density >= 110f)
     }
 }
