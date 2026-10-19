@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.discography
 
+import com.nickallport.findmevinyl.discography.ReleaseStatuses
 import androidx.compose.ui.text.style.TextOverflow
 import com.nickallport.findmevinyl.discography.ReleaseFormats
 import android.graphics.Bitmap
@@ -54,6 +55,13 @@ data class AlbumUiModel(
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.
      * Null while neither is known. [formats] alone says whether the album has been looked up.
      */
+    /**
+     * Whether the album is a bootleg: its releases are known, none is official, and at least one is a bootleg. An
+     * album with an official release is not flagged, even when it also has a bootleg.
+     */
+    val isBootleg: Boolean
+        get() = statuses != null && ReleaseStatuses.OFFICIAL !in statuses && ReleaseStatuses.BOOTLEG in statuses
+
     val shownFormats: List<String>?
         get() = if (formats == null && userFormats.isEmpty()) {
             null
@@ -111,10 +119,18 @@ fun AlbumRow(
                     loadFormats = loadFormats,
                     checkingWhenUnknown = checkingFormats
                 )
-                // The copies the user owns, one to a line: the format, and the description if there is one.
+                if (album.isBootleg) {
+                    Text(
+                        text = "Bootleg",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("album_bootleg")
+                    )
+                }
+                // The copies the user owns, one to a line: "Owned on", the format, and the description if there is one.
                 album.copies.forEachIndexed { index, copy ->
                     Text(
-                        text = if (copy.note.isNullOrBlank()) copy.format else "${copy.format}: ${copy.note}",
+                        text = "Owned on " + if (copy.note.isNullOrBlank()) copy.format else "${copy.format}: ${copy.note}",
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
