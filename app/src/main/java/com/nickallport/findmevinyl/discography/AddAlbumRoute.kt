@@ -20,19 +20,19 @@ import kotlinx.coroutines.launch
 
 /**
  * The page for adding an album MusicBrainz does not list, or, with [editingAlbumId], for changing one added earlier
- * ([loadDraft] fills the form, a spinner shows meanwhile). [save] keeps the draft and says whether it could, [delete]
- * removes the album. [onSaved] and [onDeleted] tell the page what happened, so it can move on.
+ * ([loadDraft] fills the form, a spinner shows meanwhile). [save] keeps the draft and gives back the album's id, or null
+ * when it could not, and [delete] removes the album. [onSaved] and [onDeleted] tell the page what happened, so it can move on.
  */
 @Composable
 fun AddAlbumRoute(
     artistName: String,
     editingAlbumId: String?,
     loadDraft: suspend (String) -> AlbumDraft?,
-    save: suspend (AlbumDraft) -> Boolean,
+    save: suspend (AlbumDraft) -> String?,
     delete: suspend () -> Unit,
     showHiddenNote: Boolean,
     onOpenSettings: () -> Unit,
-    onSaved: (AlbumDraft) -> Unit,
+    onSaved: (AlbumDraft, albumId: String) -> Unit,
     onDeleted: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -65,7 +65,8 @@ fun AddAlbumRoute(
             error = error,
             onSave = { new ->
                 scope.launch {
-                    if (save(new)) onSaved(new) else error = "Could not save that. Check the title and the year."
+                    val id = save(new)
+                    if (id != null) onSaved(new, id) else error = "Could not save that. Check the title and the year."
                 }
             },
             onCancel = onCancel,

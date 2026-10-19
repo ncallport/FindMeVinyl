@@ -59,12 +59,14 @@ class BackupViewModelTest {
         database.close()
     }
 
+    private val coverDir get() = File(photoDir.parentFile, "covers")
+
     private fun viewModel(
         db: AppDatabase = database,
         dir: File = photoDir,
         currentSettings: () -> Settings = { settings },
         applySettings: (Settings) -> Unit = { settings = it }
-    ) = BackupViewModel(db, ArtistPhotoStore(dir), currentSettings, applySettings, clock = { now })
+    ) = BackupViewModel(db, ArtistPhotoStore(dir), currentSettings, applySettings, clock = { now }, coverStore = ArtistPhotoStore(coverDir))
 
     private fun album(
         id: String,
@@ -1207,6 +1209,75 @@ class BackupViewModelTest {
 
         assertNull(fresh.albumDao().getById("mb-1")!!.userDescription)
         assertNull(fresh.albumDao().getById("mb-1")!!.userTracks)
+        fresh.close()
+    }
+
+    // The cover image of an album added by hand.
+
+    private fun withCover(id: String = "custom/1", fileName: String = "custom_1-5.jpg"): AlbumEntity {
+        ArtistPhotoStore(coverDir).write(fileName, jpeg())
+        return custom(id).copy(userCover = fileName)
+    }
+
+    @Test
+    fun `the cover of an album added by hand is in the backup`() = runBlocking {
+        database.albumDao().insert(withCover())
+
+        val parts = entries(backup())
+
+        assertTrue(parts.keys.any { it == "covers/custom_1-5.jpg" })
+        assertTrue(String(parts.getValue("backup.json")).contains("custom_1-5.jpg"))
+    }
+
+    @Test
+    fun `the cover comes back with the album, in a file of its own name`() = runBlocking {
+        database.albumDao().insert(withCover())
+        val saved = backup()
+        val fresh = emptyDatabase()
+        coverDir.deleteRecursively()
+
+        restore(saved, viewModel(fresh))
+
+        val cover = fresh.albumDao().getById("custom/1")!!.userCover
+        assertEquals("custom_1-$now.jpg", cover)
+        assertTrue(File(coverDir, cover!!).isFile)
+        fresh.close()
+    }
+
+    @Test
+    fun `a cover already on the phone is kept, and restoring again changes nothing`() = runBlocking {
+        database.albumDao().insert(withCover())
+        val saved = backup()
+
+        val second = restore(saved) as RestoreResult.Done
+
+        assertEquals(0, second.albums)
+        assertEquals("custom_1-5.jpg", database.albumDao().getById("custom/1")!!.userCover)
+    }
+
+    @Test
+    fun `a file that is not a picture is not kept as a cover`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[{"id":"custom/a","artistId":"artist-1","title":"A","category":"LIVE_ALBUM","owned":true,"cover":"x.jpg"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text), "covers/x.jpg" to "not a picture".toByteArray()), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("custom/a")!!.userCover)
+        assertEquals(emptyList<String>(), coverDir.listFiles().orEmpty().map { it.name })
+        fresh.close()
+    }
+
+    @Test
+    fun `a cover in a file is ignored for an album from MusicBrainz, and its name is never used as a path`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[
+            {"id":"mb-1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","owned":true,"cover":"x.jpg"},
+            {"id":"custom/b","artistId":"artist-1","title":"B","category":"LIVE_ALBUM","owned":true,"cover":"../../evil.jpg"}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text), "covers/x.jpg" to jpeg(), "covers/../../evil.jpg" to jpeg()), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("mb-1")!!.userCover)
+        assertEquals(false, File(coverDir.parentFile.parentFile, "evil.jpg").exists())
         fresh.close()
     }
 }

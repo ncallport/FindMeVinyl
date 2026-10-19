@@ -22,14 +22,14 @@ class AddAlbumRouteTest {
 
     private val earlier = AlbumDraft("Live in a Pub", "1983", DiscographyCategory.LIVE_ALBUM, bootleg = true)
     private val saves = mutableListOf<AlbumDraft>()
-    private val done = mutableListOf<AlbumDraft>()
+    private val done = mutableListOf<Pair<AlbumDraft, String>>()
     private var deletes = 0
     private var deletedDone = 0
 
     private fun show(
         editingAlbumId: String? = null,
         loadDraft: suspend (String) -> AlbumDraft? = { earlier },
-        save: suspend (AlbumDraft) -> Boolean = { saves.add(it); true }
+        save: suspend (AlbumDraft) -> String? = { saves.add(it); "custom/new" }
     ) {
         saves.clear(); done.clear(); deletes = 0; deletedDone = 0
         composeTestRule.setContent {
@@ -37,7 +37,7 @@ class AddAlbumRouteTest {
                 AddAlbumRoute(
                     artistName = "Big Country", editingAlbumId = editingAlbumId, loadDraft = loadDraft, save = save,
                     delete = { deletes++ }, showHiddenNote = false, onOpenSettings = {},
-                    onSaved = { done.add(it) }, onDeleted = { deletedDone++ }, onCancel = {}
+                    onSaved = { draft, id -> done.add(draft to id) }, onDeleted = { deletedDone++ }, onCancel = {}
                 )
             }
         }
@@ -54,19 +54,19 @@ class AddAlbumRouteTest {
 
         assertEquals(1, saves.size)
         assertEquals("Live in a Pub", saves.single().title)
-        assertEquals(saves, done)
+        assertEquals(saves.map { it to "custom/new" }, done)
     }
 
     @Test
     fun `when it cannot be saved the page says so and stays`() {
-        show(save = { false })
+        show(save = { null })
 
         composeTestRule.onNodeWithTag("add_album_title").performScrollTo().performTextInput("Live in a Pub")
         composeTestRule.onNodeWithTag("add_album_save").performScrollTo().performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("add_album_error").performScrollTo().assertTextContains("save", substring = true)
-        assertEquals(emptyList<AlbumDraft>(), done)
+        assertEquals(emptyList<Pair<AlbumDraft, String>>(), done)
     }
 
     @Test

@@ -278,3 +278,10 @@ val MIGRATION_22_23 = object : Migration(22, 23) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `userTracks` TEXT")
     }
 }
+
+/** An album added by hand can have a cover image the user chose. */
+val MIGRATION_23_24 = object : Migration(23, 24) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `userCover` TEXT")
+    }
+}

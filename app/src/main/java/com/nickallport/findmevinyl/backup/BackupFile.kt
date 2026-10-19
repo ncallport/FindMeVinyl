@@ -63,7 +63,9 @@ data class BackupAlbum(
     val statuses: String? = null,
     /** Only for an album added by hand: what the user typed about it, and its tracklist. */
     val description: String? = null,
-    val tracks: List<String>? = null
+    val tracks: List<String>? = null,
+    /** Only for an album added by hand: the name of its cover image, which is in the zip as `covers/<name>`. */
+    val cover: String? = null
 )
 
 /** One copy of an album: a format label such as LP, and a note. */

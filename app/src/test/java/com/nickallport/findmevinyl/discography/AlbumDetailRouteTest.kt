@@ -356,4 +356,35 @@ class AlbumDetailRouteTest {
         assertEquals(0, asked)
         assertEquals(1, edits)
     }
+
+    @Test
+    fun `choosing a cover reads the album again, so the page shows what changed, and a refusal changes nothing`() {
+        album = AlbumUiModel("custom/1", "Live in a Pub", owned = true, wanted = false)
+        var choose = true
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailRoute(
+                    albumId = "custom/1", title = "Live in a Pub", artistName = "Big Country",
+                    loadDetails = { null }, loadAlbum = { album }, onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
+                    chooseCover = { if (choose) { album = album.copy(cover = "c.jpg"); true } else false },
+                    removeCover = { album = album.copy(cover = null) }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Add cover image")
+        composeTestRule.onNodeWithTag("detail_change_cover").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Change cover image")
+
+        composeTestRule.onNodeWithTag("detail_remove_cover").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Add cover image")
+
+        choose = false
+        composeTestRule.onNodeWithTag("detail_change_cover").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("detail_change_cover").performScrollTo().assertTextEquals("Add cover image")
+    }
 }
