@@ -50,44 +50,18 @@ fun ArtistsScreen(
     onArtistSelected: (FavouriteArtistUiModel) -> Unit,
     modifier: Modifier = Modifier,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
-    onMoveFavouriteUp: suspend (String) -> Unit = {},
-    onMoveFavouriteDown: suspend (String) -> Unit = {},
-    onReorderFavourites: suspend (List<String>) -> Unit = {},
     /** Show the favourites as a grid of pictures when the page opens. */
     startInGrid: Boolean = false,
     /** Told when the user switches between the list and the grid, so the choice can be kept. */
     onGridChange: ((Boolean) -> Unit)? = null,
-    /** Group the favourites by genre when the page opens. */
-    startGroupedByGenre: Boolean = false,
-    /** Told when the user switches grouping by genre on or off, so the choice can be kept. */
-    onGroupedByGenreChange: ((Boolean) -> Unit)? = null,
-    /** Whether the favourites start sorted from A to Z, and told when the user switches it. */
-    startSortedAz: Boolean = false,
-    onSortedAzChange: ((Boolean) -> Unit)? = null,
-    /**
-     * Finds the suggested genre of each favourite in the background, telling after each one that it did. Started when the
-     * page opens. Without it nothing is looked for.
-     */
-    fillGenreDefaults: (suspend (onFound: suspend () -> Unit) -> Unit)? = null,
+    /** Finds the suggested genre of each favourite in the background, started when the page opens. Without it nothing is looked for. */
+    fillGenreDefaults: (suspend () -> Unit)? = null,
     /** Artists from MusicBrainz for the text typed so far. Without it there are no suggestions. */
     suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
-    var groupedByGenre by rememberSaveable { mutableStateOf(startGroupedByGenre) }
-    var sortedAz by rememberSaveable { mutableStateOf(startSortedAz) }
-    // Counts the genres found, so the favourites are read again and the grouping follows.
-    var genresFound by remember { mutableIntStateOf(0) }
-    var findingGenres by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val fill = fillGenreDefaults ?: return@LaunchedEffect
-        findingGenres = true
-        try {
-            fill { genresFound++ }
-        } finally {
-            findingGenres = false
-        }
-    }
+    LaunchedEffect(Unit) { fillGenreDefaults?.invoke() }
 
     // The artists offered while typing: the favourites that match at once, the others once typing pauses.
     var suggestions by remember { mutableStateOf<List<ArtistSuggestion>>(emptyList()) }
@@ -141,44 +115,12 @@ fun ArtistsScreen(
                         label = { Text("Grid") },
                         modifier = Modifier.testTag("favourites_view_grid")
                     )
-                    FilterChip(
-                        selected = groupedByGenre,
-                        onClick = {
-                            groupedByGenre = !groupedByGenre
-                            onGroupedByGenreChange?.invoke(groupedByGenre)
-                        },
-                        label = { Text("Group by genre") },
-                        modifier = Modifier.testTag("favourites_group_by_genre")
-                    )
-                    FilterChip(
-                        selected = sortedAz,
-                        onClick = {
-                            sortedAz = !sortedAz
-                            onSortedAzChange?.invoke(sortedAz)
-                        },
-                        label = { Text("A-Z") },
-                        modifier = Modifier.testTag("favourites_sort_az")
-                    )
-                }
-                if (groupedByGenre && findingGenres) {
-                    Text(
-                        text = "Finding genres for your artists…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp).testTag("favourites_genres_finding")
-                    )
                 }
                 FavouritesRoute(
                     load = loadFavourites,
                     onArtistSelected = onArtistSelected,
                     loadArtistImage = loadArtistImage,
-                    onMoveUp = onMoveFavouriteUp,
-                    onMoveDown = onMoveFavouriteDown,
-                    onReorder = onReorderFavourites,
-                    grid = grid,
-                    groupByGenre = groupedByGenre,
-                    sortAz = sortedAz,
-                    reloadKey = genresFound
+                    grid = grid
                 )
             }
             if (suggestions.isNotEmpty()) {

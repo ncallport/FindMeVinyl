@@ -46,6 +46,10 @@ interface AlbumDao {
     @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun deleteCustomAlbum(albumId: String): Int
 
+    /** How many albums each artist has that are owned and that are wanted. An album can be both. */
+    @Query("SELECT artistId, SUM(owned) AS owned, SUM(wanted) AS wanted FROM albums GROUP BY artistId")
+    suspend fun getAlbumCounts(): List<AlbumCountRow>
+
     /** The copies of the album the user owns, in the order they were listed. */
     @Query("SELECT * FROM album_copies WHERE albumId = :albumId ORDER BY position, id")
     suspend fun getCopies(albumId: String): List<AlbumCopyEntity>
@@ -132,3 +136,6 @@ interface AlbumDao {
     )
     suspend fun getWantedAlbums(): List<WantedAlbumRow>
 }
+
+/** The number of albums of an artist that are owned and that are wanted. */
+data class AlbumCountRow(val artistId: String, val owned: Int, val wanted: Int)

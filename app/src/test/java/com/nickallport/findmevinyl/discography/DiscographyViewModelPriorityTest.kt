@@ -72,40 +72,6 @@ class DiscographyViewModelPriorityTest {
     }
 
     @Test
-    fun `a new favourite is first in the list the Artists page shows`() = runBlocking {
-        viewModel.saveFavourite("g", "Genesis")
-        viewModel.saveFavourite("r", "Ramones")
-
-        viewModel.saveFavourite("x", "Roxy Music")
-
-        val names = FavouritesViewModel(database.artistDao(), database.artistGroupDao()).loadFavourites().map { it.name }
-        assertEquals(listOf("Roxy Music", "Ramones", "Genesis"), names)
-    }
-
-    @Test
-    fun `a new favourite is first even when the others were never ordered and all sit at 0`() = runBlocking {
-        database.artistDao().insert(ArtistEntity("a", "Zed", null, null, position = 0))
-        database.artistDao().insert(ArtistEntity("b", "Abba", null, null, position = 0))
-
-        viewModel.saveFavourite("x", "Roxy Music")
-
-        val names = FavouritesViewModel(database.artistDao(), database.artistGroupDao()).loadFavourites().map { it.name }
-        assertEquals(listOf("Roxy Music", "Abba", "Zed"), names)
-    }
-
-    @Test
-    fun `a new favourite is first after the others were moved, which rewrites their positions`() = runBlocking {
-        viewModel.saveFavourite("g", "Genesis")
-        viewModel.saveFavourite("r", "Ramones")
-        val favourites = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
-        favourites.moveDown("r")
-
-        viewModel.saveFavourite("x", "Roxy Music")
-
-        assertEquals(listOf("Roxy Music", "Genesis", "Ramones"), favourites.loadFavourites().map { it.name })
-    }
-
-    @Test
     fun `saving an artist that is already a favourite keeps its place`() = runBlocking {
         viewModel.saveFavourite("g", "Genesis")
         viewModel.saveFavourite("r", "Ramones")

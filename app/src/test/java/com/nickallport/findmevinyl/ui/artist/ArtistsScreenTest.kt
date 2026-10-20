@@ -118,7 +118,7 @@ class ArtistsScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("favourites_view_grid").assertIsSelected()
-        composeTestRule.onNodeWithTag("favourites_grid_hint").assertExists()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
         assertEquals(listOf(true), changes)
     }
 
@@ -152,7 +152,7 @@ class ArtistsScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("favourites_view_grid").assertIsSelected()
-        composeTestRule.onNodeWithTag("favourites_grid_hint").assertExists()
+        composeTestRule.onNodeWithTag("favourites_grid_hint").assertDoesNotExist()
     }
 
     @OptIn(ExperimentalTestApi::class)
@@ -175,266 +175,25 @@ class ArtistsScreenTest {
     // Grouping the favourites by genre.
 
     @Test
-    fun `has a switch to group the favourites by genre, off to begin with`() {
+    fun `there are only the List and Grid choices, nothing to group or sort by`() {
         composeTestRule.setContent {
             FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsNotSelected()
-        composeTestRule.onNodeWithTag("genre_header_none").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_view_list").assertExists()
+        composeTestRule.onNodeWithTag("favourites_view_grid").assertExists()
+        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("favourites_sort_az").assertDoesNotExist()
     }
 
     @Test
-    fun `switching it on groups the favourites and says so`() {
-        val changes = mutableListOf<Boolean>()
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
-                    onGroupedByGenreChange = { changes.add(it) }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_group_by_genre").performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsSelected()
-        composeTestRule.onNodeWithTag("genre_header_none").assertExists()
-        assertEquals(listOf(true), changes)
-    }
-
-    @Test
-    fun `switching it off again brings back the order of the favourites`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_group_by_genre").performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("genre_header_none").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("favourite_down_1").assertExists()
-    }
-
-    @Test
-    fun `it starts grouped when it was left grouped`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_group_by_genre").assertIsSelected()
-        composeTestRule.onNodeWithTag("genre_header_none").assertExists()
-    }
-
-    @OptIn(ExperimentalTestApi::class)
-    @Test
-    fun `the switch keeps its place over a rotation`() = runComposeUiTest {
-        val restorationTester = StateRestorationTester(this)
-        restorationTester.setContent {
-            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
-        }
-        waitForIdle()
-        onNodeWithTag("favourites_group_by_genre").performClick()
-        waitForIdle()
-
-        restorationTester.emulateSaveAndRestore()
-        waitForIdle()
-
-        onNodeWithTag("favourites_group_by_genre").assertIsSelected()
-    }
-
-    // Finding the suggested genres in the background.
-
-    @Test
-    fun `finding the genres starts when the page opens`() {
-        var started = 0
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
-                    fillGenreDefaults = { started++ }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        assertEquals(1, started)
-    }
-
-    @Test
-    fun `each genre found makes the favourites load again, so the grouping follows`() {
-        var loads = 0
-        var found = false
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {},
-                    loadFavourites = {
-                        loads++
-                        if (found) listOf(FavouriteArtistUiModel("1", "Roxy Music", genre = "art rock")) else favourites
-                    },
-                    onArtistSelected = {},
-                    startGroupedByGenre = true,
-                    fillGenreDefaults = { onFound -> found = true; onFound() }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("genre_header_art rock").assertExists()
-        assertEquals(true, loads >= 2)
-    }
-
-    @Test
-    fun `while the genres are being found a line says so, and it goes when they are`() {
-        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
-                    startGroupedByGenre = true,
-                    fillGenreDefaults = { gate.await() }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_genres_finding").assertExists()
-
-        gate.complete(Unit)
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
-    }
-
-    @Test
-    fun `the line about finding genres is only there when the favourites are grouped by genre`() {
-        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {},
-                    fillGenreDefaults = { gate.await() }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
-    }
-
-    @Test
-    fun `without a way to find genres nothing is started and no line shows`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startGroupedByGenre = true)
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_genres_finding").assertDoesNotExist()
-    }
-
-    @Test
-    fun `the group by genre chip sits on the same line as List and Grid, after Grid`() {
+    fun `the favourites have no move buttons`() {
         composeTestRule.setContent {
             FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
         }
         composeTestRule.waitForIdle()
 
-        val list = composeTestRule.onNodeWithTag("favourites_view_list").fetchSemanticsNode().boundsInRoot
-        val grid = composeTestRule.onNodeWithTag("favourites_view_grid").fetchSemanticsNode().boundsInRoot
-        val genre = composeTestRule.onNodeWithTag("favourites_group_by_genre").fetchSemanticsNode().boundsInRoot
-
-        assertEquals(list.top, genre.top, 1f)
-        assertEquals(grid.top, genre.top, 1f)
-        assertTrue(genre.left >= grid.right)
-        assertTrue(grid.left >= list.right)
-    }
-
-    // Sorting the favourites from A to Z.
-
-    @Test
-    fun `has an A-Z switch next to Group by genre, off to begin with`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsNotSelected()
-        val genre = composeTestRule.onNodeWithTag("favourites_group_by_genre").fetchSemanticsNode().boundsInRoot
-        val az = composeTestRule.onNodeWithTag("favourites_sort_az").fetchSemanticsNode().boundsInRoot
-        assertEquals(genre.top, az.top, 1f)
-        assertTrue(az.left >= genre.right)
-    }
-
-    @Test
-    fun `switching A-Z on sorts the favourites, says so, and reports the choice`() {
-        val changes = mutableListOf<Boolean>()
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, onArtistSelected = {}, onSortedAzChange = { changes.add(it) },
-                    loadFavourites = { listOf(FavouriteArtistUiModel("1", "Roxy Music"), FavouriteArtistUiModel("2", "ABC")) }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("favourite_up_1").assertExists()
-
-        composeTestRule.onNodeWithTag("favourites_sort_az").performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsSelected()
         composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("favourites_az_hint").assertExists()
-        assertEquals(listOf(true), changes)
-        val y = { id: String -> composeTestRule.onNodeWithTag("favourite_artist_$id").fetchSemanticsNode().boundsInRoot.top }
-        assertTrue(y("2") < y("1"))
-    }
-
-    @Test
-    fun `it starts sorted when the choice was kept`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, startSortedAz = true)
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_sort_az").assertIsSelected()
-    }
-
-    @Test
-    fun `switching A-Z off puts the user's own order back`() {
-        composeTestRule.setContent {
-            FindMeVinylTheme {
-                ArtistsScreen(
-                    onSearch = {}, onArtistSelected = {}, startSortedAz = true,
-                    loadFavourites = { listOf(FavouriteArtistUiModel("1", "Roxy Music"), FavouriteArtistUiModel("2", "ABC")) }
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("favourites_sort_az").performClick()
-        composeTestRule.waitForIdle()
-
-        val y = { id: String -> composeTestRule.onNodeWithTag("favourite_artist_$id").fetchSemanticsNode().boundsInRoot.top }
-        assertTrue(y("1") < y("2"))
-        composeTestRule.onNodeWithTag("favourite_up_2").assertExists()
     }
 }

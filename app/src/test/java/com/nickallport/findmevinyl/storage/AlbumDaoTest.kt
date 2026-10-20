@@ -295,4 +295,25 @@ class AlbumDaoTest {
 
         assertEquals(listOf("LP"), database.albumDao().getWantedAlbums().map { it.wantFormat })
     }
+
+    // How many albums an artist has owned and wanted.
+
+    @Test
+    fun `counts the owned and the wanted albums of each artist, an album both owned and wanted in both`() = runBlocking {
+        dao.insert(AlbumEntity("1", "a", "One", "STUDIO_ALBUM", null, owned = true, wanted = false))
+        dao.insert(AlbumEntity("2", "a", "Two", "STUDIO_ALBUM", null, owned = true, wanted = true))
+        dao.insert(AlbumEntity("3", "a", "Three", "STUDIO_ALBUM", null, owned = false, wanted = true))
+        dao.insert(AlbumEntity("4", "a", "Four", "STUDIO_ALBUM", null, owned = false, wanted = false))
+        dao.insert(AlbumEntity("5", "b", "Five", "STUDIO_ALBUM", null, owned = true, wanted = false))
+
+        val counts = dao.getAlbumCounts().associateBy { it.artistId }
+
+        assertEquals(2 to 2, counts.getValue("a").owned to counts.getValue("a").wanted)
+        assertEquals(1 to 0, counts.getValue("b").owned to counts.getValue("b").wanted)
+    }
+
+    @Test
+    fun `an artist with no albums has no row of counts`() = runBlocking {
+        assertEquals(emptyList<Any>(), dao.getAlbumCounts())
+    }
 }
