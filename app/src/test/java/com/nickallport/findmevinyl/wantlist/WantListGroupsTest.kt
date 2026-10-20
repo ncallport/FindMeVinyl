@@ -46,7 +46,7 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `wanted albums of the members are listed together under the name of the group`() = runBlocking {
+    fun `wanted albums of the members are listed under the names of the artists themselves`() = runBlocking {
         database.artistDao().insert(ArtistEntity("cave", "Nick Cave", null, null, 0))
         group("group/1", "Nick Cave, all of it", 0, "cave", "seeds")
         wanted("a", "cave", "From Her to Eternity", "1984")
@@ -55,17 +55,17 @@ class WantListGroupsTest {
         val list = viewModel.loadWantList()
 
         assertEquals(listOf("From Her to Eternity", "Henry's Dream"), list.map { it.albumTitle })
-        assertEquals(setOf("Nick Cave, all of it"), list.map { it.artistName }.toSet())
+        assertEquals(listOf("Name of cave", "Name of seeds"), list.map { it.artistName })
     }
 
     @Test
-    fun `a member that is not a favourite artist is still listed, under the group`() = runBlocking {
+    fun `a member that is not a favourite artist is still listed, under its own name`() = runBlocking {
         group("group/1", "Ian Dury", 0, "dury", "blockheads")
         wanted("a", "blockheads", "Do It Yourself", "1979")
 
         val list = viewModel.loadWantList()
 
-        assertEquals(listOf("Ian Dury" to "Do It Yourself"), list.map { it.artistName to it.albumTitle })
+        assertEquals(listOf("Name of blockheads" to "Do It Yourself"), list.map { it.artistName to it.albumTitle })
     }
 
     @Test
@@ -76,7 +76,7 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `groups and artists are in one A to Z order, a group by its own name`() = runBlocking {
+    fun `groups and artists are in one A to Z order, by the name of the artist of each album`() = runBlocking {
         database.artistDao().insert(ArtistEntity("a", "Abba", null, null, 0))
         database.artistDao().insert(ArtistEntity("z", "Zebra", null, null, 2))
         group("group/1", "Middle", 1, "x", "y")
@@ -88,17 +88,17 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `the albums of a group are by release date, across its members`() = runBlocking {
+    fun `the albums of a group are by member name, then release date`() = runBlocking {
         group("group/1", "G", 0, "x", "y")
         wanted("1", "x", "One", "1990")
         wanted("2", "y", "Two", "1980")
         wanted("3", "x", "Three", "1985")
 
-        assertEquals(listOf("Two", "Three", "One"), viewModel.loadWantList().map { it.albumTitle })
+        assertEquals(listOf("Three", "One", "Two"), viewModel.loadWantList().map { it.albumTitle })
     }
 
     @Test
-    fun `moving an album moves it among all the wanted albums of its group`() = runBlocking {
+    fun `moving an album moves it among all the wanted albums, members of a group or not`() = runBlocking {
         group("group/1", "G", 0, "x", "y")
         wanted("1", "x", "One", "1980")
         wanted("2", "y", "Two", "1985")
@@ -106,7 +106,7 @@ class WantListGroupsTest {
 
         viewModel.moveDown("1")
 
-        assertEquals(listOf("Two", "One", "Three"), viewModel.loadWantList().map { it.albumTitle })
+        assertEquals(listOf("Three", "One", "Two"), viewModel.loadWantList().map { it.albumTitle })
     }
 
     @Test
@@ -119,12 +119,12 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `an artist that is a favourite and in a group is listed under the group, not under its own name`() = runBlocking {
+    fun `an artist that is a favourite and in a group is listed under the name it has in the group`() = runBlocking {
         database.artistDao().insert(ArtistEntity("cave", "Nick Cave", null, null, 5))
         group("group/1", "Nick Cave, all of it", 0, "cave", "seeds")
         wanted("a", "cave", "Album", "1984")
 
-        assertEquals(listOf("Nick Cave, all of it"), viewModel.loadWantList().map { it.artistName })
+        assertEquals(listOf("Name of cave"), viewModel.loadWantList().map { it.artistName })
     }
 
     @Test
@@ -138,15 +138,15 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `the shared text names the group, not its members`() = runBlocking {
+    fun `the shared text names the artist of each album, not the group`() = runBlocking {
         group("group/1", "Nick Cave, all of it", 0, "cave", "seeds")
         wanted("a", "cave", "From Her to Eternity", "1984")
         wanted("b", "seeds", "Henry's Dream", "1992")
 
         val text = viewModel.exportText(ShareOptions())
 
-        assertTrue(text.contains("1. Nick Cave, all of it - From Her to Eternity"))
-        assertTrue(text.contains("2. Nick Cave, all of it - Henry's Dream"))
-        assertEquals(2, Regex("Nick Cave, all of it").findAll(text).count())
+        assertTrue(text.contains("1. Name of cave - From Her to Eternity"))
+        assertTrue(text.contains("2. Name of seeds - Henry's Dream"))
+        assertEquals(0, Regex("Nick Cave, all of it").findAll(text).count())
     }
 }

@@ -115,16 +115,16 @@ interface AlbumDao {
     suspend fun clearWantedForArtist(artistId: String): Int
 
     /**
-     * The albums on the want list, each with the name and place of whom it is listed under: its artist, or
-     * the group of artists the artist is in, so a group's wanted albums come together under its name. An
-     * album of an artist that is neither a favourite nor in a group is not listed. [WantedAlbumRow.artistId]
-     * is the id of the group, or of the artist.
+     * The albums on the want list, each with the name of its own artist (the name it has in its group when it is in
+     * one, so a list shared with a friend never names a group that is only the user's), and the id and place of
+     * the group the artist is in, or of the artist. An album of an artist that is neither a favourite nor in a
+     * group is not listed.
      */
     @Query(
         """
         SELECT albums.id AS albumId,
                COALESCE(artist_groups.id, albums.artistId) AS artistId,
-               COALESCE(artist_groups.name, favourite_artists.name) AS artistName,
+               COALESCE(artist_group_members.name, favourite_artists.name) AS artistName,
                albums.title AS albumTitle,
                albums.firstReleaseDate AS firstReleaseDate,
                COALESCE(artist_groups.position, favourite_artists.position) AS artistPosition,

@@ -50,12 +50,23 @@ class WantListTiersTest {
     }
 
     @Test
-    fun `the wants after the twentieth have no heading and no colour`() {
+    fun `the wants after the twentieth are under The rest, with no colour`() {
         composeTestRule.setContent { WantListScreen(wanted = many(25), onShare = {}) }
 
+        composeTestRule.onNodeWithTag("wants_rest_heading").assertTextEquals("The rest")
+        assertTrue(y("want_20") < y("wants_rest_heading"))
+        assertTrue(y("wants_rest_heading") < y("want_21"))
         (21..25).forEach { composeTestRule.onNodeWithTag("want_$it").assertTier(null) }
         composeTestRule.onAllNodesWithTag("wants_top_heading").assertCountEquals(1)
         composeTestRule.onAllNodesWithTag("wants_next_heading").assertCountEquals(1)
+        composeTestRule.onAllNodesWithTag("wants_rest_heading").assertCountEquals(1)
+    }
+
+    @Test
+    fun `a list of twenty or fewer has no The rest heading`() {
+        composeTestRule.setContent { WantListScreen(wanted = many(20), onShare = {}) }
+
+        composeTestRule.onNodeWithTag("wants_rest_heading").assertDoesNotExist()
     }
 
     @Test
