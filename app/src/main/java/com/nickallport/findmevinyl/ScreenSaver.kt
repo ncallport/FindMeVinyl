@@ -14,6 +14,8 @@ internal sealed class Screen {
     object Shops : Screen()
     /** What to hide, as the user chooses. Reached from the front screen. */
     object Settings : Screen()
+    /** Adding an owned album from its barcode. Back goes to the Artists page. */
+    object Barcode : Screen()
     data class Discography(
         val artistId: String,
         val artistName: String,
@@ -75,6 +77,7 @@ internal fun Screen.backTarget(): Screen? = when (this) {
     is Screen.FavouriteShops -> Screen.Shops
     is Screen.AddShop -> Screen.FavouriteShops
     is Screen.ArtistResults -> Screen.Search
+    is Screen.Barcode -> Screen.Search
     else -> Screen.Home
 }
 
@@ -88,6 +91,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.WantList -> listOf("wantlist")
         is Screen.Shops -> listOf("shops")
         is Screen.Settings -> listOf("settings")
+        is Screen.Barcode -> listOf("barcode")
         is Screen.ShopDetail ->
             listOf("shop", Gson().toJson(value.shop), value.region?.country.orEmpty(), value.region?.subdivision.orEmpty()) +
                 save(value.backTo)
@@ -109,6 +113,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         "wantlist" -> Screen.WantList
         "shops" -> Screen.Shops
         "settings" -> Screen.Settings
+        "barcode" -> Screen.Barcode
         "shop" -> runCatching {
             val shop = Gson().fromJson(value[1], com.nickallport.findmevinyl.shops.Shop::class.java)
             val country = value.getOrNull(2).orEmpty()

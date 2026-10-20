@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,7 +58,9 @@ fun ArtistsScreen(
     /** Finds the suggested genre of each favourite in the background, started when the page opens. Without it nothing is looked for. */
     fillGenreDefaults: (suspend () -> Unit)? = null,
     /** Artists from MusicBrainz for the text typed so far. Without it there are no suggestions. */
-    suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
+    suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null,
+    /** Opens the page for adding an owned album from its barcode. Without it there is no button. */
+    onAddByBarcode: (() -> Unit)? = null
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
@@ -90,6 +93,12 @@ fun ArtistsScreen(
             hint = "Search for an artist",
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+        if (onAddByBarcode != null) {
+            TextButton(
+                onClick = onAddByBarcode,
+                modifier = Modifier.padding(start = 8.dp).testTag("barcode_button")
+            ) { Text("Add an owned album by barcode") }
+        }
         // The favourites stay where they are, with their state, and the suggestions are drawn over them.
         Box(modifier = Modifier.weight(1f)) {
             Column {

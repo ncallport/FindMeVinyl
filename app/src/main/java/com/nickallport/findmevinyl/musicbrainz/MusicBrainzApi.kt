@@ -52,6 +52,26 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzArtistReleasesResponse
 
+    /**
+     * The releases that carry a barcode: [query] is `barcode:` and the number. Each comes with its artist credit, its
+     * release group and its media, so one request says who the album is by and what format it is on.
+     */
+    @GET("release/")
+    suspend fun searchReleasesByBarcode(
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 25,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzBarcodeSearchResponse
+
+    /** One release group, with its type and first release date, which a search result leaves out. */
+    @GET("release-group/{id}")
+    suspend fun getReleaseGroup(
+        @Path("id") releaseGroupId: String,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzReleaseGroupDto
+
     /** The rating of one release group: an average out of 5 and how many people voted. */
     @GET("release-group/{id}")
     suspend fun getReleaseGroupRating(

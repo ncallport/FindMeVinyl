@@ -2,6 +2,8 @@ package com.nickallport.findmevinyl
 
 import com.nickallport.findmevinyl.discography.AlbumCoverViewModel
 import com.nickallport.findmevinyl.discography.CustomAlbums
+import com.nickallport.findmevinyl.barcode.BarcodeRoute
+import com.nickallport.findmevinyl.barcode.BarcodeViewModel
 import com.nickallport.findmevinyl.discography.AddAlbumRoute
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -292,6 +294,9 @@ class MainActivity : ComponentActivity() {
             firstMemberOf = { groupId -> database.artistGroupDao().getMembers(groupId).firstOrNull()?.artistId }
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao(), groupDao = database.artistGroupDao())
+        val barcodeViewModel = BarcodeViewModel(
+            api, database.albumDao(), database.artistDao(), database.artistGroupDao(), discographyViewModel
+        )
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao(), database.albumDao())
@@ -366,11 +371,25 @@ class MainActivity : ComponentActivity() {
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
                                 startInGrid = favouritesLayoutStore.isGrid(),
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
+                                onAddByBarcode = { currentScreen = Screen.Barcode },
                                 fillGenreDefaults = { artistGenreViewModel.fillDefaults() },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     // A group opens on the discography of all its artists, under the group's name.
                                     currentScreen = Screen.Discography(artist.id, artist.name, Screen.Search)
+                                }
+                            )
+                        }
+                        is Screen.Barcode -> {
+                            BarcodeRoute(
+                                lookUp = { text -> barcodeViewModel.lookUp(text) },
+                                statusOf = { match -> barcodeViewModel.statusOf(match) },
+                                addOwned = { match, format, takeOffWant -> barcodeViewModel.addOwned(match, format, takeOffWant) },
+                                onOpenAlbum = { match ->
+                                    currentScreen = Screen.AlbumDetail(
+                                        match.releaseGroupId, match.albumTitle, match.artistId, match.artistName,
+                                        Screen.Discography(match.artistId, match.artistName, Screen.Search)
+                                    )
                                 }
                             )
                         }
