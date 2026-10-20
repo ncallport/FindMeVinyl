@@ -1,13 +1,11 @@
 package com.nickallport.findmevinyl.wantlist
 
-import com.nickallport.findmevinyl.discography.ReleaseDates
 import com.nickallport.findmevinyl.export.ShareOptions
 import com.nickallport.findmevinyl.export.WantListFormatter
 import com.nickallport.findmevinyl.export.WantedAlbumExportItem
 import com.nickallport.findmevinyl.ordering.Reorder
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.WantedAlbumRow
-import kotlin.comparisons.nullsLast
 
 data class WantedAlbumUiModel(
     val albumId: String,
@@ -18,48 +16,51 @@ data class WantedAlbumUiModel(
 )
 
 /**
- * The want list is one list in the user's own order, whoever the albums are by. What has not been
- * ordered yet (equal positions) keeps an older order: release date with undated last, then title. This
- * is also the order of the share text.
+ * The want list is one list, whoever the albums are by. It starts A to Z by artist and then release date, and a want the
+ * user moves is pinned to the place they put it while the others stay A to Z around it ([WantOrder]). The share text is
+ * in the same order.
  */
 class WantListViewModel(private val albumDao: AlbumDao) {
     suspend fun loadWantList(): List<WantedAlbumUiModel> {
         return ordered().map { WantedAlbumUiModel(it.albumId, it.artistName, it.albumTitle, it.wantFormat) }
     }
 
-    /** Takes an album off the want list. The album itself stays, and shows as not wanted in its discography. */
-    suspend fun remove(albumId: String) {
-        albumDao.setWanted(albumId, false)
-    }
-
     suspend fun moveUp(albumId: String) = move(albumId, -1)
 
     suspend fun moveDown(albumId: String) = move(albumId, 1)
 
-    /** The share text: the whole list unless [options] say otherwise, in the user's own order. */
+    /** Sends the want to the top of the list, which pins it there. The others keep their order below it. */
+    suspend fun moveToTop(albumId: String) {
+        val current = ordered()
+        val at = current.indexOfFirst { it.albumId == albumId }
+        if (at <= 0) return
+        pin(current, listOf(current[at]) + current.filterIndexed { i, _ -> i != at }, albumId)
+    }
+
+    /** The share text: the whole list unless [options] say otherwise, in the order shown. */
     suspend fun exportText(options: ShareOptions = ShareOptions()): String {
-        val items = loadWantList().map { WantedAlbumExportItem(it.artistName, it.albumTitle, it.wantFormat) }
+        val items = ordered().map { WantedAlbumExportItem(it.artistName, it.albumTitle, it.wantFormat) }
         return WantListFormatter.format(items, options.intro, options.limit)
     }
 
-    private suspend fun ordered(): List<WantedAlbumRow> {
-        return albumDao.getWantedAlbums()
-            .sortedWith(
-                compareBy<WantedAlbumRow> { it.wantPosition }
-                    .thenBy(nullsLast<String>()) { ReleaseDates.sortKey(it.firstReleaseDate) }
-                    .thenBy { it.albumTitle }
-                    .thenBy { it.albumId }
-            )
-    }
+    private suspend fun ordered(): List<WantedAlbumRow> = WantOrder.arrange(albumDao.getWantedAlbums())
 
-    // An album moves a place in the whole list. Every album is given its own position, so albums that
-    // were never ordered stop being ties.
     private suspend fun move(albumId: String, delta: Int) {
         val current = ordered()
-        val moved = Reorder.swapped(current.map { it.albumId }, albumId, delta) ?: return
-        val positions = current.associate { it.albumId to it.wantPosition }
-        moved.forEachIndexed { index, id ->
-            if (positions[id] != index) albumDao.setWantPosition(id, index)
+        val at = current.indexOfFirst { it.albumId == albumId }
+        val to = at + delta
+        if (at < 0 || to !in current.indices) return
+        pin(current, Reorder.swappedAt(current, at, delta) ?: return, albumId)
+    }
+
+    // The list as it should now be shown: the want that was moved and every want already pinned are pinned to the
+    // place they have in it, and the rest are left to fall A to Z around them, which gives the same list because their
+    // order among themselves has not changed.
+    private suspend fun pin(before: List<WantedAlbumRow>, after: List<WantedAlbumRow>, movedId: String) {
+        val toPin = before.filter { it.wantPriority != null }.map { it.albumId }.toSet() + movedId
+        val previous = before.associate { it.albumId to it.wantPriority }
+        after.forEachIndexed { place, row ->
+            if (row.albumId in toPin && previous[row.albumId] != place) albumDao.setWantPriority(row.albumId, place)
         }
     }
 }

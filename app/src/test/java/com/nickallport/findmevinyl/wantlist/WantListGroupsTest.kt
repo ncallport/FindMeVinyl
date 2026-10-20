@@ -76,7 +76,7 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `groups and artists are in one order, by the position of each`() = runBlocking {
+    fun `groups and artists are in one A to Z order, a group by its own name`() = runBlocking {
         database.artistDao().insert(ArtistEntity("a", "Abba", null, null, 0))
         database.artistDao().insert(ArtistEntity("z", "Zebra", null, null, 2))
         group("group/1", "Middle", 1, "x", "y")
@@ -88,14 +88,11 @@ class WantListGroupsTest {
     }
 
     @Test
-    fun `the albums of a group are in the order they were put in, across its members`() = runBlocking {
+    fun `the albums of a group are by release date, across its members`() = runBlocking {
         group("group/1", "G", 0, "x", "y")
-        wanted("1", "x", "One", "1980")
-        wanted("2", "y", "Two", "1985")
-        wanted("3", "x", "Three", "1990")
-        database.albumDao().setWantPosition("1", 2)
-        database.albumDao().setWantPosition("2", 0)
-        database.albumDao().setWantPosition("3", 1)
+        wanted("1", "x", "One", "1990")
+        wanted("2", "y", "Two", "1980")
+        wanted("3", "x", "Three", "1985")
 
         assertEquals(listOf("Two", "Three", "One"), viewModel.loadWantList().map { it.albumTitle })
     }
@@ -135,7 +132,7 @@ class WantListGroupsTest {
         group("group/1", "G", 0, "x", "y")
         wanted("1", "x", "One", "1980")
 
-        viewModel.remove("1")
+        database.albumDao().setWanted("1", false)
 
         assertEquals(emptyList<String>(), viewModel.loadWantList().map { it.albumTitle })
     }

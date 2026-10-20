@@ -316,4 +316,66 @@ class AlbumDaoTest {
     fun `an artist with no albums has no row of counts`() = runBlocking {
         assertEquals(emptyList<Any>(), dao.getAlbumCounts())
     }
+
+    // A want pinned to a place.
+
+    private suspend fun pinned(id: String, priority: Int?) {
+        dao.insert(AlbumEntity(id, "a", "Album $id", "STUDIO_ALBUM", null, owned = false, wanted = true))
+        dao.setWantPriority(id, priority)
+    }
+
+    @Test
+    fun `the place a want is pinned to is saved, and null takes it away`() = runBlocking {
+        pinned("1", 3)
+        assertEquals(3, dao.getById("1")!!.wantPriority)
+
+        dao.setWantPriority("1", null)
+        assertEquals(null, dao.getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `taking the want off an album forgets its place`() = runBlocking {
+        pinned("1", 3)
+
+        dao.setWanted("1", false)
+
+        assertEquals(null, dao.getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `keeping the want keeps the place`() = runBlocking {
+        pinned("1", 3)
+
+        dao.setWanted("1", true)
+
+        assertEquals(3, dao.getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `clearing the wants of an artist forgets their places`() = runBlocking {
+        pinned("1", 3)
+
+        dao.clearWantedForArtist("a")
+
+        assertEquals(null, dao.getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `wanting an album that was taken off does not pin it`() = runBlocking {
+        pinned("1", 3)
+        dao.setWanted("1", false)
+
+        dao.markWanted("1")
+
+        assertEquals(null, dao.getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `the want list rows carry the place`() = runBlocking {
+        database.artistDao().insert(com.nickallport.findmevinyl.storage.ArtistEntity("a", "Abba", null, null))
+        pinned("1", 3)
+        pinned("2", null)
+
+        assertEquals(mapOf("1" to 3, "2" to null), dao.getWantedAlbums().associate { it.albumId to it.wantPriority })
+    }
 }

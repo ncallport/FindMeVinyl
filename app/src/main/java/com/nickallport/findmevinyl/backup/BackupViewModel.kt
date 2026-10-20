@@ -91,7 +91,7 @@ class BackupViewModel(
             favourites = artists.map { BackupArtist(it.id, it.name, it.type, it.country, it.position, it.genre) },
             albums = albums.map {
                 BackupAlbum(
-                    it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, it.wantPosition,
+                    it.id, it.artistId, it.title, it.category, it.firstReleaseDate, it.owned, it.wanted, null, it.wantPriority,
                     null, null, it.myPressingId, it.myPressingText, it.wantFormat, null,
                     copiesOf[it.id].orEmpty().map { copy -> BackupCopy(copy.format, copy.note) },
                     it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) },
@@ -253,6 +253,8 @@ class BackupViewModel(
             // An album added by hand is not on MusicBrainz, so it is kept whole: it needs a title, and is saved as looked at.
             val addedByHand = CustomAlbums.isCustom(id)
             if (addedByHand && album.title.isNullOrBlank()) continue
+            // The place a want was pinned to, only for an album that is wanted and only when it is a place.
+            val priority = album.wantPriority?.takeIf { wanted && it >= 0 }
             // Only a label is kept, and only for an album that is wanted.
             val wantFormat = album.wantFormat?.takeIf { wanted && it in ReleaseFormats.displayOrder }
             // A chosen pressing needs its id, and its line is cut to the length the app keeps.
@@ -267,7 +269,7 @@ class BackupViewModel(
                     AlbumEntity(
                         id, artistId, if (addedByHand) album.title.orEmpty().trim().take(MAX_ALBUM_TITLE_LENGTH) else album.title.orEmpty(),
                         album.category ?: "OTHER", album.firstReleaseDate,
-                        owned, wanted, wantPosition = album.wantPosition ?: 0,
+                        owned, wanted, wantPosition = album.wantPosition ?: 0, wantPriority = priority,
                         formats = if (addedByHand) "" else null,
                         userDescription = if (addedByHand) album.description?.let(UserTracks::cleanDescription) else null,
                         userTracks = if (addedByHand) UserTracks.encode(album.tracks.orEmpty()) else null,
@@ -292,6 +294,11 @@ class BackupViewModel(
                 }
                 if (wantFormat != null && (existing.wanted || wanted) && existing.wantFormat == null) {
                     albumDao.setWantFormat(id, wantFormat)
+                    changed = true
+                }
+                // A place already given on the phone is kept: restoring only adds.
+                if (priority != null && existing.wantPriority == null) {
+                    albumDao.setWantPriority(id, priority)
                     changed = true
                 }
                 // Details already on the phone are kept: restoring only adds.

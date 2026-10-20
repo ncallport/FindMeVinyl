@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.theme
 
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -69,3 +70,9 @@ fun FindMeVinylTheme(
         content = content
     )
 }
+
+/**
+ * The colour of the "next ten" wants on the want list: the wanted colour faded, half way to the background, so it reads
+ * as the same colour but less important than the top ten. Text on it is the usual text colour of the page.
+ */
+fun fadedWantContainer(scheme: ColorScheme): Color = lerp(scheme.background, scheme.secondaryContainer, 0.5f)

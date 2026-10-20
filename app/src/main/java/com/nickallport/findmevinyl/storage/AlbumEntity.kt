@@ -54,5 +54,10 @@ data class AlbumEntity(
     /** The tracklist the user typed for an album added by hand, as a JSON list of titles (see `UserTracks`). Null: none. */
     val userTracks: String? = null,
     /** The file name of the cover image the user chose for an album added by hand, in the album covers folder. Null: none. */
-    val userCover: String? = null
+    val userCover: String? = null,
+    /**
+     * The place in the want list the user gave the album by moving it, counting from 0 at the top, or null when it has not
+     * been moved and so sits where A to Z puts it. It goes when the want does. See `WantOrder`.
+     */
+    val wantPriority: Int? = null
 )

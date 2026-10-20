@@ -50,6 +50,14 @@ object Glyphs {
         glyph("arrow_down", "M20,12l-1.41,-1.41L13,16.17V4h-2v12.17l-5.58,-5.59L4,12l8,8 8,-8z")
     }
 
+    /** Two arrows pointing up, for sending a row to the top of a list. */
+    val DoubleArrowUp: ImageVector by lazy {
+        glyph(
+            "double_arrow_up",
+            "M4,11l1.41,1.41L11,6.83V16h2V6.83l5.58,5.59L20,11l-8,-8 -8,8zM4,18l1.41,1.41L11,13.83V22h2v-8.17l5.58,5.59L20,18l-8,-8 -8,8z"
+        )
+    }
+
     /** A bin, for removing something. */
     val Delete: ImageVector by lazy {
         glyph(
