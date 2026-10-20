@@ -101,13 +101,16 @@ fun WantListScreen(
         LazyColumn(modifier = Modifier.weight(1f)) {
             // One card for each want, in the order shown: the artist and the album, the format if one is wanted, and the
             // buttons to move it. The first ten are in the wanted colour under a heading, the next ten in that colour
-            // faded under another, and the rest are plain.
+            // faded under another, and the rest are plain under a third.
             wanted.forEachIndexed { index, album ->
                 if (index == 0) {
                     item(key = "heading-top") { TierHeading("Top ten wanted", "wants_top_heading") }
                 }
                 if (index == TIER_SIZE) {
                     item(key = "heading-next") { TierHeading("Next ten wanted", "wants_next_heading") }
+                }
+                if (index == 2 * TIER_SIZE) {
+                    item(key = "heading-rest") { TierHeading("The rest", "wants_rest_heading") }
                 }
                 item(key = album.albumId) {
                     val tier = when {
