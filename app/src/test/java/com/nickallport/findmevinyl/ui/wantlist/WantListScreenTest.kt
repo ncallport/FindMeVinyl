@@ -1,6 +1,8 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performTextInput
 import com.nickallport.findmevinyl.export.ShareOptions
@@ -232,7 +234,7 @@ class WantListScreenTest {
 
         composeTestRule.onNodeWithTag("want_up_1").assertDoesNotExist()
         composeTestRule.onNodeWithTag("want_down_1").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("want_remove_1").assertExists()
+        composeTestRule.onNodeWithTag("want_top_1").assertDoesNotExist()
     }
 
     @Test
@@ -279,86 +281,51 @@ class WantListScreenTest {
     }
 
     @Test
-    fun `every want has a button to remove it`() {
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {})
-        }
-
-        composeTestRule.onNodeWithTag("want_remove_1").assertExists()
-        composeTestRule.onNodeWithTag("want_remove_2").assertExists()
-        composeTestRule.onNodeWithTag("want_remove_3").assertExists()
-    }
-
-    @Test
-    fun `the remove buttons say which album they remove`() {
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {})
-        }
-
-        composeTestRule.onNodeWithContentDescription("Remove Siren from wants").assertExists()
-    }
-
-    @Test
-    fun `tapping remove asks first, and does not remove yet`() {
-        val removed = mutableListOf<String>()
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
-        }
-
-        composeTestRule.onNodeWithTag("want_remove_3").performClick()
-
-        composeTestRule.onNodeWithTag("want_remove_dialog").assertExists()
-        composeTestRule.onNodeWithText("Remove Siren from your wants?").assertExists()
-        assertEquals(emptyList<String>(), removed)
-    }
-
-    @Test
-    fun `confirming removes the album and closes the question`() {
-        val removed = mutableListOf<String>()
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
-        }
-
-        composeTestRule.onNodeWithTag("want_remove_3").performClick()
-        composeTestRule.onNodeWithTag("want_remove_confirm").performClick()
-
-        assertEquals(listOf("3"), removed)
-        composeTestRule.onNodeWithTag("want_remove_dialog").assertDoesNotExist()
-    }
-
-    @Test
-    fun `keeping the album closes the question and removes nothing`() {
-        val removed = mutableListOf<String>()
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {}, onRemove = { removed.add(it) })
-        }
-
-        composeTestRule.onNodeWithTag("want_remove_3").performClick()
-        composeTestRule.onNodeWithTag("want_remove_cancel").performClick()
-
-        assertEquals(emptyList<String>(), removed)
-        composeTestRule.onNodeWithTag("want_remove_dialog").assertDoesNotExist()
-    }
-
-    @Test
-    fun `the remove button does not move the album`() {
-        val moved = mutableListOf<String>()
-        composeTestRule.setContent {
-            WantListScreen(wanted = sample, onShare = {}, onMoveUp = { moved.add(it) }, onMoveDown = { moved.add(it) })
-        }
-
-        composeTestRule.onNodeWithTag("want_remove_3").performClick()
-
-        assertEquals(emptyList<String>(), moved)
-    }
-
-    @Test
-    fun `an album wanted on a format shows it under the title`() {
+    fun `an album wanted on a format says Wanted on, under the title`() {
         composeTestRule.setContent {
             WantListScreen(wanted = listOf(WantedAlbumUiModel("1", "Bob Dylan", "Desire", wantFormat = "LP")), onShare = {})
         }
 
-        composeTestRule.onNodeWithTag("want_format_1", useUnmergedTree = true).assertTextEquals("on LP")
+        composeTestRule.onNodeWithTag("want_format_1", useUnmergedTree = true).assertTextEquals("Wanted on LP")
         composeTestRule.onNodeWithText("Desire", substring = true).assertExists()
     }
+
+    // The page's own heading, the top twenty, and no bin.
+
+    private fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+
+    @Test
+    fun `the page has a heading`() {
+        composeTestRule.setContent { WantListScreen(wanted = sample, onShare = {}) }
+
+        composeTestRule.onNodeWithTag("wants_title").assertTextEquals("My Wants list")
+    }
+
+    @Test
+    fun `there is no bin on a want, wants are taken off from the artist's page`() {
+        composeTestRule.setContent { WantListScreen(wanted = sample, onShare = {}) }
+
+        composeTestRule.onNodeWithTag("want_remove_1").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Remove Avalon from wants").assertDoesNotExist()
+    }
+
+    @Test
+    fun `each want has a double up arrow that sends it to the top, and not the first want`() {
+        var sent: String? = null
+        composeTestRule.setContent { WantListScreen(wanted = sample, onShare = {}, onMoveToTop = { sent = it }) }
+
+        composeTestRule.onNodeWithTag("want_top_1").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("want_top_3").assertIsEnabled()
+        composeTestRule.onNodeWithTag("want_top_3").performClick()
+
+        assertEquals("3", sent)
+    }
+
+    @Test
+    fun `the double up arrow says which want it sends to the top`() {
+        composeTestRule.setContent { WantListScreen(wanted = sample, onShare = {}) }
+
+        composeTestRule.onNodeWithContentDescription("Move Siren to the top").assertExists()
+    }
+
 }

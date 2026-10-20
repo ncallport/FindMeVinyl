@@ -46,7 +46,10 @@ data class BackupAlbum(
     val firstReleaseDate: String? = null,
     val owned: Boolean? = null,
     val wanted: Boolean? = null,
+    /** Written by older versions: a place among the artist's wants. No longer used. */
     val wantPosition: Int? = null,
+    /** The place the want was pinned to by moving it, counting from 0 at the top. Null: not moved. */
+    val wantPriority: Int? = null,
     /** Written by older versions: formats the user added for their copy, as labels joined with `|`. */
     val userFormats: String? = null,
     val userNote: String? = null,

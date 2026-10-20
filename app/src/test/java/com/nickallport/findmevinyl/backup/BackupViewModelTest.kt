@@ -73,8 +73,8 @@ class BackupViewModelTest {
         artist: String = "artist-1",
         owned: Boolean = false,
         wanted: Boolean = false,
-        wantPosition: Int = 0
-    ) = AlbumEntity(id, artist, "Album $id", "STUDIO_ALBUM", "1972-10-06", owned, wanted, wantPosition = wantPosition)
+        wantPriority: Int? = null
+    ) = AlbumEntity(id, artist, "Album $id", "STUDIO_ALBUM", "1972-10-06", owned, wanted, wantPriority = wantPriority)
 
     private fun jpeg(): ByteArray {
         val bitmap = Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888).also { it.eraseColor(Color.RED) }
@@ -201,7 +201,7 @@ class BackupViewModelTest {
     @Test
     fun `restoring into an empty phone brings back owned and wanted albums with the want order`() = runBlocking {
         database.albumDao().insert(album("1", owned = true))
-        database.albumDao().insert(album("2", wanted = true, wantPosition = 3))
+        database.albumDao().insert(album("2", wanted = true, wantPriority = 3))
         val saved = backup()
         val fresh = emptyDatabase()
 
@@ -212,7 +212,7 @@ class BackupViewModelTest {
         assertTrue(owned.owned)
         assertFalse(owned.wanted)
         assertTrue(wanted.wanted)
-        assertEquals(3, wanted.wantPosition)
+        assertEquals(3, wanted.wantPriority)
         assertEquals("Album 2", wanted.title)
         assertEquals("1972-10-06", wanted.firstReleaseDate)
         assertEquals("artist-1", wanted.artistId)
@@ -280,13 +280,13 @@ class BackupViewModelTest {
     @Test
     fun `an album on the phone that the backup does not mention is kept as it is`() = runBlocking {
         val saved = backup()
-        database.albumDao().insert(album("9", wanted = true, wantPosition = 4))
+        database.albumDao().insert(album("9", wanted = true, wantPriority = 4))
 
         restore(saved)
 
         val kept = database.albumDao().getById("9")!!
         assertTrue(kept.wanted)
-        assertEquals(4, kept.wantPosition)
+        assertEquals(4, kept.wantPriority)
     }
 
     @Test
@@ -305,7 +305,7 @@ class BackupViewModelTest {
 
     @Test
     fun `an album both owned and wanted in the backup comes back both`() = runBlocking {
-        database.albumDao().insert(album("1", owned = true, wanted = true, wantPosition = 3))
+        database.albumDao().insert(album("1", owned = true, wanted = true, wantPriority = 3))
         val saved = backup()
         database.albumDao().setOwned("1", false)
         database.albumDao().setWanted("1", false)
@@ -315,32 +315,32 @@ class BackupViewModelTest {
         val merged = database.albumDao().getById("1")!!
         assertTrue(merged.owned)
         assertTrue(merged.wanted)
-        assertEquals(3, merged.wantPosition)
+        assertEquals(3, merged.wantPriority)
     }
 
     @Test
     fun `an album wanted in the backup is wanted on the phone, at the saved place`() = runBlocking {
-        database.albumDao().insert(album("1", wanted = true, wantPosition = 5))
+        database.albumDao().insert(album("1", wanted = true, wantPriority = 5))
         val saved = backup()
         database.albumDao().setWanted("1", false)
-        database.albumDao().setWantPosition("1", 0)
+        database.albumDao().setWantPriority("1", null)
 
         restore(saved)
 
         val merged = database.albumDao().getById("1")!!
         assertTrue(merged.wanted)
-        assertEquals(5, merged.wantPosition)
+        assertEquals(5, merged.wantPriority)
     }
 
     @Test
     fun `an album already wanted on the phone keeps its place`() = runBlocking {
-        database.albumDao().insert(album("1", wanted = true, wantPosition = 5))
+        database.albumDao().insert(album("1", wanted = true, wantPriority = 5))
         val saved = backup()
-        database.albumDao().setWantPosition("1", 1)
+        database.albumDao().setWantPriority("1", 1)
 
         restore(saved)
 
-        assertEquals(1, database.albumDao().getById("1")!!.wantPosition)
+        assertEquals(1, database.albumDao().getById("1")!!.wantPriority)
     }
 
     @Test
@@ -387,7 +387,7 @@ class BackupViewModelTest {
     fun `restoring the same backup twice changes nothing the second time`() = runBlocking {
         database.artistDao().insert(ArtistEntity("artist-1", "Genesis", null, null, position = 1))
         database.albumDao().insert(album("1", owned = true))
-        database.albumDao().insert(album("2", wanted = true, wantPosition = 2))
+        database.albumDao().insert(album("2", wanted = true, wantPriority = 2))
         val saved = backup()
         val fresh = emptyDatabase()
         val vm = viewModel(fresh, folder.newFolder("again"))
@@ -1278,6 +1278,59 @@ class BackupViewModelTest {
 
         assertNull(fresh.albumDao().getById("mb-1")!!.userCover)
         assertEquals(false, File(coverDir.parentFile.parentFile, "evil.jpg").exists())
+        fresh.close()
+    }
+
+    // The place a want is pinned to.
+
+    @Test
+    fun `the place a want is pinned to comes back with it`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+        database.albumDao().setWantPriority("1", 4)
+        val saved = backup()
+        database.albumDao().setWanted("1", false)
+
+        restore(saved)
+
+        val merged = database.albumDao().getById("1")!!
+        assertTrue(merged.wanted)
+        assertEquals(4, merged.wantPriority)
+    }
+
+    @Test
+    fun `a want that is not pinned comes back not pinned`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+        val saved = backup()
+        database.albumDao().setWanted("1", false)
+
+        restore(saved)
+
+        assertNull(database.albumDao().getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `a want already pinned on the phone keeps its place`() = runBlocking {
+        database.albumDao().insert(album("1", wanted = true))
+        database.albumDao().setWantPriority("1", 4)
+        val saved = backup()
+        database.albumDao().setWantPriority("1", 1)
+
+        restore(saved)
+
+        assertEquals(1, database.albumDao().getById("1")!!.wantPriority)
+    }
+
+    @Test
+    fun `a place that is not a place, or for an album that is not wanted, is ignored`() = runBlocking {
+        val text = """{"app":"FindMeVinyl","version":1,"albums":[
+            {"id":"1","artistId":"artist-1","title":"A","category":"STUDIO_ALBUM","wanted":true,"wantPriority":-3},
+            {"id":"2","artistId":"artist-1","title":"B","category":"STUDIO_ALBUM","owned":true,"wantPriority":2}]}"""
+        val fresh = emptyDatabase()
+
+        restore(zipOf(json(text)), viewModel(fresh))
+
+        assertNull(fresh.albumDao().getById("1")!!.wantPriority)
+        assertNull(fresh.albumDao().getById("2")!!.wantPriority)
         fresh.close()
     }
 }

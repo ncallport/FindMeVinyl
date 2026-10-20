@@ -139,47 +139,21 @@ class WantListRouteTest {
     }
 
     @Test
-    fun `removing an album tells the caller and shows the list again without it`() {
-        var current = twoAlbums
-        val removed = mutableListOf<String>()
-
+    fun `sending a want to the top tells the caller and shows the list again from the load`() {
+        var order = twoAlbums
+        val sent = mutableListOf<String>()
         composeTestRule.setContent {
             WantListRoute(
-                load = { current },
-                exportText = { "" },
-                onShareText = {},
-                onRemove = { id -> removed.add(id); current = current.filter { it.albumId != id } }
+                load = { order }, exportText = { "" }, onShareText = {},
+                onMoveToTop = { id -> sent.add(id); order = order.reversed() }
             )
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("want_remove_2").performClick()
-        composeTestRule.onNodeWithTag("want_remove_confirm").performClick()
+        composeTestRule.onNodeWithTag("want_top_2").performClick()
         composeTestRule.waitForIdle()
 
-        assertEquals(listOf("2"), removed)
-        composeTestRule.onNodeWithTag("want_title_2").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("want_title_1").assertExists()
-    }
-
-    @Test
-    fun `removing the last album shows the empty message`() {
-        var current = listOf(WantedAlbumUiModel("1", "Roxy Music", "Avalon"))
-
-        composeTestRule.setContent {
-            WantListRoute(
-                load = { current },
-                exportText = { "" },
-                onShareText = {},
-                onRemove = { current = emptyList() }
-            )
-        }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithTag("want_remove_1").performClick()
-        composeTestRule.onNodeWithTag("want_remove_confirm").performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithText("Your want list is empty").assertExists()
+        assertEquals(listOf("2"), sent)
+        composeTestRule.onNodeWithTag("want_top_2").assertIsNotEnabled()
     }
 }

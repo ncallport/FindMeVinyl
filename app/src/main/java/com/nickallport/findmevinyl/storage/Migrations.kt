@@ -285,3 +285,13 @@ val MIGRATION_23_24 = object : Migration(23, 24) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `userCover` TEXT")
     }
 }
+
+/**
+ * A want can be pinned to the place the user gave it by moving it. Nothing is pinned to begin with, so the want list
+ * starts again A to Z by artist and then release date, as the user asked.
+ */
+val MIGRATION_24_25 = object : Migration(24, 25) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `wantPriority` INTEGER")
+    }
+}

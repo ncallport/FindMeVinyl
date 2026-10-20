@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.ui.wantlist
 
+import com.nickallport.findmevinyl.ui.theme.fadedWantContainer
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,11 +51,8 @@ fun WantListScreen(
     modifier: Modifier = Modifier,
     onMoveUp: (String) -> Unit = {},
     onMoveDown: (String) -> Unit = {},
-    onRemove: (String) -> Unit = {}
+    onMoveToTop: (String) -> Unit = {}
 ) {
-    // The album the user has tapped remove on, until they answer the question.
-    var pendingRemoval by remember { mutableStateOf<WantedAlbumUiModel?>(null) }
-
     // What to share, asked for when Share is tapped. The choices are kept for the next time, and over a rotation.
     var showShareOptions by rememberSaveable { mutableStateOf(false) }
     var shareIntro by rememberSaveable { mutableStateOf("") }
@@ -83,6 +83,11 @@ fun WantListScreen(
     }
 
     Column(modifier = modifier) {
+        Text(
+            text = "My Wants list",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp).testTag("wants_title")
+        )
         FilledTonalButton(
             onClick = { showShareOptions = true },
             modifier = Modifier
@@ -92,51 +97,80 @@ fun WantListScreen(
             Text("Share")
         }
 
+        val faded = fadedWantContainer(MaterialTheme.colorScheme)
         LazyColumn(modifier = Modifier.weight(1f)) {
-            // One card for each want, in the user's own order: the artist and the album, the format if one is wanted,
-            // and the buttons to move it and to remove it.
-            itemsIndexed(wanted, key = { _, album -> album.albumId }) { index, album ->
-                ListCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            // One card for each want, in the order shown: the artist and the album, the format if one is wanted, and the
+            // buttons to move it. The first ten are in the wanted colour under a heading, the next ten in that colour
+            // faded under another, and the rest are plain.
+            wanted.forEachIndexed { index, album ->
+                if (index == 0) {
+                    item(key = "heading-top") { TierHeading("Top ten wanted", "wants_top_heading") }
+                }
+                if (index == TIER_SIZE) {
+                    item(key = "heading-next") { TierHeading("Next ten wanted", "wants_next_heading") }
+                }
+                item(key = album.albumId) {
+                    val tier = when {
+                        index < TIER_SIZE -> "Top ten"
+                        index < 2 * TIER_SIZE -> "Next ten"
+                        else -> null
+                    }
+                    val colors = MaterialTheme.colorScheme
+                    ListCard(
+                        modifier = Modifier
+                            .testTag("want_${album.albumId}")
+                            .semantics { if (tier != null) stateDescription = tier },
+                        container = when (tier) {
+                            "Top ten" -> colors.secondaryContainer
+                            "Next ten" -> faded
+                            else -> colors.surface
+                        }
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${album.artistName} - ${album.albumTitle}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.testTag("want_title_${album.albumId}")
-                            )
-                            album.wantFormat?.let {
-                                Text(
-                                    text = "on $it",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.testTag("want_format_${album.albumId}")
-                                )
-                            }
-                        }
-                        // With one want there is nothing to move it past.
-                        if (wanted.size > 1) {
-                            MoveButtons(
-                                name = album.albumTitle,
-                                upTag = "want_up_${album.albumId}",
-                                downTag = "want_down_${album.albumId}",
-                                canMoveUp = index > 0,
-                                canMoveDown = index < wanted.lastIndex,
-                                onMoveUp = { onMoveUp(album.albumId) },
-                                onMoveDown = { onMoveDown(album.albumId) }
-                            )
-                        }
-                        IconButton(
-                            onClick = { pendingRemoval = album },
-                            modifier = Modifier.testTag("want_remove_${album.albumId}").size(40.dp)
+                        val textColor = if (tier == "Top ten") colors.onSecondaryContainer else colors.onSurface
+                        val quietColor = if (tier == "Top ten") colors.onSecondaryContainer else colors.onSurfaceVariant
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Glyphs.Delete,
-                                contentDescription = "Remove ${album.albumTitle} from wants",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "${album.artistName} - ${album.albumTitle}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = textColor,
+                                    modifier = Modifier.testTag("want_title_${album.albumId}")
+                                )
+                                album.wantFormat?.let {
+                                    Text(
+                                        text = "Wanted on $it",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = quietColor,
+                                        modifier = Modifier.testTag("want_format_${album.albumId}")
+                                    )
+                                }
+                            }
+                            // With one want there is nothing to move it past.
+                            if (wanted.size > 1) {
+                                MoveButtons(
+                                    name = album.albumTitle,
+                                    upTag = "want_up_${album.albumId}",
+                                    downTag = "want_down_${album.albumId}",
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < wanted.lastIndex,
+                                    onMoveUp = { onMoveUp(album.albumId) },
+                                    onMoveDown = { onMoveDown(album.albumId) }
+                                )
+                                IconButton(
+                                    onClick = { onMoveToTop(album.albumId) },
+                                    enabled = index > 0,
+                                    modifier = Modifier.testTag("want_top_${album.albumId}").size(40.dp)
+                                ) {
+                                    Icon(
+                                        Glyphs.DoubleArrowUp,
+                                        contentDescription = "Move ${album.albumTitle} to the top",
+                                        tint = if (index > 0) colors.primary else colors.outlineVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -156,30 +190,6 @@ fun WantListScreen(
                 onShare(ShareOptions(intro = shareIntro, limit = shareLimit?.takeIf { it < wanted.size }))
             },
             onCancel = { showShareOptions = false }
-        )
-    }
-
-    pendingRemoval?.let { album ->
-        AlertDialog(
-            onDismissRequest = { pendingRemoval = null },
-            title = { Text("Remove ${album.albumTitle} from your wants?") },
-            text = { Text("The album stays in its discography, as not wanted.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingRemoval = null
-                        onRemove(album.albumId)
-                    },
-                    modifier = Modifier.testTag("want_remove_confirm")
-                ) { Text("Remove") }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { pendingRemoval = null },
-                    modifier = Modifier.testTag("want_remove_cancel")
-                ) { Text("Keep") }
-            },
-            modifier = Modifier.testTag("want_remove_dialog")
         )
     }
 }
@@ -256,5 +266,18 @@ private fun ShareOptionsDialog(
             TextButton(onClick = onCancel, modifier = Modifier.testTag("share_cancel")) { Text("Cancel") }
         },
         modifier = Modifier.testTag("share_dialog")
+    )
+}
+
+/** How many wants are in each of the two highlighted groups at the top of the list. */
+private const val TIER_SIZE = 10
+
+@Composable
+private fun TierHeading(text: String, tag: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 2.dp).testTag(tag)
     )
 }

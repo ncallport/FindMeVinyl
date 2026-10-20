@@ -35,6 +35,11 @@ class ThemeContrastTest {
             // The format line on the card of an owned album and on the card of a wanted one.
             "onSurfaceVariant on primaryContainer" to (scheme.onSurfaceVariant to scheme.primaryContainer),
             "onSurfaceVariant on secondaryContainer" to (scheme.onSurfaceVariant to scheme.secondaryContainer),
+            // The want list: the top ten are on the wanted colour, the next ten on that colour faded, and the arrows on both.
+            "primary on secondaryContainer" to (scheme.primary to scheme.secondaryContainer),
+            "onSurface on the faded wanted colour" to (scheme.onSurface to fadedWantContainer(scheme)),
+            "onSurfaceVariant on the faded wanted colour" to (scheme.onSurfaceVariant to fadedWantContainer(scheme)),
+            "primary on the faded wanted colour" to (scheme.primary to fadedWantContainer(scheme)),
             "primary text on background" to (scheme.primary to scheme.background),
             "primary text on surface" to (scheme.primary to scheme.surface),
             "onTertiary on tertiary" to (scheme.onTertiary to scheme.tertiary),

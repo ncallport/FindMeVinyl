@@ -8,5 +8,7 @@ data class WantedAlbumRow(
     val firstReleaseDate: String?,
     val artistPosition: Int,
     val wantPosition: Int,
-    val wantFormat: String? = null
+    val wantFormat: String? = null,
+    /** The place the user pinned the want to, or null when it has not been moved. */
+    val wantPriority: Int? = null
 )

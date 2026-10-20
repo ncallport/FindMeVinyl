@@ -83,8 +83,8 @@ interface AlbumDao {
     @Query("UPDATE albums SET owned = :owned WHERE id = :albumId")
     suspend fun setOwned(albumId: String, owned: Boolean): Int
 
-    /** Wants or unwants the album. Taking the want off also forgets the format it was wanted on. */
-    @Query("UPDATE albums SET wanted = :wanted, wantFormat = CASE WHEN :wanted = 1 THEN wantFormat ELSE NULL END WHERE id = :albumId")
+    /** Wants or unwants the album. Taking the want off also forgets the format it was wanted on and the place it was given. */
+    @Query("UPDATE albums SET wanted = :wanted, wantFormat = CASE WHEN :wanted = 1 THEN wantFormat ELSE NULL END, wantPriority = CASE WHEN :wanted = 1 THEN wantPriority ELSE NULL END WHERE id = :albumId")
     suspend fun setWanted(albumId: String, wanted: Boolean): Int
 
     /** Saves the format the album is wanted on, or null for any. */
@@ -93,6 +93,10 @@ interface AlbumDao {
 
     @Query("UPDATE albums SET wantPosition = :position WHERE id = :albumId")
     suspend fun setWantPosition(albumId: String, position: Int): Int
+
+    /** Pins a want to the place the user gave it, or lets it go back to where A to Z puts it with null. */
+    @Query("UPDATE albums SET wantPriority = :priority WHERE id = :albumId")
+    suspend fun setWantPriority(albumId: String, priority: Int?): Int
 
     /** Wants the album and puts it last in the want list. An album already wanted keeps its place. */
     @Query(
@@ -107,7 +111,7 @@ interface AlbumDao {
     )
     suspend fun markWanted(albumId: String): Int
 
-    @Query("UPDATE albums SET wanted = 0, wantFormat = NULL WHERE artistId = :artistId")
+    @Query("UPDATE albums SET wanted = 0, wantFormat = NULL, wantPriority = NULL WHERE artistId = :artistId")
     suspend fun clearWantedForArtist(artistId: String): Int
 
     /**
@@ -125,7 +129,8 @@ interface AlbumDao {
                albums.firstReleaseDate AS firstReleaseDate,
                COALESCE(artist_groups.position, favourite_artists.position) AS artistPosition,
                albums.wantPosition AS wantPosition,
-               albums.wantFormat AS wantFormat
+               albums.wantFormat AS wantFormat,
+               albums.wantPriority AS wantPriority
         FROM albums
         LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
         LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId
