@@ -23,14 +23,15 @@ fun BarcodeRoute(
     lookUp: suspend (String) -> BarcodeLookup,
     statusOf: suspend (BarcodeMatch) -> BarcodeStatus,
     addOwned: suspend (BarcodeMatch, format: String, takeOffWant: Boolean) -> BarcodeAdd,
-    onOpenAlbum: (BarcodeMatch) -> Unit,
+    onOpenAlbum: (BarcodeMatch, albumId: String) -> Unit,
     modifier: Modifier = Modifier,
     /** Takes a photo of a barcode and reads it. Without it there is no Scan button. */
     scan: (suspend () -> ScanResult)? = null
 ) {
     var barcode by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<BarcodePageState>(BarcodePageState.Idle) }
-    var added by remember { mutableStateOf(emptySet<String>()) }
+    // The albums added in this visit: the match's key, and the id the album has now.
+    var added by remember { mutableStateOf(emptyMap<String, String>()) }
     var busyAlbumId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -46,6 +47,7 @@ fun BarcodeRoute(
                 BarcodeLookup.NotFound ->
                     BarcodePageState.Message("MusicBrainz has no album with that barcode. You can add it by hand from the artist's page.")
                 is BarcodeLookup.Failed -> BarcodePageState.Message(result.message)
+                is BarcodeLookup.OnlyOnDiscogs -> BarcodePageState.Message(onlyOnDiscogsText(result.finds))
                 is BarcodeLookup.Found -> BarcodePageState.Matches(result.matches.map { BarcodeMatchUi(it, statusOf(it)) })
             }
         }
@@ -83,7 +85,7 @@ fun BarcodeRoute(
             error = null
             scope.launch {
                 when (val result = addOwned(match, format, takeOffWant)) {
-                    is BarcodeAdd.Added -> added = added + match.releaseGroupId
+                    is BarcodeAdd.Added -> added = added + (match.releaseGroupId to result.albumId)
                     is BarcodeAdd.Failed -> error = result.message
                 }
                 busyAlbumId = null
@@ -92,4 +94,17 @@ fun BarcodeRoute(
         onOpenAlbum = onOpenAlbum,
         modifier = modifier
     )
+}
+
+// What Discogs said when MusicBrainz has no such artist: enough to find the artist and add the album by hand.
+internal fun onlyOnDiscogsText(finds: List<DiscogsFind>): String {
+    val find = finds.first()
+    val what = listOfNotNull(find.format, find.year).joinToString(", ").let { if (it.isEmpty()) "" else " ($it)" }
+    return if (find.variousArtists) {
+        "Discogs lists this as ${find.album}$what, a compilation by various artists, which cannot be added from a barcode. " +
+            "MusicBrainz has no album with this barcode."
+    } else {
+        "MusicBrainz has no album with that barcode. Discogs lists it as ${find.artist} - ${find.album}$what, " +
+            "but MusicBrainz has no artist of that name. Search for the artist and add the album from their page."
+    }
 }

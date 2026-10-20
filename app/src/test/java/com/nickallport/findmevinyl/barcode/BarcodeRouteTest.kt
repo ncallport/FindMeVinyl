@@ -24,7 +24,7 @@ class BarcodeRouteTest {
     private val match = BarcodeMatch("5012985305020", "roxy", "Roxy Music", "rg1", "Avalon", listOf("CD"))
     private val looked = mutableListOf<String>()
     private val adds = mutableListOf<Triple<BarcodeMatch, String, Boolean>>()
-    private val opened = mutableListOf<BarcodeMatch>()
+    private val opened = mutableListOf<Pair<BarcodeMatch, String>>()
 
     private fun show(
         lookUp: suspend (String) -> BarcodeLookup = { BarcodeLookup.Found(listOf(match)) },
@@ -39,7 +39,7 @@ class BarcodeRouteTest {
                     lookUp = { looked.add(it); lookUp(it) },
                     statusOf = { status },
                     addOwned = addOwned,
-                    onOpenAlbum = { opened.add(it) },
+                    onOpenAlbum = { match, albumId -> opened.add(match to albumId) },
                     scan = scan
                 )
             }
@@ -166,7 +166,7 @@ class BarcodeRouteTest {
         composeTestRule.onNodeWithTag("barcode_added_0").assertExists()
         composeTestRule.onNodeWithTag("barcode_add_0").assertDoesNotExist()
         composeTestRule.onNodeWithTag("barcode_open_0").performScrollTo().performClick()
-        assertEquals(listOf(match), opened)
+        assertEquals(listOf(match to "rg1"), opened)
     }
 
     @Test
@@ -259,5 +259,73 @@ class BarcodeRouteTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("barcode_message").assertTextContains("camera", substring = true, ignoreCase = true)
+    }
+
+    // Found on Discogs.
+
+    private val discogsMatch = BarcodeMatch("198029779813", "ants", "Adam & The Ants", "rg-singles", "The Singles", listOf("LP"), fromDiscogs = true)
+    private val byHandMatch = discogsMatch.copy(releaseGroupId = "byhand:ants|singles", byHand = true, year = "2026")
+
+    @Test
+    fun `an album found through Discogs says so`() {
+        show(lookUp = { BarcodeLookup.Found(listOf(discogsMatch)) })
+
+        lookUpNumber("198029779813")
+
+        composeTestRule.onNodeWithTag("barcode_source_0").assertTextContains("Discogs", substring = true)
+        composeTestRule.onNodeWithTag("barcode_source_0").assertTextContains("matched", substring = true)
+    }
+
+    @Test
+    fun `an album MusicBrainz does not list says it will be added by hand under the artist`() {
+        show(lookUp = { BarcodeLookup.Found(listOf(byHandMatch)) })
+
+        lookUpNumber("198029779813")
+
+        composeTestRule.onNodeWithTag("barcode_source_0").assertTextContains("added by hand", substring = true)
+        composeTestRule.onNodeWithTag("barcode_source_0").assertTextContains("Adam & The Ants", substring = true)
+    }
+
+    @Test
+    fun `an album from MusicBrainz's own list has no source line`() {
+        show()
+
+        lookUpNumber()
+
+        composeTestRule.onNodeWithTag("barcode_source_0").assertDoesNotExist()
+    }
+
+    @Test
+    fun `opening an album added by hand opens the album that was made, not the key of the match`() {
+        show(lookUp = { BarcodeLookup.Found(listOf(byHandMatch)) }, addOwned = { _, _, _ -> BarcodeAdd.Added("custom/abc") })
+
+        lookUpNumber("198029779813")
+        composeTestRule.onNodeWithTag("barcode_add_0").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("barcode_open_0").performScrollTo().performClick()
+
+        assertEquals(listOf(byHandMatch to "custom/abc"), opened)
+    }
+
+    @Test
+    fun `a barcode only Discogs knows shows what it found and what to do`() {
+        val find = DiscogsFind("Adam & The Ants", "The Singles", "2026", "LP", com.nickallport.findmevinyl.discography.DiscographyCategory.COMPILATION, false)
+        show(lookUp = { BarcodeLookup.OnlyOnDiscogs(listOf(find)) })
+
+        lookUpNumber("198029779813")
+
+        val text = "Adam & The Ants - The Singles (LP, 2026)"
+        composeTestRule.onNodeWithTag("barcode_message").assertTextContains(text, substring = true)
+        composeTestRule.onNodeWithTag("barcode_message").assertTextContains("Search for the artist", substring = true)
+    }
+
+    @Test
+    fun `a compilation by various artists says it cannot be added from a barcode`() {
+        val find = DiscogsFind("Various", "Now 99", "2026", "CD", com.nickallport.findmevinyl.discography.DiscographyCategory.COMPILATION, true)
+        show(lookUp = { BarcodeLookup.OnlyOnDiscogs(listOf(find)) })
+
+        lookUpNumber("198029779813")
+
+        composeTestRule.onNodeWithTag("barcode_message").assertTextContains("various artists", substring = true)
     }
 }

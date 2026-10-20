@@ -63,11 +63,11 @@ fun BarcodeScreen(
     onLookUp: () -> Unit,
     onScan: (() -> Unit)?,
     state: BarcodePageState,
-    added: Set<String>,
+    added: Map<String, String>,
     busyAlbumId: String?,
     error: String?,
     onAdd: (BarcodeMatch, format: String, takeOffWant: Boolean) -> Unit,
-    onOpenAlbum: (BarcodeMatch) -> Unit,
+    onOpenAlbum: (BarcodeMatch, albumId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
@@ -116,7 +116,7 @@ fun BarcodeScreen(
             )
             is BarcodePageState.Matches -> state.items.forEachIndexed { index, item ->
                 MatchCard(
-                    index = index, item = item, isAdded = item.match.releaseGroupId in added,
+                    index = index, item = item, addedId = added[item.match.releaseGroupId],
                     busy = busyAlbumId == item.match.releaseGroupId, error = error.takeIf { busyAlbumId == null },
                     onAdd = onAdd, onOpenAlbum = onOpenAlbum
                 )
@@ -130,13 +130,14 @@ fun BarcodeScreen(
 private fun MatchCard(
     index: Int,
     item: BarcodeMatchUi,
-    isAdded: Boolean,
+    addedId: String?,
     busy: Boolean,
     error: String?,
     onAdd: (BarcodeMatch, String, Boolean) -> Unit,
-    onOpenAlbum: (BarcodeMatch) -> Unit
+    onOpenAlbum: (BarcodeMatch, albumId: String) -> Unit
 ) {
     val match = item.match
+    val isAdded = addedId != null
     val status = item.status
     var format by rememberSaveable(match.releaseGroupId) {
         mutableStateOf(match.formats.firstOrNull() ?: ReleaseFormats.LP)
@@ -153,6 +154,9 @@ private fun MatchCard(
                 modifier = Modifier.testTag("barcode_match_title_$index")
             )
             if (!isAdded) {
+                sourceLine(match)?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("barcode_source_$index"))
+                }
                 Text(
                     text = artistLine(status),
                     style = MaterialTheme.typography.bodyMedium,
@@ -165,7 +169,7 @@ private fun MatchCard(
 
             if (isAdded) {
                 Text("Added to your owned albums.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("barcode_added_$index"))
-                TextButton(onClick = { onOpenAlbum(match) }, modifier = Modifier.testTag("barcode_open_$index")) { Text("Open the album") }
+                TextButton(onClick = { onOpenAlbum(match, addedId.orEmpty()) }, modifier = Modifier.testTag("barcode_open_$index")) { Text("Open the album") }
             } else {
                 Text(
                     text = "Format of your copy",
@@ -224,4 +228,11 @@ internal fun albumLine(status: BarcodeStatus): String? {
         parts += status.wantFormat?.let { "On your Wants list, wanted on $it." } ?: "On your Wants list."
     }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+}
+
+/** Where the match came from, when it was not MusicBrainz's own list of barcodes. */
+internal fun sourceLine(match: BarcodeMatch): String? = when {
+    match.byHand -> "MusicBrainz does not know this barcode. Discogs does, and MusicBrainz has no such album under ${match.artistName}, so it will be added by hand."
+    match.fromDiscogs -> "MusicBrainz does not know this barcode. Discogs does, and the album was matched to MusicBrainz by name."
+    else -> null
 }
