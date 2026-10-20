@@ -2,7 +2,9 @@ package com.nickallport.findmevinyl
 
 import com.nickallport.findmevinyl.discography.AlbumCoverViewModel
 import com.nickallport.findmevinyl.discography.CustomAlbums
+import com.nickallport.findmevinyl.barcode.BarcodePhotoReader
 import com.nickallport.findmevinyl.barcode.BarcodeRoute
+import com.nickallport.findmevinyl.barcode.ScanResult
 import com.nickallport.findmevinyl.barcode.BarcodeViewModel
 import com.nickallport.findmevinyl.discography.AddAlbumRoute
 import android.os.Bundle
@@ -107,6 +109,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.nickallport.findmevinyl.location.DeviceLocationProvider
 import com.nickallport.findmevinyl.shops.NearbyShopSearcher
 import kotlinx.coroutines.CancellationException
@@ -130,6 +133,35 @@ class MainActivity : ComponentActivity() {
     // The system photo picker. It needs no permission, because the user picks the one photo to share.
     private val photoPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         photoResult?.complete(uri)
+    }
+
+    // The phone's own camera app, to photograph a barcode. It needs no camera permission, because the camera app takes the
+    // photo and only the one file the app names is written.
+    private var pictureResult: CompletableDeferred<Boolean>? = null
+    private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        pictureResult?.complete(taken)
+    }
+
+    /** Photographs a barcode with the camera app, reads the number from the photo and deletes the photo. */
+    private suspend fun scanBarcode(): ScanResult {
+        val folder = File(cacheDir, "barcode_photos").apply { mkdirs() }
+        val file = File(folder, "scan.jpg")
+        file.delete()
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val result = CompletableDeferred<Boolean>()
+        pictureResult = result
+        try {
+            takePicture.launch(uri)
+        } catch (e: ActivityNotFoundException) {
+            return ScanResult.NoCamera
+        }
+        try {
+            if (!result.await()) return ScanResult.Cancelled
+            val number = withContext(Dispatchers.Default) { BarcodePhotoReader.read(file.readBytes()) }
+            return if (number != null) ScanResult.Number(number) else ScanResult.Unreadable
+        } finally {
+            file.delete()
+        }
     }
 
     // The system file pickers for a backup. They need no permission, because the user picks the one file.
@@ -390,7 +422,8 @@ class MainActivity : ComponentActivity() {
                                         match.releaseGroupId, match.albumTitle, match.artistId, match.artistName,
                                         Screen.Discography(match.artistId, match.artistName, Screen.Search)
                                     )
-                                }
+                                },
+                                scan = { scanBarcode() }
                             )
                         }
                         is Screen.ArtistResults -> {

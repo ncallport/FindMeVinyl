@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,6 +61,7 @@ fun BarcodeScreen(
     barcode: String,
     onBarcodeChange: (String) -> Unit,
     onLookUp: () -> Unit,
+    onScan: (() -> Unit)?,
     state: BarcodePageState,
     added: Set<String>,
     busyAlbumId: String?,
@@ -83,15 +85,25 @@ fun BarcodeScreen(
             keyboardActions = KeyboardActions(onSearch = { onLookUp() }),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("barcode_input")
         )
-        Button(
-            onClick = onLookUp,
-            enabled = barcode.isNotBlank() && state != BarcodePageState.Looking,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("barcode_lookup")
-        ) { Text("Look up") }
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onLookUp,
+                enabled = barcode.isNotBlank() && state != BarcodePageState.Looking,
+                modifier = Modifier.testTag("barcode_lookup")
+            ) { Text("Look up") }
+            if (onScan != null) {
+                OutlinedButton(
+                    onClick = onScan,
+                    enabled = state != BarcodePageState.Looking,
+                    modifier = Modifier.testTag("barcode_scan")
+                ) { Text("Scan with the camera") }
+            }
+        }
 
         when (state) {
             BarcodePageState.Idle -> Text(
-                text = "Type the number under the barcode on the sleeve. The album is found on MusicBrainz.",
+                text = if (onScan != null) "Photograph the barcode on the sleeve, or type the number under it. The album is found on MusicBrainz."
+                else "Type the number under the barcode on the sleeve. The album is found on MusicBrainz.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp).testTag("barcode_hint")
