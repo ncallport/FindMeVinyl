@@ -233,4 +233,14 @@ class ScreenSaverTest {
 
         assertEquals(back, Screen.AddAlbum("artist-1", "Big Country", null, back).backTarget())
     }
+
+    @Test
+    fun theBarcodePageIsKept() {
+        assertEquals(Screen.Barcode, roundTrip(Screen.Barcode))
+    }
+
+    @Test
+    fun backFromTheBarcodePageGoesToTheArtistsPage() {
+        assertEquals(Screen.Search, Screen.Barcode.backTarget())
+    }
 }

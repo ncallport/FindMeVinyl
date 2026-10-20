@@ -196,4 +196,29 @@ class ArtistsScreenTest {
 
         composeTestRule.onNodeWithTag("favourite_up_1").assertDoesNotExist()
     }
+
+    @Test
+    fun `has an Add by barcode button when it can open the page`() {
+        var opened = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}, onAddByBarcode = { opened++ })
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("barcode_button").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `has no barcode button without a way to open the page`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, onArtistSelected = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("barcode_button").assertDoesNotExist()
+    }
 }
