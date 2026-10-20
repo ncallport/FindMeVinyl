@@ -293,7 +293,7 @@ class MainActivity : ComponentActivity() {
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao(), groupDao = database.artistGroupDao())
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
-        val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao())
+        val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao(), database.albumDao())
         val artistGenreViewModel = ArtistGenreViewModel(api, database.artistGenresDao(), database.artistDao(), database.artistGroupDao())
         val artistGroupViewModel = ArtistGroupViewModel(
             database.artistDao(), database.artistGroupDao(),
@@ -363,16 +363,9 @@ class MainActivity : ComponentActivity() {
                                 onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
                                 suggestArtists = { text -> artistSuggester.suggest(text) },
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
-                                onMoveFavouriteUp = { id -> favouritesViewModel.moveUp(id) },
-                                onMoveFavouriteDown = { id -> favouritesViewModel.moveDown(id) },
-                                onReorderFavourites = { ids -> favouritesViewModel.reorder(ids) },
                                 startInGrid = favouritesLayoutStore.isGrid(),
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
-                                startGroupedByGenre = favouritesLayoutStore.isGroupedByGenre(),
-                                onGroupedByGenreChange = { favouritesLayoutStore.setGroupedByGenre(it) },
-                                startSortedAz = favouritesLayoutStore.isSortedAz(),
-                                onSortedAzChange = { favouritesLayoutStore.setSortedAz(it) },
-                                fillGenreDefaults = { onFound -> artistGenreViewModel.fillDefaults(onFound) },
+                                fillGenreDefaults = { artistGenreViewModel.fillDefaults() },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->
                                     // A group opens on the discography of all its artists, under the group's name.

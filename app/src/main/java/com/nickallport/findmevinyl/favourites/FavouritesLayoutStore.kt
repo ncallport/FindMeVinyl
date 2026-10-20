@@ -18,31 +18,7 @@ class FavouritesLayoutStore(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(KEY, grid).apply()
     }
 
-    /** Whether the favourites are grouped by genre, which works with the list and with the grid. Off to begin with. */
-    fun isGroupedByGenre(): Boolean = try {
-        prefs.getBoolean(GENRE_KEY, false)
-    } catch (e: ClassCastException) {
-        false
-    }
-
-    fun setGroupedByGenre(grouped: Boolean) {
-        prefs.edit().putBoolean(GENRE_KEY, grouped).apply()
-    }
-
-    /** Whether the favourites are sorted from A to Z, to find one quickly, instead of in the user's own order. Off to begin with. */
-    fun isSortedAz(): Boolean = try {
-        prefs.getBoolean(SORT_KEY, false)
-    } catch (e: ClassCastException) {
-        false
-    }
-
-    fun setSortedAz(sorted: Boolean) {
-        prefs.edit().putBoolean(SORT_KEY, sorted).apply()
-    }
-
     private companion object {
         const val KEY = "grid"
-        const val GENRE_KEY = "grouped_by_genre"
-        const val SORT_KEY = "sorted_az"
     }
 }
