@@ -64,6 +64,15 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzBarcodeSearchResponse
 
+    /** Release groups matching a search such as `releasegroup:"The Singles" AND arid:{artist id}`. */
+    @GET("release-group/")
+    suspend fun searchReleaseGroups(
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 5,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzReleaseGroupSearchResponse
+
     /** One release group, with its type and first release date, which a search result leaves out. */
     @GET("release-group/{id}")
     suspend fun getReleaseGroup(

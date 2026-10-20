@@ -3,6 +3,7 @@ package com.nickallport.findmevinyl
 import com.nickallport.findmevinyl.discography.AlbumCoverViewModel
 import com.nickallport.findmevinyl.discography.CustomAlbums
 import com.nickallport.findmevinyl.barcode.BarcodePhotoReader
+import com.nickallport.findmevinyl.discogs.DiscogsApiFactory
 import com.nickallport.findmevinyl.barcode.BarcodeRoute
 import com.nickallport.findmevinyl.barcode.ScanResult
 import com.nickallport.findmevinyl.barcode.BarcodeViewModel
@@ -327,7 +328,8 @@ class MainActivity : ComponentActivity() {
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao(), groupDao = database.artistGroupDao())
         val barcodeViewModel = BarcodeViewModel(
-            api, database.albumDao(), database.artistDao(), database.artistGroupDao(), discographyViewModel
+            api, database.albumDao(), database.artistDao(), database.artistGroupDao(), discographyViewModel,
+            discogs = DiscogsApiFactory.create()
         )
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
@@ -417,9 +419,9 @@ class MainActivity : ComponentActivity() {
                                 lookUp = { text -> barcodeViewModel.lookUp(text) },
                                 statusOf = { match -> barcodeViewModel.statusOf(match) },
                                 addOwned = { match, format, takeOffWant -> barcodeViewModel.addOwned(match, format, takeOffWant) },
-                                onOpenAlbum = { match ->
+                                onOpenAlbum = { match, albumId ->
                                     currentScreen = Screen.AlbumDetail(
-                                        match.releaseGroupId, match.albumTitle, match.artistId, match.artistName,
+                                        albumId, match.albumTitle, match.artistId, match.artistName,
                                         Screen.Discography(match.artistId, match.artistName, Screen.Search)
                                     )
                                 },

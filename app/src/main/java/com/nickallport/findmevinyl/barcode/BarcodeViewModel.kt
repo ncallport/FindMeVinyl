@@ -1,5 +1,8 @@
 package com.nickallport.findmevinyl.barcode
 
+import com.nickallport.findmevinyl.discography.AlbumDraft
+import com.nickallport.findmevinyl.discography.CustomAlbums
+import com.nickallport.findmevinyl.discogs.DiscogsApi
 import com.nickallport.findmevinyl.discography.DiscographyCategorizer
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
@@ -20,11 +23,22 @@ data class BarcodeMatch(
     val barcode: String,
     val artistId: String,
     val artistName: String,
-    /** The id of the release group, which is the album's id in the app. */
+    /**
+     * The id of the release group, which is the album's id in the app. For an album [byHand] it is only a key for the
+     * page, made from the names, because the album has no id until it is added.
+     */
     val releaseGroupId: String,
     val albumTitle: String,
     /** The formats the releases with this barcode are on, as labels (LP, CD, ...), in the usual order. Can be empty. */
-    val formats: List<String>
+    val formats: List<String>,
+    /** MusicBrainz has no release group of this name under the artist, so the album is added by hand under the artist. */
+    val byHand: Boolean = false,
+    /** MusicBrainz did not know the barcode: the album was found on Discogs and matched to MusicBrainz by name. */
+    val fromDiscogs: Boolean = false,
+    /** The year, for an album added by hand. */
+    val year: String? = null,
+    /** The kind of release, for an album added by hand. */
+    val category: DiscographyCategory = DiscographyCategory.STUDIO_ALBUM
 )
 
 sealed class BarcodeLookup {
@@ -33,6 +47,8 @@ sealed class BarcodeLookup {
     /** MusicBrainz knows no release with this barcode. */
     object NotFound : BarcodeLookup()
     data class Found(val matches: List<BarcodeMatch>) : BarcodeLookup()
+    /** Discogs lists the barcode, but no artist of that name is on MusicBrainz (or it is a compilation by various artists). */
+    data class OnlyOnDiscogs(val finds: List<DiscogsFind>) : BarcodeLookup()
     data class Failed(val message: String) : BarcodeLookup()
 }
 
@@ -67,7 +83,9 @@ class BarcodeViewModel(
     private val artistDao: ArtistDao,
     private val groupDao: ArtistGroupDao,
     private val discography: DiscographyViewModel,
-    private val throttle: MusicBrainzThrottle = MusicBrainzThrottle.shared
+    private val throttle: MusicBrainzThrottle = MusicBrainzThrottle.shared,
+    /** Asked when MusicBrainz does not know a barcode. Without it that is the end of the search. */
+    private val discogs: DiscogsApi? = null
 ) {
     /** Finds the albums with the barcode in [text], which is checked first so a mistyped number costs no request. */
     suspend fun lookUp(text: String): BarcodeLookup {
@@ -98,13 +116,70 @@ class BarcodeViewModel(
                 albumTitle = group.second.title ?: first.title.orEmpty(), formats = ReleaseFormats.labels(names, category)
             )
         }
-        return if (matches.isEmpty()) BarcodeLookup.NotFound else BarcodeLookup.Found(matches)
+        if (matches.isNotEmpty()) return BarcodeLookup.Found(matches)
+        return if (discogs == null) BarcodeLookup.NotFound else lookUpOnDiscogs(barcode, discogs)
     }
+
+    // Discogs knows more barcodes of records than MusicBrainz, but not the MusicBrainz ids the app files albums under, so
+    // each album it lists is looked for on MusicBrainz by name: the artist first, then the artist's album of that title.
+    private suspend fun lookUpOnDiscogs(barcode: String, discogs: DiscogsApi): BarcodeLookup {
+        val finds = try {
+            DiscogsReader.parse(discogs.searchByBarcode(barcode).results.orEmpty()).take(MAX_DISCOGS_FINDS)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return BarcodeLookup.Failed("MusicBrainz has no album with that barcode, and Discogs could not be asked. Try again in a minute.")
+        }
+        if (finds.isEmpty()) return BarcodeLookup.NotFound
+
+        val matches = mutableListOf<BarcodeMatch>()
+        for (find in finds) {
+            val match = try {
+                matchOnMusicBrainz(barcode, find)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return BarcodeLookup.Failed(failureMessage(e))
+            }
+            if (match != null) matches.add(match)
+        }
+        return if (matches.isEmpty()) BarcodeLookup.OnlyOnDiscogs(finds) else BarcodeLookup.Found(matches)
+    }
+
+    private suspend fun matchOnMusicBrainz(barcode: String, find: DiscogsFind): BarcodeMatch? {
+        if (find.variousArtists) return null
+        val artist = throttle.run { api.searchArtists("artist:\"${phrase(find.artist)}\"", limit = 5).artists }
+            .firstOrNull { MatchNames.same(find.artist, it.name) } ?: return null
+        val group = throttle.run {
+            api.searchReleaseGroups("releasegroup:\"${phrase(find.album)}\" AND arid:${artist.id}").releaseGroups
+        }.firstOrNull { MatchNames.same(find.album, it.title) }
+        val formats = listOfNotNull(find.format)
+        return if (group != null) {
+            BarcodeMatch(barcode, artist.id, artist.name, group.id, group.title, formats, fromDiscogs = true)
+        } else {
+            BarcodeMatch(
+                barcode, artist.id, artist.name, "byhand:" + MatchNames.normalise(artist.name) + "|" + MatchNames.normalise(find.album),
+                find.album, formats, byHand = true, fromDiscogs = true, year = find.year, category = find.category
+            )
+        }
+    }
+
+    // A name inside quotes in a search: only the quote and the backslash have a meaning there.
+    private fun phrase(name: String): String = name.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    /** The album added by hand that stands for [match], when an earlier scan added it. */
+    private suspend fun existingByHand(match: BarcodeMatch): AlbumEntity? =
+        albumDao.getAlbumsForArtist(match.artistId).firstOrNull {
+            CustomAlbums.isCustom(it.id) && MatchNames.same(it.title, match.albumTitle)
+        }
+
+    private suspend fun savedAlbum(match: BarcodeMatch): AlbumEntity? =
+        if (match.byHand) existingByHand(match) else albumDao.getById(match.releaseGroupId)
 
     /** What the app has of [match]'s artist and album. */
     suspend fun statusOf(match: BarcodeMatch): BarcodeStatus {
         val groupId = groupDao.groupIdOf(match.artistId)
-        val album = albumDao.getById(match.releaseGroupId)
+        val album = savedAlbum(match)
         return BarcodeStatus(
             artistIsFavourite = artistDao.getById(match.artistId) != null,
             groupName = groupId?.let { groupDao.getGroup(it)?.name },
@@ -123,6 +198,7 @@ class BarcodeViewModel(
      */
     suspend fun addOwned(match: BarcodeMatch, format: String, takeOffWant: Boolean = false): BarcodeAdd {
         if (format !in ReleaseFormats.displayOrder) return BarcodeAdd.Failed("Choose a format for the copy.")
+        if (match.byHand) return addByHand(match, format)
         val id = match.releaseGroupId
         if (albumDao.getById(id) == null) {
             val group = try {
@@ -155,7 +231,26 @@ class BarcodeViewModel(
         return BarcodeAdd.Added(id)
     }
 
+    // An album MusicBrainz does not list goes in as one added by hand under the artist, unless an earlier scan added it.
+    private suspend fun addByHand(match: BarcodeMatch, format: String): BarcodeAdd {
+        val existing = existingByHand(match)
+        val id = existing?.id ?: discography.addAlbum(
+            match.artistId, match.artistName,
+            AlbumDraft(match.albumTitle, match.year.orEmpty(), match.category, bootleg = false)
+        ) ?: return BarcodeAdd.Failed("Could not save that album.")
+        if (existing != null) {
+            discography.saveFavourite(match.artistId, match.artistName)
+            albumDao.setOwned(id, true)
+        }
+        val copies = albumDao.getCopies(id).map { AlbumCopy(it.format, it.note) } + AlbumCopy(format, null)
+        discography.saveCopies(id, copies)
+        return BarcodeAdd.Added(id)
+    }
+
     private fun failureMessage(e: Exception): String =
         if (e is HttpException && e.code() in setOf(429, 503)) "MusicBrainz is busy. Try again in a minute."
         else "Could not reach MusicBrainz. Check the connection and try again."
 }
+
+/** The most albums Discogs lists for one barcode that are looked for on MusicBrainz. */
+private const val MAX_DISCOGS_FINDS = 3
