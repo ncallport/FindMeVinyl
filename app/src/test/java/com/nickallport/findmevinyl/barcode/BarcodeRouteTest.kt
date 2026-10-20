@@ -29,7 +29,8 @@ class BarcodeRouteTest {
     private fun show(
         lookUp: suspend (String) -> BarcodeLookup = { BarcodeLookup.Found(listOf(match)) },
         status: BarcodeStatus = BarcodeStatus(),
-        addOwned: suspend (BarcodeMatch, String, Boolean) -> BarcodeAdd = { m, f, w -> adds.add(Triple(m, f, w)); BarcodeAdd.Added(m.releaseGroupId) }
+        addOwned: suspend (BarcodeMatch, String, Boolean) -> BarcodeAdd = { m, f, w -> adds.add(Triple(m, f, w)); BarcodeAdd.Added(m.releaseGroupId) },
+        scan: (suspend () -> ScanResult)? = null
     ) {
         looked.clear(); adds.clear(); opened.clear()
         composeTestRule.setContent {
@@ -38,7 +39,8 @@ class BarcodeRouteTest {
                     lookUp = { looked.add(it); lookUp(it) },
                     statusOf = { status },
                     addOwned = addOwned,
-                    onOpenAlbum = { opened.add(it) }
+                    onOpenAlbum = { opened.add(it) },
+                    scan = scan
                 )
             }
         }
@@ -204,5 +206,58 @@ class BarcodeRouteTest {
         lookUpNumber()
 
         composeTestRule.onNodeWithTag("barcode_message").assertTextEquals("MusicBrainz is busy. Try again in a minute.")
+    }
+
+    // Scanning with the camera.
+
+    @Test
+    fun `has no scan button without a camera to use`() {
+        show()
+
+        composeTestRule.onNodeWithTag("barcode_scan").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a scanned number is put in the field and looked up`() {
+        show(scan = { ScanResult.Number("5012985305020") })
+
+        composeTestRule.onNodeWithTag("barcode_scan").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("5012985305020"), looked)
+        composeTestRule.onNodeWithTag("barcode_input").assertTextContains("5012985305020")
+        composeTestRule.onNodeWithTag("barcode_match_title_0").assertTextEquals("Roxy Music - Avalon")
+    }
+
+    @Test
+    fun `a photo that cannot be read says so and looks nothing up`() {
+        show(scan = { ScanResult.Unreadable })
+
+        composeTestRule.onNodeWithTag("barcode_scan").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(emptyList<String>(), looked)
+        composeTestRule.onNodeWithTag("barcode_message").assertTextContains("could not read", substring = true, ignoreCase = true)
+    }
+
+    @Test
+    fun `backing out of the camera changes nothing`() {
+        show(scan = { ScanResult.Cancelled })
+
+        composeTestRule.onNodeWithTag("barcode_scan").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(emptyList<String>(), looked)
+        composeTestRule.onNodeWithTag("barcode_hint").assertExists()
+    }
+
+    @Test
+    fun `a phone with no camera app says so`() {
+        show(scan = { ScanResult.NoCamera })
+
+        composeTestRule.onNodeWithTag("barcode_scan").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("barcode_message").assertTextContains("camera", substring = true, ignoreCase = true)
     }
 }

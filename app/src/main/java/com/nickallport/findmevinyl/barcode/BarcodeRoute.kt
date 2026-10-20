@@ -24,7 +24,9 @@ fun BarcodeRoute(
     statusOf: suspend (BarcodeMatch) -> BarcodeStatus,
     addOwned: suspend (BarcodeMatch, format: String, takeOffWant: Boolean) -> BarcodeAdd,
     onOpenAlbum: (BarcodeMatch) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Takes a photo of a barcode and reads it. Without it there is no Scan button. */
+    scan: (suspend () -> ScanResult)? = null
 ) {
     var barcode by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<BarcodePageState>(BarcodePageState.Idle) }
@@ -33,20 +35,41 @@ fun BarcodeRoute(
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
+    // Looks up a number, which is what the field holds or what a photo gave.
+    fun lookUpNumber(number: String) {
+        error = null
+        state = BarcodePageState.Looking
+        scope.launch {
+            state = when (val result = lookUp(number)) {
+                BarcodeLookup.BadNumber ->
+                    BarcodePageState.Message("That is not a barcode number. Check the digits under the barcode.")
+                BarcodeLookup.NotFound ->
+                    BarcodePageState.Message("MusicBrainz has no album with that barcode. You can add it by hand from the artist's page.")
+                is BarcodeLookup.Failed -> BarcodePageState.Message(result.message)
+                is BarcodeLookup.Found -> BarcodePageState.Matches(result.matches.map { BarcodeMatchUi(it, statusOf(it)) })
+            }
+        }
+    }
+
     BarcodeScreen(
         barcode = barcode,
         onBarcodeChange = { barcode = it },
-        onLookUp = {
-            error = null
-            state = BarcodePageState.Looking
-            scope.launch {
-                state = when (val result = lookUp(barcode)) {
-                    BarcodeLookup.BadNumber ->
-                        BarcodePageState.Message("That is not a barcode number. Check the digits under the barcode.")
-                    BarcodeLookup.NotFound ->
-                        BarcodePageState.Message("MusicBrainz has no album with that barcode. You can add it by hand from the artist's page.")
-                    is BarcodeLookup.Failed -> BarcodePageState.Message(result.message)
-                    is BarcodeLookup.Found -> BarcodePageState.Matches(result.matches.map { BarcodeMatchUi(it, statusOf(it)) })
+        onLookUp = { lookUpNumber(barcode) },
+        onScan = scan?.let { takePhoto ->
+            {
+                error = null
+                scope.launch {
+                    when (val result = takePhoto()) {
+                        is ScanResult.Number -> {
+                            barcode = result.text
+                            lookUpNumber(result.text)
+                        }
+                        ScanResult.Unreadable -> state = BarcodePageState.Message(
+                            "Could not read a barcode from that photo. Hold the phone close, with the barcode level and in good light, or type the number."
+                        )
+                        ScanResult.NoCamera -> state = BarcodePageState.Message("There is no camera app on this phone. Type the number instead.")
+                        ScanResult.Cancelled -> Unit
+                    }
                 }
             }
         },
