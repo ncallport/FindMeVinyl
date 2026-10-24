@@ -9,7 +9,7 @@ data class ReleaseGroupDto(
 )
 
 enum class DiscographyCategory {
-    STUDIO_ALBUM, LIVE_ALBUM, COMPILATION, EP, SINGLE, OTHER
+    STUDIO_ALBUM, LIVE_ALBUM, COMPILATION, SOUNDTRACK, EP, SINGLE, OTHER
 }
 
 object DiscographyCategorizer {
@@ -17,6 +17,8 @@ object DiscographyCategorizer {
         val secondary = releaseGroup.secondaryTypes
 
         return when {
+            // A soundtrack album is one whatever else it is, but a single or EP from a film stays a single or EP.
+            secondary.contains("Soundtrack") && releaseGroup.primaryType == "Album" -> DiscographyCategory.SOUNDTRACK
             secondary.contains("Live") -> DiscographyCategory.LIVE_ALBUM
             secondary.contains("Compilation") -> DiscographyCategory.COMPILATION
             releaseGroup.primaryType == "EP" -> DiscographyCategory.EP
