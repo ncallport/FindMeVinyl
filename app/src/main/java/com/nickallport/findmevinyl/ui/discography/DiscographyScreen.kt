@@ -40,6 +40,7 @@ private val categoryDisplayOrder = listOf(
     DiscographyCategory.STUDIO_ALBUM to "Studio Albums",
     DiscographyCategory.COMPILATION to "Compilations",
     DiscographyCategory.LIVE_ALBUM to "Live Albums",
+    DiscographyCategory.SOUNDTRACK to "Soundtracks",
     DiscographyCategory.EP to "EPs",
     DiscographyCategory.SINGLE to "Singles",
     DiscographyCategory.OTHER to "Other Releases"

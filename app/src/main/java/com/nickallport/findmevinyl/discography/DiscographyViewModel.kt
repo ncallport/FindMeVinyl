@@ -425,7 +425,11 @@ class DiscographyViewModel(
                 return@flow
             }
 
-            albumDao.insertAllIfNotExist(response.releaseGroups.map { newAlbum(artistId, it.toDomain()) })
+            val fetchedGroups = response.releaseGroups.map { it.toDomain() }
+            albumDao.insertAllIfNotExist(fetchedGroups.map { newAlbum(artistId, it) })
+            // An album saved earlier takes the category MusicBrainz gives it now, and keeps its owned and wanted flags.
+            fetchedGroups.groupBy({ DiscographyCategorizer.categorize(it).name }, { it.id })
+                .forEach { (category, ids) -> albumDao.setCategories(ids, category) }
             fetched += response.releaseGroups.size
             pages++
 

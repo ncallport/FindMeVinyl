@@ -42,6 +42,21 @@ interface AlbumDao {
     @Query("UPDATE albums SET artistId = :artistId WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun setCustomAlbumArtist(albumId: String, artistId: String): Int
 
+    /**
+     * Gives albums the category MusicBrainz gives them now, and records that they have been checked. An album added by hand
+     * keeps the kind the user gave it. Returns how many were changed.
+     */
+    @Query("UPDATE albums SET category = :category, categoryChecked = 1 WHERE id IN (:ids) AND id NOT LIKE 'custom/%'")
+    suspend fun setCategories(ids: List<String>, category: String): Int
+
+    /** Records that these albums have been looked at for their category, whatever it turned out to be. */
+    @Query("UPDATE albums SET categoryChecked = 1 WHERE id IN (:ids)")
+    suspend fun markCategoriesChecked(ids: List<String>): Int
+
+    /** Owned and wanted albums from MusicBrainz whose category has not been read from its types yet. */
+    @Query("SELECT id FROM albums WHERE categoryChecked = 0 AND (owned = 1 OR wanted = 1) AND id NOT LIKE 'custom/%' ORDER BY id LIMIT :limit")
+    suspend fun getUncheckedCategoryIds(limit: Int): List<String>
+
     /** Records the cover image file of an album added by hand, or none with null. An album from MusicBrainz takes none. */
     @Query("UPDATE albums SET userCover = :fileName WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun setUserCover(albumId: String, fileName: String?): Int

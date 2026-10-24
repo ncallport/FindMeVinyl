@@ -59,5 +59,10 @@ data class AlbumEntity(
      * The place in the want list the user gave the album by moving it, counting from 0 at the top, or null when it has not
      * been moved and so sits where A to Z puts it. It goes when the want does. See `WantOrder`.
      */
-    val wantPriority: Int? = null
+    val wantPriority: Int? = null,
+    /**
+     * Whether `category` has been read from MusicBrainz's types since soundtracks became a category of their own. Albums
+     * saved before that are asked about once (see `CategoryChecker`), and every page of a discography saved now says so.
+     */
+    @ColumnInfo(defaultValue = "0") val categoryChecked: Boolean = false
 )

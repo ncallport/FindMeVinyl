@@ -295,3 +295,13 @@ val MIGRATION_24_25 = object : Migration(24, 25) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `wantPriority` INTEGER")
     }
 }
+
+/**
+ * Soundtracks became a category of their own, read from MusicBrainz's secondary type, which albums saved before did not
+ * keep. Every album starts unchecked and is asked about once, if it is owned or wanted.
+ */
+val MIGRATION_25_26 = object : Migration(25, 26) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `categoryChecked` INTEGER NOT NULL DEFAULT 0")
+    }
+}

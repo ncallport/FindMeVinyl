@@ -53,6 +53,7 @@ private val kinds = listOf(
     DiscographyCategory.STUDIO_ALBUM to "Studio album",
     DiscographyCategory.LIVE_ALBUM to "Live album",
     DiscographyCategory.COMPILATION to "Compilation",
+    DiscographyCategory.SOUNDTRACK to "Soundtrack",
     DiscographyCategory.EP to "EP",
     DiscographyCategory.SINGLE to "Single",
     DiscographyCategory.OTHER to "Other"
