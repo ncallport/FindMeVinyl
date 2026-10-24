@@ -213,6 +213,7 @@ private fun MatchCard(
 }
 
 internal fun artistLine(status: BarcodeStatus): String = when {
+    status.special != null -> "Goes in ${status.special}, which is not one of your favourites."
     status.groupName != null -> "Part of your group ${status.groupName}."
     status.artistIsFavourite -> "Already in your favourites."
     else -> "A new artist, who will be added to your favourites."

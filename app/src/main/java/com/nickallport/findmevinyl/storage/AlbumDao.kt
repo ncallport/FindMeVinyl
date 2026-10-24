@@ -65,6 +65,14 @@ interface AlbumDao {
     @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun deleteCustomAlbum(albumId: String): Int
 
+    /** Every soundtrack album that is owned or wanted, by whoever it is by: the Soundtracks page. */
+    @Query("SELECT * FROM albums WHERE category = 'SOUNDTRACK' AND (owned = 1 OR wanted = 1)")
+    suspend fun getSoundtrackAlbums(): List<AlbumEntity>
+
+    /** How many of those soundtracks are owned and how many wanted. [AlbumCountRow.artistId] is not used. */
+    @Query("SELECT 'soundtracks' AS artistId, COALESCE(SUM(owned), 0) AS owned, COALESCE(SUM(wanted), 0) AS wanted FROM albums WHERE category = 'SOUNDTRACK' AND (owned = 1 OR wanted = 1)")
+    suspend fun getSoundtrackCounts(): AlbumCountRow
+
     /** How many albums each artist has that are owned and that are wanted. An album can be both. */
     @Query("SELECT artistId, SUM(owned) AS owned, SUM(wanted) AS wanted FROM albums GROUP BY artistId")
     suspend fun getAlbumCounts(): List<AlbumCountRow>
@@ -143,10 +151,10 @@ interface AlbumDao {
         """
         SELECT albums.id AS albumId,
                COALESCE(artist_groups.id, albums.artistId) AS artistId,
-               COALESCE(artist_group_members.name, favourite_artists.name) AS artistName,
+               COALESCE(artist_group_members.name, favourite_artists.name, 'Various Artists') AS artistName,
                albums.title AS albumTitle,
                albums.firstReleaseDate AS firstReleaseDate,
-               COALESCE(artist_groups.position, favourite_artists.position) AS artistPosition,
+               COALESCE(artist_groups.position, favourite_artists.position, 0) AS artistPosition,
                albums.wantPosition AS wantPosition,
                albums.wantFormat AS wantFormat,
                albums.wantPriority AS wantPriority
@@ -155,7 +163,7 @@ interface AlbumDao {
         LEFT JOIN artist_groups ON artist_groups.id = artist_group_members.groupId
         LEFT JOIN favourite_artists ON albums.artistId = favourite_artists.id
         WHERE albums.wanted = 1
-          AND (artist_groups.id IS NOT NULL OR favourite_artists.id IS NOT NULL)
+          AND (artist_groups.id IS NOT NULL OR favourite_artists.id IS NOT NULL OR albums.artistId = '89ad4ac3-39f7-470e-963a-56509c546377')
         """
     )
     suspend fun getWantedAlbums(): List<WantedAlbumRow>

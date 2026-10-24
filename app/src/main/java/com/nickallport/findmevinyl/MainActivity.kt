@@ -8,6 +8,8 @@ import com.nickallport.findmevinyl.barcode.BarcodeRoute
 import com.nickallport.findmevinyl.barcode.ScanResult
 import com.nickallport.findmevinyl.barcode.BarcodeViewModel
 import com.nickallport.findmevinyl.discography.AddAlbumRoute
+import com.nickallport.findmevinyl.discography.DiscographyCategory
+import com.nickallport.findmevinyl.favourites.SpecialArtists
 import com.nickallport.findmevinyl.discography.CategoryChecker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -112,6 +114,8 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.core.content.FileProvider
 import com.nickallport.findmevinyl.location.DeviceLocationProvider
 import com.nickallport.findmevinyl.shops.NearbyShopSearcher
@@ -406,6 +410,7 @@ class MainActivity : ComponentActivity() {
                                 onSearch = { query -> currentScreen = Screen.ArtistResults(query) },
                                 suggestArtists = { text -> artistSuggester.suggest(text) },
                                 loadFavourites = { favouritesViewModel.loadFavourites() },
+                                loadSpecials = { favouritesViewModel.loadSpecials() },
                                 startInGrid = favouritesLayoutStore.isGrid(),
                                 onGridChange = { favouritesLayoutStore.setGrid(it) },
                                 onAddByBarcode = { currentScreen = Screen.Barcode },
@@ -447,6 +452,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is Screen.Discography -> {
+                            // Various Artists and Soundtracks are pages of what is saved: no Save, no group, no genre.
+                            val special = SpecialArtists.isSpecial(screen.artistId)
+                            val albumScope = rememberCoroutineScope()
                             var inGroup by remember(screen.artistId) { mutableStateOf(false) }
                             LaunchedEffect(screen.artistId) { inGroup = artistGroupViewModel.groupOf(screen.artistId) != null }
                             DiscographyRoute(
@@ -468,10 +476,12 @@ class MainActivity : ComponentActivity() {
                                 onSaveFavourite = { id, name -> discographyViewModel.saveFavourite(id, name) },
                                 onRemoveFavourite = { id -> discographyViewModel.removeFavourite(id) },
                                 onOpenArtists = { currentScreen = Screen.Search },
-                                onJoinArtists = { currentScreen = Screen.JoinArtists(screen.artistId, screen.artistName, screen) },
+                                onJoinArtists = if (special) null else {
+                                    { currentScreen = Screen.JoinArtists(screen.artistId, screen.artistName, screen) }
+                                },
                                 inGroup = inGroup,
-                                isGroup = ArtistGroupViewModel.isGroupId(screen.artistId),
-                                genreControls = remember(screen.artistId) {
+                                isGroup = ArtistGroupViewModel.isGroupId(screen.artistId) || special,
+                                genreControls = if (special) null else remember(screen.artistId) {
                                     GenreControls(
                                         load = { artistGenreViewModel.genreOf(screen.artistId) },
                                         suggested = { artistGenreViewModel.autoGenreOf(screen.artistId) },
@@ -500,9 +510,18 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onAddAlbum = { currentScreen = Screen.AddAlbum(screen.artistId, screen.artistName, null, screen) },
                                 onOpenAlbum = { albumId, title ->
-                                    currentScreen = Screen.AlbumDetail(
-                                        albumId, title, screen.artistId, screen.artistName, screen
-                                    )
+                                    if (special) {
+                                        // The album's own artist, not the page's, is the one its page is about.
+                                        albumScope.launch {
+                                            val (artistId, artistName) = discographyViewModel.artistOfAlbum(albumId)
+                                                ?: (screen.artistId to screen.artistName)
+                                            currentScreen = Screen.AlbumDetail(albumId, title, artistId, artistName, screen)
+                                        }
+                                    } else {
+                                        currentScreen = Screen.AlbumDetail(
+                                            albumId, title, screen.artistId, screen.artistName, screen
+                                        )
+                                    }
                                 },
                                 // An album added by hand has the cover the user chose, and the others the Cover Art Archive's.
                                 loadCover = { id -> if (CustomAlbums.isCustom(id)) albumCoverViewModel.loadCover(id) else CoverArtLoader.shared.load(id) },
@@ -533,6 +552,8 @@ class MainActivity : ComponentActivity() {
                                 editingAlbumId = editing,
                                 loadDraft = { id -> discographyViewModel.loadDraft(id) },
                                 loadMembers = { discographyViewModel.groupMembers(screen.artistId) },
+                                defaultCategory = if (screen.artistId == SpecialArtists.SOUNDTRACKS_ID) DiscographyCategory.SOUNDTRACK
+                                else DiscographyCategory.LIVE_ALBUM,
                                 save = { draft ->
                                     if (editing != null) {
                                         editing.takeIf { discographyViewModel.updateAlbum(it, draft, screen.artistId) }

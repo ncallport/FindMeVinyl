@@ -14,6 +14,23 @@ class FavouritesViewModel(
     private val groupDao: ArtistGroupDao,
     private val albumDao: AlbumDao
 ) {
+    /**
+     * The two blocks under the favourites, Various Artists and Soundtracks, with how many albums are owned and wanted. They
+     * are always there, and are never in the favourites list.
+     */
+    suspend fun loadSpecials(): List<FavouriteArtistUiModel> {
+        val various = albumDao.getAlbumCounts().firstOrNull { it.artistId == SpecialArtists.VARIOUS_ID }
+        val soundtracks = albumDao.getSoundtrackCounts()
+        return listOf(
+            FavouriteArtistUiModel(
+                SpecialArtists.VARIOUS_ID, SpecialArtists.VARIOUS_NAME, ownedCount = various?.owned ?: 0, wantedCount = various?.wanted ?: 0
+            ),
+            FavouriteArtistUiModel(
+                SpecialArtists.SOUNDTRACKS_ID, SpecialArtists.SOUNDTRACKS_NAME, ownedCount = soundtracks.owned, wantedCount = soundtracks.wanted
+            )
+        )
+    }
+
     suspend fun loadFavourites(): List<FavouriteArtistUiModel> {
         val members = groupDao.getAllMembers()
         val inGroup = members.map { it.artistId }.toSet()

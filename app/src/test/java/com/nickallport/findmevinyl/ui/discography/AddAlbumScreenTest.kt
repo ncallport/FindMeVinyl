@@ -378,4 +378,20 @@ class AddAlbumScreenTest {
 
         assertEquals(null, saved.single().memberId)
     }
+
+    @Test
+    fun `a new album starts on the kind the page asks for, and an album being changed on its own`() {
+        saved.clear()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AddAlbumScreen(
+                    artistName = "Soundtracks", editing = false, initial = null, showHiddenNote = false,
+                    onSave = { saved.add(it) }, onCancel = {}, defaultCategory = DiscographyCategory.SOUNDTRACK
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("add_album_kind_SOUNDTRACK").performScrollTo().assertIsSelected()
+    }
 }

@@ -100,11 +100,6 @@ fun BarcodeRoute(
 internal fun onlyOnDiscogsText(finds: List<DiscogsFind>): String {
     val find = finds.first()
     val what = listOfNotNull(find.format, find.year).joinToString(", ").let { if (it.isEmpty()) "" else " ($it)" }
-    return if (find.variousArtists) {
-        "Discogs lists this as ${find.album}$what, a compilation by various artists, which cannot be added from a barcode. " +
-            "MusicBrainz has no album with this barcode."
-    } else {
-        "MusicBrainz has no album with that barcode. Discogs lists it as ${find.artist} - ${find.album}$what, " +
-            "but MusicBrainz has no artist of that name. Search for the artist and add the album from their page."
-    }
+    return "MusicBrainz has no album with that barcode. Discogs lists it as ${find.artist} - ${find.album}$what, " +
+        "but MusicBrainz has no artist of that name. Search for the artist and add the album from their page."
 }

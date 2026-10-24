@@ -3,6 +3,8 @@ package com.nickallport.findmevinyl.barcode
 import com.nickallport.findmevinyl.discography.AlbumDraft
 import com.nickallport.findmevinyl.discography.CustomAlbums
 import com.nickallport.findmevinyl.discogs.DiscogsApi
+import com.nickallport.findmevinyl.favourites.SpecialArtists
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistDto
 import com.nickallport.findmevinyl.discography.DiscographyCategorizer
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
@@ -63,7 +65,9 @@ data class BarcodeStatus(
     /** The format the album is wanted on, or null for any. */
     val wantFormat: String? = null,
     /** The formats of the copies the user has already, one entry for each copy. */
-    val copyFormats: List<String> = emptyList()
+    val copyFormats: List<String> = emptyList(),
+    /** The name of the special page the album goes in (Various Artists), which is not a favourite, when it is by one. */
+    val special: String? = null
 )
 
 sealed class BarcodeAdd {
@@ -147,9 +151,13 @@ class BarcodeViewModel(
     }
 
     private suspend fun matchOnMusicBrainz(barcode: String, find: DiscogsFind): BarcodeMatch? {
-        if (find.variousArtists) return null
-        val artist = throttle.run { api.searchArtists("artist:\"${phrase(find.artist)}\"", limit = 5).artists }
-            .firstOrNull { MatchNames.same(find.artist, it.name) } ?: return null
+        // A compilation by Various is credited to MusicBrainz's artist Various Artists, which needs no search.
+        val artist = if (find.variousArtists) {
+            MusicBrainzArtistDto(SpecialArtists.VARIOUS_ID, SpecialArtists.VARIOUS_NAME, null, null, null, null)
+        } else {
+            throttle.run { api.searchArtists("artist:\"${phrase(find.artist)}\"", limit = 5).artists }
+                .firstOrNull { MatchNames.same(find.artist, it.name) } ?: return null
+        }
         val group = throttle.run {
             api.searchReleaseGroups("releasegroup:\"${phrase(find.album)}\" AND arid:${artist.id}").releaseGroups
         }.firstOrNull { MatchNames.same(find.album, it.title) }
@@ -181,6 +189,7 @@ class BarcodeViewModel(
         val groupId = groupDao.groupIdOf(match.artistId)
         val album = savedAlbum(match)
         return BarcodeStatus(
+            special = SpecialArtists.nameOf(match.artistId),
             artistIsFavourite = artistDao.getById(match.artistId) != null,
             groupName = groupId?.let { groupDao.getGroup(it)?.name },
             albumSaved = album != null,

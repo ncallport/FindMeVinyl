@@ -173,4 +173,16 @@ class ArtistPictureSourceTest {
     }
 
     private val large = Bitmap.createBitmap(5, 5, Bitmap.Config.ARGB_8888)
+
+    @Test
+    fun `Various Artists and Soundtracks show the photo the user chose, and never ask the web`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val withPhoto = ArtistPictureSource(userPhoto = { photo }, webPicture = { id -> asked.add(id); web })
+        val withoutPhoto = ArtistPictureSource(userPhoto = { null }, webPicture = { id -> asked.add(id); web })
+
+        assertSame(photo, withPhoto.load(com.nickallport.findmevinyl.favourites.SpecialArtists.VARIOUS_ID))
+        assertNull(withoutPhoto.load(com.nickallport.findmevinyl.favourites.SpecialArtists.VARIOUS_ID))
+        assertNull(withoutPhoto.load(com.nickallport.findmevinyl.favourites.SpecialArtists.SOUNDTRACKS_ID, large = true))
+        assertEquals(emptyList<String>(), asked)
+    }
 }

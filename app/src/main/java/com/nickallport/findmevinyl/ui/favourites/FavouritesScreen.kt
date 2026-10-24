@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -63,6 +64,9 @@ data class FavouriteArtistUiModel(
  * small picture on the left, the name, and under it how many albums are owned and wanted, or as a [grid] of
  * pictures with the names on them. Each picture is loaded by [loadArtistImage] for the ones on screen, with the
  * Wikimedia Commons credit under the list while at least one is shown.
+ *
+ * Under the artists, in the same list or grid so they scroll with it, [specials] are shown under the title
+ * "Various Artists and Soundtracks": a block each, with a picture the user can choose, opening their pages.
  */
 @Composable
 fun FavouritesScreen(
@@ -71,9 +75,11 @@ fun FavouritesScreen(
     modifier: Modifier = Modifier,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
     /** Show pictures only, as a grid, instead of the list with names and counts. */
-    grid: Boolean = false
+    grid: Boolean = false,
+    /** Various Artists and Soundtracks, shown under the artists. They open like an artist does. */
+    specials: List<FavouriteArtistUiModel> = emptyList()
 ) {
-    if (artists.isEmpty()) {
+    if (artists.isEmpty() && specials.isEmpty()) {
         Text(
             text = "No favourite artists yet",
             modifier = modifier.padding(16.dp)
@@ -91,20 +97,52 @@ fun FavouritesScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
+                    if (artists.isEmpty()) {
+                        item(key = "no-favourites", span = { GridItemSpan(maxLineSpan) }) { NoFavouritesYet() }
+                    }
                     items(artists, key = { it.id }) { artist ->
                         ArtistTile(artist, loadArtistImage, onClick = { onArtistSelected(artist) }, onShownChange = onShownChange)
+                    }
+                    if (specials.isNotEmpty()) {
+                        item(key = "specials-title", span = { GridItemSpan(maxLineSpan) }) { SpecialsTitle() }
+                        items(specials, key = { it.id }) { special ->
+                            ArtistTile(special, loadArtistImage, onClick = { onArtistSelected(special) }, onShownChange = onShownChange)
+                        }
                     }
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    if (artists.isEmpty()) item(key = "no-favourites") { NoFavouritesYet() }
                     items(artists, key = { it.id }) { artist ->
                         ArtistBlock(artist, loadArtistImage, onArtistSelected, onShownChange)
+                    }
+                    if (specials.isNotEmpty()) {
+                        item(key = "specials-title") { SpecialsTitle() }
+                        items(specials, key = { it.id }) { special ->
+                            ArtistBlock(special, loadArtistImage, onArtistSelected, onShownChange)
+                        }
                     }
                 }
             }
             if (picturesShown > 0) PhotoCredit()
         }
     }
+}
+
+@Composable
+private fun NoFavouritesYet() {
+    Text(text = "No favourite artists yet", modifier = Modifier.padding(16.dp))
+}
+
+/** The small title over Various Artists and Soundtracks, like "Your favourites" over the artists. */
+@Composable
+private fun SpecialsTitle() {
+    Text(
+        text = "Various Artists and Soundtracks",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).testTag("favourites_specials_title")
+    )
 }
 
 /** What an artist has: "4 owned, 3 wanted". */

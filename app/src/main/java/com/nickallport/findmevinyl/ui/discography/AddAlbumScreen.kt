@@ -80,11 +80,13 @@ fun AddAlbumScreen(
     /** Something that went wrong with the last save, shown under the buttons. */
     error: String? = null,
     /** For the page of a group of artists, the artists of the group: the album is filed under the one chosen. */
-    members: List<GroupMember> = emptyList()
+    members: List<GroupMember> = emptyList(),
+    /** The kind a new album starts on. */
+    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM
 ) {
     var title by rememberSaveable { mutableStateOf(initial?.title.orEmpty()) }
     var year by rememberSaveable { mutableStateOf(initial?.year.orEmpty()) }
-    var kind by rememberSaveable { mutableStateOf((initial?.category ?: DiscographyCategory.LIVE_ALBUM).name) }
+    var kind by rememberSaveable { mutableStateOf((initial?.category ?: defaultCategory).name) }
     var bootleg by rememberSaveable { mutableStateOf(initial?.bootleg ?: false) }
     // The artist of the group the album belongs to: the one it is filed under, or the first to begin with.
     var memberId by rememberSaveable {
