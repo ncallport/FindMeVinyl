@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.nickallport.findmevinyl.favourites.GroupMember
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import com.nickallport.findmevinyl.ui.discography.AddAlbumScreen
 import kotlinx.coroutines.launch
@@ -35,19 +36,21 @@ fun AddAlbumRoute(
     onSaved: (AlbumDraft, albumId: String) -> Unit,
     onDeleted: () -> Unit,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** The artists of the group whose page this is, to choose which one the album is by. Empty for an artist. */
+    loadMembers: suspend () -> List<GroupMember> = { emptyList() }
 ) {
-    // Null while an album being changed is loaded.
-    var loaded by remember(editingAlbumId) { mutableStateOf(editingAlbumId == null) }
+    // Null while an album being changed, or the artists of a group, are loaded.
+    var loaded by remember(editingAlbumId) { mutableStateOf(false) }
+    var members by remember(editingAlbumId) { mutableStateOf(emptyList<GroupMember>()) }
     var draft by remember(editingAlbumId) { mutableStateOf<AlbumDraft?>(null) }
     var error by remember(editingAlbumId) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(editingAlbumId) {
-        if (editingAlbumId != null) {
-            draft = loadDraft(editingAlbumId)
-            loaded = true
-        }
+        members = loadMembers()
+        if (editingAlbumId != null) draft = loadDraft(editingAlbumId)
+        loaded = true
     }
 
     when {
@@ -63,6 +66,7 @@ fun AddAlbumRoute(
             initial = draft,
             showHiddenNote = showHiddenNote,
             error = error,
+            members = members,
             onSave = { new ->
                 scope.launch {
                     val id = save(new)

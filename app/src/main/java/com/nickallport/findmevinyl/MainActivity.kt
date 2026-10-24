@@ -526,9 +526,10 @@ class MainActivity : ComponentActivity() {
                                 artistName = screen.artistName,
                                 editingAlbumId = editing,
                                 loadDraft = { id -> discographyViewModel.loadDraft(id) },
+                                loadMembers = { discographyViewModel.groupMembers(screen.artistId) },
                                 save = { draft ->
                                     if (editing != null) {
-                                        editing.takeIf { discographyViewModel.updateAlbum(it, draft) }
+                                        editing.takeIf { discographyViewModel.updateAlbum(it, draft, screen.artistId) }
                                     } else {
                                         discographyViewModel.addAlbum(screen.artistId, screen.artistName, draft)
                                     }

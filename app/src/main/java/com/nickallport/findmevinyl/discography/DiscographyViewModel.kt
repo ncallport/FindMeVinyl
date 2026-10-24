@@ -11,6 +11,7 @@ import com.nickallport.findmevinyl.storage.ArtistDao
 import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.storage.ArtistGroupDao
 import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
+import com.nickallport.findmevinyl.favourites.GroupMember
 import com.nickallport.findmevinyl.ui.discography.AlbumCopy
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
@@ -452,7 +453,11 @@ class DiscographyViewModel(
      */
     suspend fun addAlbum(artistId: String, artistName: String, draft: AlbumDraft): String? {
         val clean = draft.cleaned() ?: return null
-        val owner = if (ArtistGroupViewModel.isGroupId(artistId)) memberIdsOf(artistId).firstOrNull() ?: return null else artistId
+        // An album of a group goes under the member chosen, or the first when none is, or when it is not in the group.
+        val owner = if (ArtistGroupViewModel.isGroupId(artistId)) {
+            val members = memberIdsOf(artistId)
+            draft.memberId?.takeIf { it in members } ?: members.firstOrNull() ?: return null
+        } else artistId
         val id = CustomAlbums.newId()
         albumDao.insert(
             AlbumEntity(
@@ -465,6 +470,11 @@ class DiscographyViewModel(
         return id
     }
 
+    /** The artists a group is made of, in order, with the names it knows them by. Empty for an artist who is not a group. */
+    suspend fun groupMembers(artistId: String): List<GroupMember> =
+        if (ArtistGroupViewModel.isGroupId(artistId)) groupDao?.getMembers(artistId)?.map { GroupMember(it.artistId, it.name) }.orEmpty()
+        else emptyList()
+
     /** What an album added by hand has now, to fill the form with. Null for an album from MusicBrainz or none. */
     suspend fun loadDraft(albumId: String): AlbumDraft? {
         if (!CustomAlbums.isCustom(albumId)) return null
@@ -475,18 +485,28 @@ class DiscographyViewModel(
             category = categoryFrom(album.category),
             bootleg = album.statuses == ReleaseStatuses.BOOTLEG,
             description = album.userDescription.orEmpty(),
-            tracks = UserTracks.decode(album.userTracks)
+            tracks = UserTracks.decode(album.userTracks),
+            // Only an album of a group says which of its artists it is filed under.
+            memberId = album.artistId.takeIf { groupDao?.groupIdOf(it) != null }
         )
     }
 
-    /** Changes an album added by hand. False when it is not one, is not there, or the draft is not valid. */
-    suspend fun updateAlbum(albumId: String, draft: AlbumDraft): Boolean {
+    /**
+     * Changes an album added by hand. False when it is not one, is not there, or the draft is not valid. When it is for
+     * the page of a group ([artistId]) and the draft names one of the group's artists, the album is filed under that one.
+     */
+    suspend fun updateAlbum(albumId: String, draft: AlbumDraft, artistId: String? = null): Boolean {
         if (!CustomAlbums.isCustom(albumId)) return false
         val clean = draft.cleaned() ?: return false
-        return albumDao.updateCustomAlbum(
+        val changed = albumDao.updateCustomAlbum(
             albumId, clean.first, clean.second, draft.category.name, statusOf(draft),
             UserTracks.cleanDescription(draft.description), UserTracks.encode(draft.tracks)
         ) > 0
+        val member = draft.memberId
+        if (changed && member != null && artistId != null && member in memberIdsOf(artistId)) {
+            albumDao.setCustomAlbumArtist(albumId, member)
+        }
+        return changed
     }
 
     /** Takes an album added by hand away, with its copies. False when it is not one or is not there. */

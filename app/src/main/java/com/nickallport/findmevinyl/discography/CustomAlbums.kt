@@ -24,7 +24,9 @@ data class AlbumDraft(
     /** A few words about the album, such as where it is from. Optional. */
     val description: String = "",
     /** The tracklist the user typed, in order. Optional. */
-    val tracks: List<String> = emptyList()
+    val tracks: List<String> = emptyList(),
+    /** For an album of a group of artists, the artist of the group it belongs to. Null for an artist who is not a group. */
+    val memberId: String? = null
 )
 
 /** The longest title that is kept. */

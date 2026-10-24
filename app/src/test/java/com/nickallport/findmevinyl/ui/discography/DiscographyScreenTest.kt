@@ -193,6 +193,23 @@ class DiscographyScreenTest {
     private fun top(text: String) = composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
 
     @Test
+    fun `the categories are in the order studio albums, compilations, live albums, EPs, singles, other`() {
+        val grouped = mapOf(
+            DiscographyCategory.OTHER to listOf(AlbumUiModel("6", "An Other", owned = false, wanted = false)),
+            DiscographyCategory.SINGLE to listOf(AlbumUiModel("5", "A Single", owned = false, wanted = false)),
+            DiscographyCategory.EP to listOf(AlbumUiModel("4", "An EP", owned = false, wanted = false)),
+            DiscographyCategory.LIVE_ALBUM to listOf(AlbumUiModel("3", "A Live", owned = false, wanted = false)),
+            DiscographyCategory.COMPILATION to listOf(AlbumUiModel("2", "A Compilation", owned = false, wanted = false)),
+            DiscographyCategory.STUDIO_ALBUM to listOf(AlbumUiModel("1", "A Studio", owned = false, wanted = false))
+        )
+
+        composeTestRule.setContent { DiscographyScreen(groupedAlbums = grouped, onToggleOwned = {}) }
+
+        val headers = listOf("Studio Albums", "Compilations", "Live Albums", "EPs", "Singles", "Other Releases")
+        headers.zipWithNext().forEach { (before, after) -> assertTrue("$before before $after", top(before) < top(after)) }
+    }
+
+    @Test
     fun `with owned grouped, the owned albums are in a section at the top`() {
         composeTestRule.setContent {
             DiscographyScreen(groupedAlbums = mixed, onToggleOwned = {}, grouping = Grouping(owned = true))
