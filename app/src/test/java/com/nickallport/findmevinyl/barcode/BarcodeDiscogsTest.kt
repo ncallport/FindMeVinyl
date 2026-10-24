@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
+import com.nickallport.findmevinyl.favourites.SpecialArtists
 import com.nickallport.findmevinyl.discogs.DiscogsApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
@@ -169,14 +170,44 @@ class BarcodeDiscogsTest {
     }
 
     @Test
-    fun `various artists are not looked up on MusicBrainz`() = runBlocking {
+    fun `a compilation by Various is looked for under Various Artists, with no artist search`() = runBlocking {
         server.enqueue(MockResponse().setBody(mbEmpty))
-        server.enqueue(MockResponse().setBody(discogsBody(title = "Various - Now 99")))
+        server.enqueue(MockResponse().setBody(discogsBody("Various - Now 99", "2026", "LP", "Compilation")))
+        server.enqueue(MockResponse().setBody(groups("Now 99")))
 
-        val result = viewModel.lookUp(barcode)
+        val match = (viewModel.lookUp(barcode) as BarcodeLookup.Found).matches.single()
 
-        assertTrue(result is BarcodeLookup.OnlyOnDiscogs)
-        assertEquals(2, server.requestCount)
+        assertEquals(SpecialArtists.VARIOUS_ID, match.artistId)
+        assertEquals("Various Artists", match.artistName)
+        assertEquals("rg-now99", match.releaseGroupId)
+        assertFalse(match.byHand)
+        assertEquals(listOf("/release/", "/database/search", "/release-group/"), paths(3))
+    }
+
+    @Test
+    fun `a compilation by Various that MusicBrainz does not list is added by hand under Various Artists`() = runBlocking {
+        server.enqueue(MockResponse().setBody(mbEmpty))
+        server.enqueue(MockResponse().setBody(discogsBody("Various - Now 99", "2026", "LP", "Compilation")))
+        server.enqueue(MockResponse().setBody(groups("Something Else")))
+
+        val match = (viewModel.lookUp(barcode) as BarcodeLookup.Found).matches.single()
+        val added = viewModel.addOwned(match, "LP") as BarcodeAdd.Added
+
+        assertTrue(match.byHand)
+        assertEquals(SpecialArtists.VARIOUS_ID, database.albumDao().getById(added.albumId)!!.artistId)
+        assertEquals("COMPILATION", database.albumDao().getById(added.albumId)!!.category)
+        assertNull("Various Artists is not a favourite", database.artistDao().getById(SpecialArtists.VARIOUS_ID))
+    }
+
+    @Test
+    fun `the status says an album by Various Artists goes in its page, not the favourites`() = runBlocking {
+        val match = BarcodeMatch(barcode, SpecialArtists.VARIOUS_ID, "Various Artists", "rg1", "Now 99", listOf("CD"))
+
+        val status = viewModel.statusOf(match)
+
+        assertEquals("Various Artists", status.special)
+        assertFalse(status.artistIsFavourite)
+        assertNull(viewModel.statusOf(match.copy(artistId = "artist-1")).special)
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.nickallport.findmevinyl.storage.ArtistEntity
 import com.nickallport.findmevinyl.storage.ArtistGroupDao
 import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
 import com.nickallport.findmevinyl.favourites.GroupMember
+import com.nickallport.findmevinyl.favourites.SpecialArtists
 import com.nickallport.findmevinyl.ui.discography.AlbumCopy
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.CancellationException
@@ -97,6 +98,7 @@ class DiscographyViewModel(
         artistId: String,
         onProgress: (donePages: Int, totalPages: Int) -> Unit = { _, _ -> }
     ): FormatCheckResult {
+        if (SpecialArtists.isSpecial(artistId)) return FormatCheckResult.Done(0)
         if (!ArtistGroupViewModel.isGroupId(artistId)) return checkArtistFormats(artistId, onProgress)
 
         // A group is checked one member after another, each as an artist. A member whose albums have all been
@@ -250,7 +252,11 @@ class DiscographyViewModel(
             emptyMap()
         }
         val copies = albumDao.getAllCopies().groupBy { it.albumId }
-        val grouped = memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
+        val albumsOfPage = if (artistId == SpecialArtists.SOUNDTRACKS_ID) albumDao.getSoundtrackAlbums()
+        else memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
+        // On a page of Various Artists or Soundtracks each row says who its album is by.
+        val rowNames = if (SpecialArtists.isSpecial(artistId)) artistNamesOf(albumsOfPage.map { it.artistId }.toSet()) else memberNames
+        val grouped = albumsOfPage
             .groupBy { categoryFrom(it.category) }
             .mapValues { (category, albums) ->
                 albums
@@ -259,9 +265,23 @@ class DiscographyViewModel(
                         compareBy<AlbumEntity, String?>(nullsLast()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                             .thenBy { it.title }
                     )
-                    .map { toUiModel(it, category, now, copies[it.id].orEmpty()).copy(artistName = memberNames[it.artistId]) }
+                    .map { toUiModel(it, category, now, copies[it.id].orEmpty()).copy(artistName = rowNames[it.artistId]) }
             }
         return DiscographyUiState.Success(grouped)
+    }
+
+    // The names of artists by id: a favourite's, a group member's as the group knows it, or a special artist's.
+    private suspend fun artistNamesOf(ids: Set<String>): Map<String, String> {
+        val members = groupDao?.getAllMembers().orEmpty().associate { it.artistId to it.name }
+        return ids.mapNotNull { id ->
+            (artistDao.getById(id)?.name ?: members[id] ?: SpecialArtists.nameOf(id))?.let { id to it }
+        }.toMap()
+    }
+
+    /** The artist an album is filed under and its name, for opening it from a page of Various Artists or Soundtracks. */
+    suspend fun artistOfAlbum(albumId: String): Pair<String, String>? {
+        val artistId = albumDao.getById(albumId)?.artistId ?: return null
+        return artistId to (artistNamesOf(setOf(artistId))[artistId] ?: artistId)
     }
 
     /** One saved album as the screens show it, or null when it is not saved. */
@@ -344,8 +364,12 @@ class DiscographyViewModel(
      * the list so far as the last state, with [DiscographyUiState.Success.loadError], so the list is
      * never silently short.
      */
-    fun discography(artistId: String): Flow<DiscographyUiState> =
-        if (ArtistGroupViewModel.isGroupId(artistId)) groupPages(artistId) else singleArtist(artistId)
+    fun discography(artistId: String): Flow<DiscographyUiState> = when {
+        // Various Artists and Soundtracks are only what is saved: nothing is asked of MusicBrainz.
+        SpecialArtists.isSpecial(artistId) -> flow { emit(loadSaved(artistId)) }
+        ArtistGroupViewModel.isGroupId(artistId) -> groupPages(artistId)
+        else -> singleArtist(artistId)
+    }
 
     private fun singleArtist(artistId: String): Flow<DiscographyUiState> =
         pages(artistId).catch { e ->
@@ -461,7 +485,7 @@ class DiscographyViewModel(
         val owner = if (ArtistGroupViewModel.isGroupId(artistId)) {
             val members = memberIdsOf(artistId)
             draft.memberId?.takeIf { it in members } ?: members.firstOrNull() ?: return null
-        } else artistId
+        } else SpecialArtists.ownerOf(artistId)
         val id = CustomAlbums.newId()
         albumDao.insert(
             AlbumEntity(
@@ -565,13 +589,14 @@ class DiscographyViewModel(
 
     /** An artist is a favourite when it is saved. A group of artists always is one, as long as it exists. */
     suspend fun isFavourite(artistId: String): Boolean {
+        if (SpecialArtists.isSpecial(artistId)) return true
         if (ArtistGroupViewModel.isGroupId(artistId)) return groupDao?.getGroup(artistId) != null
         return artistDao.getById(artistId) != null
     }
 
     suspend fun saveFavourite(artistId: String, artistName: String) {
         // A group is a favourite already, so owning or wanting an album on its page saves no artist.
-        if (ArtistGroupViewModel.isGroupId(artistId)) return
+        if (ArtistGroupViewModel.isGroupId(artistId) || SpecialArtists.isSpecial(artistId)) return
         // A favourite that is already saved keeps its place in the user's order. A new one goes first,
         // one place before the lowest position, which can be below 0. The first ever favourite gets 0.
         if (artistDao.getById(artistId) != null) return
@@ -580,6 +605,7 @@ class DiscographyViewModel(
     }
 
     suspend fun removeFavourite(artistId: String) {
+        if (SpecialArtists.isSpecial(artistId)) return
         albumDao.clearWantedForArtist(artistId)
         artistDao.deleteById(artistId)
     }

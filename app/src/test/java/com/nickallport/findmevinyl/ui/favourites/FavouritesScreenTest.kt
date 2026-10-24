@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.ui.favourites
 
+import org.robolectric.annotation.Config
 import android.graphics.Bitmap
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.assertCountEquals
@@ -247,5 +248,80 @@ class FavouritesScreenTest {
         composeTestRule.setContent { FavouritesScreen(artists = listOf(group), onArtistSelected = {}, grid = true) }
 
         composeTestRule.onNodeWithText("Acid Mothers Temple Family").assertExists()
+    }
+
+    // Various Artists and Soundtracks, below the favourites.
+
+    private val specials = listOf(
+        FavouriteArtistUiModel("various", "Various Artists", ownedCount = 3, wantedCount = 1),
+        FavouriteArtistUiModel("special/soundtracks", "Soundtracks", ownedCount = 0, wantedCount = 2)
+    )
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `below the artists is a title and a block for Various Artists and one for Soundtracks`() {
+        composeTestRule.setContent { FavouritesScreen(artists = twoArtists, specials = specials, onArtistSelected = {}) }
+
+        composeTestRule.onNodeWithTag("favourites_specials_title").assertTextEquals("Various Artists and Soundtracks")
+        composeTestRule.onNodeWithTag("favourite_counts_various", useUnmergedTree = true).assertTextEquals("3 owned, 1 wanted")
+        composeTestRule.onNodeWithTag("favourite_counts_special/soundtracks", useUnmergedTree = true).assertTextEquals("0 owned, 2 wanted")
+        fun y(tag: String) = composeTestRule.onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.y
+        assertTrue(y("favourite_artist_2") < y("favourites_specials_title"))
+        assertTrue(y("favourites_specials_title") < y("favourite_artist_various"))
+        assertTrue(y("favourite_artist_various") < y("favourite_artist_special/soundtracks"))
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `a block opens its page`() {
+        var selected: FavouriteArtistUiModel? = null
+        composeTestRule.setContent { FavouritesScreen(artists = twoArtists, specials = specials, onArtistSelected = { selected = it }) }
+
+        composeTestRule.onNodeWithTag("favourite_artist_special/soundtracks").performClick()
+
+        assertEquals(specials[1], selected)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `without the blocks there is no title`() {
+        composeTestRule.setContent { FavouritesScreen(artists = twoArtists, onArtistSelected = {}) }
+
+        composeTestRule.onNodeWithTag("favourites_specials_title").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `with no favourites yet the blocks are still shown, under the message`() {
+        composeTestRule.setContent { FavouritesScreen(artists = emptyList(), specials = specials, onArtistSelected = {}) }
+
+        composeTestRule.onNodeWithText("No favourite artists yet").assertExists()
+        composeTestRule.onNodeWithTag("favourites_specials_title").assertExists()
+        composeTestRule.onNodeWithTag("favourite_artist_various").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `the blocks ask for their own pictures`() {
+        val asked = mutableListOf<String>()
+        composeTestRule.setContent {
+            FavouritesScreen(artists = twoArtists, specials = specials, onArtistSelected = {}, loadArtistImage = { id -> asked.add(id); null })
+        }
+        composeTestRule.waitForIdle()
+
+        assertTrue(asked.toSet().containsAll(listOf("various", "special/soundtracks")))
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun `in the grid the title spans the width and the blocks are tiles`() {
+        val many = (1..9).map { FavouriteArtistUiModel("a$it", "Artist $it") }
+        composeTestRule.setContent { FavouritesScreen(artists = many, specials = specials, onArtistSelected = {}, grid = true) }
+
+        composeTestRule.onNodeWithTag("favourites_specials_title").assertExists()
+        composeTestRule.onNodeWithTag("favourite_artist_various").assertExists()
+        composeTestRule.onNodeWithContentDescription("Soundtracks").assertExists()
+        val title = composeTestRule.onNodeWithTag("favourites_specials_title").fetchSemanticsNode().positionInRoot.y
+        assertTrue(title > composeTestRule.onNodeWithTag("favourite_artist_a9").fetchSemanticsNode().positionInRoot.y)
     }
 }

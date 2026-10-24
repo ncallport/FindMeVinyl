@@ -60,7 +60,9 @@ fun ArtistsScreen(
     /** Artists from MusicBrainz for the text typed so far. Without it there are no suggestions. */
     suggestArtists: (suspend (String) -> List<ArtistSuggestion>)? = null,
     /** Opens the page for adding an owned album from its barcode. Without it there is no button. */
-    onAddByBarcode: (() -> Unit)? = null
+    onAddByBarcode: (() -> Unit)? = null,
+    /** Various Artists and Soundtracks, shown under the favourites. Without it they are not shown. */
+    loadSpecials: (suspend () -> List<FavouriteArtistUiModel>)? = null
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var grid by rememberSaveable { mutableStateOf(startInGrid) }
@@ -129,7 +131,8 @@ fun ArtistsScreen(
                     load = loadFavourites,
                     onArtistSelected = onArtistSelected,
                     loadArtistImage = loadArtistImage,
-                    grid = grid
+                    grid = grid,
+                    loadSpecials = loadSpecials
                 )
             }
             if (suggestions.isNotEmpty()) {

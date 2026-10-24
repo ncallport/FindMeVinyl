@@ -221,4 +221,20 @@ class ArtistsScreenTest {
 
         composeTestRule.onNodeWithTag("barcode_button").assertDoesNotExist()
     }
+
+    @Test
+    @org.robolectric.annotation.Config(qualifiers = "w360dp-h2400dp")
+    fun `the page shows Various Artists and Soundtracks under the favourites`() {
+        val specials = listOf(FavouriteArtistUiModel("various", "Various Artists", ownedCount = 2), FavouriteArtistUiModel("special/soundtracks", "Soundtracks"))
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                ArtistsScreen(onSearch = {}, loadFavourites = { favourites }, loadSpecials = { specials }, onArtistSelected = {})
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("favourites_specials_title").assertExists()
+        composeTestRule.onNodeWithTag("favourite_artist_various").assertExists()
+        composeTestRule.onNodeWithTag("favourite_artist_special/soundtracks").assertExists()
+    }
 }

@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.artist
 
 import android.graphics.Bitmap
 import com.nickallport.findmevinyl.favourites.ArtistGroupViewModel
+import com.nickallport.findmevinyl.favourites.SpecialArtists
 
 /**
  * The picture shown for an artist: the photo the user chose if there is one, otherwise the picture
@@ -21,6 +22,8 @@ class ArtistPictureSource(
     /** With [large], the picture from the web is the bigger one. A photo the user chose is the same either way. */
     suspend fun load(artistId: String, large: Boolean = false): Bitmap? {
         val web = if (large) largeWebPicture ?: webPicture else webPicture
+        // Various Artists and Soundtracks have only the photo the user chose: the web has no picture to give them.
+        if (SpecialArtists.isSpecial(artistId)) return userPhoto(artistId)
         if (!ArtistGroupViewModel.isGroupId(artistId)) return userPhoto(artistId) ?: web(artistId)
         userPhoto(artistId)?.let { return it }
         val first = firstMemberOf(artistId) ?: return null

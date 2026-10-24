@@ -320,12 +320,14 @@ class BarcodeRouteTest {
     }
 
     @Test
-    fun `a compilation by various artists says it cannot be added from a barcode`() {
-        val find = DiscogsFind("Various", "Now 99", "2026", "CD", com.nickallport.findmevinyl.discography.DiscographyCategory.COMPILATION, true)
-        show(lookUp = { BarcodeLookup.OnlyOnDiscogs(listOf(find)) })
+    fun `an album by Various Artists says it goes in that page and not the favourites`() {
+        show(
+            lookUp = { BarcodeLookup.Found(listOf(match.copy(artistId = "89ad", artistName = "Various Artists"))) },
+            status = BarcodeStatus(special = "Various Artists")
+        )
 
         lookUpNumber("198029779813")
 
-        composeTestRule.onNodeWithTag("barcode_message").assertTextContains("various artists", substring = true)
+        composeTestRule.onNodeWithTag("barcode_artist_status_0").assertTextEquals("Goes in Various Artists, which is not one of your favourites.")
     }
 }

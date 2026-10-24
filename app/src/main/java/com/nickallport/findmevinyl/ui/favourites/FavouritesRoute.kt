@@ -21,11 +21,15 @@ fun FavouritesRoute(
     onArtistSelected: (FavouriteArtistUiModel) -> Unit,
     modifier: Modifier = Modifier,
     loadArtistImage: suspend (String) -> Bitmap? = { null },
-    grid: Boolean = false
+    grid: Boolean = false,
+    /** Loads Various Artists and Soundtracks, shown under the artists. Without it there are none. */
+    loadSpecials: (suspend () -> List<FavouriteArtistUiModel>)? = null
 ) {
     var artists by remember { mutableStateOf<List<FavouriteArtistUiModel>?>(null) }
+    var specials by remember { mutableStateOf<List<FavouriteArtistUiModel>>(emptyList()) }
 
     LaunchedEffect(Unit) {
+        specials = loadSpecials?.invoke().orEmpty()
         artists = load()
     }
 
@@ -38,7 +42,8 @@ fun FavouritesRoute(
             onArtistSelected = onArtistSelected,
             modifier = modifier,
             loadArtistImage = loadArtistImage,
-            grid = grid
+            grid = grid,
+            specials = specials
         )
     }
 }

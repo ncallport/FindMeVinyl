@@ -38,7 +38,9 @@ fun AddAlbumRoute(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     /** The artists of the group whose page this is, to choose which one the album is by. Empty for an artist. */
-    loadMembers: suspend () -> List<GroupMember> = { emptyList() }
+    loadMembers: suspend () -> List<GroupMember> = { emptyList() },
+    /** The kind the form starts on for a new album: live, or soundtrack on the Soundtracks page. */
+    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM
 ) {
     // Null while an album being changed, or the artists of a group, are loaded.
     var loaded by remember(editingAlbumId) { mutableStateOf(false) }
@@ -67,6 +69,7 @@ fun AddAlbumRoute(
             showHiddenNote = showHiddenNote,
             error = error,
             members = members,
+            defaultCategory = defaultCategory,
             onSave = { new ->
                 scope.launch {
                     val id = save(new)
