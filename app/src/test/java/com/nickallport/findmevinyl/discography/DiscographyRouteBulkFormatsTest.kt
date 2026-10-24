@@ -253,4 +253,20 @@ class DiscographyRouteBulkFormatsTest {
 
         assertEquals(listOf("A"), lookups)
     }
+
+    @Test
+    fun `a Various Artists album shown on the page does not start the check of the artist's releases`() {
+        val asked = mutableListOf<String>()
+        val state = DiscographyUiState.Success(
+            mapOf(
+                DiscographyCategory.STUDIO_ALBUM to listOf(album("A", listOf("LP"), statuses = listOf("Official"))),
+                // Its releases are credited to Various Artists, so the artist's own releases never say anything about it.
+                DiscographyCategory.APPEARS_ON to listOf(album("Now"))
+            )
+        )
+
+        show(state) { artist, _ -> asked.add(artist); FormatCheckResult.Done(0) }
+
+        assertEquals(emptyList<String>(), asked)
+    }
 }

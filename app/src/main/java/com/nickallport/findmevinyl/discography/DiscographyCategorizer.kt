@@ -9,7 +9,10 @@ data class ReleaseGroupDto(
 )
 
 enum class DiscographyCategory {
-    STUDIO_ALBUM, LIVE_ALBUM, COMPILATION, SOUNDTRACK, EP, SINGLE, OTHER
+    STUDIO_ALBUM, LIVE_ALBUM, COMPILATION, SOUNDTRACK, EP, SINGLE, OTHER,
+
+    /** Never stored: Various Artists albums the user owns or wants that an artist is on, shown under the artist's own albums. */
+    APPEARS_ON
 }
 
 object DiscographyCategorizer {

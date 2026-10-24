@@ -34,3 +34,20 @@ data class MusicBrainzBarcodeReleaseGroupDto(
     val title: String? = null,
     @SerializedName("primary-type") val primaryType: String? = null
 )
+
+/** A release with its tracks, each with who is credited on it (`inc=recordings+artist-credits`). */
+data class MusicBrainzTrackArtistsResponse(
+    val releases: List<MusicBrainzTrackedReleaseDto>? = null
+)
+
+data class MusicBrainzTrackedReleaseDto(
+    val media: List<MusicBrainzTrackedMediumDto>? = null
+)
+
+data class MusicBrainzTrackedMediumDto(
+    val tracks: List<MusicBrainzCreditedTrackDto>? = null
+)
+
+data class MusicBrainzCreditedTrackDto(
+    @SerializedName("artist-credit") val artistCredit: List<MusicBrainzArtistCreditDto>? = null
+)

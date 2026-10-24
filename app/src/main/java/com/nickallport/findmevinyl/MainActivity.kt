@@ -8,6 +8,7 @@ import com.nickallport.findmevinyl.barcode.BarcodeRoute
 import com.nickallport.findmevinyl.barcode.ScanResult
 import com.nickallport.findmevinyl.barcode.BarcodeViewModel
 import com.nickallport.findmevinyl.discography.AddAlbumRoute
+import com.nickallport.findmevinyl.discography.AppearsOnChecker
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.favourites.SpecialArtists
 import com.nickallport.findmevinyl.discography.CategoryChecker
@@ -94,6 +95,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_22_23
 import com.nickallport.findmevinyl.storage.MIGRATION_23_24
 import com.nickallport.findmevinyl.storage.MIGRATION_24_25
 import com.nickallport.findmevinyl.storage.MIGRATION_25_26
+import com.nickallport.findmevinyl.storage.MIGRATION_26_27
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -290,7 +292,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -334,6 +336,7 @@ class MainActivity : ComponentActivity() {
         )
         val discographyViewModel = DiscographyViewModel(api, database.albumDao(), database.artistDao(), groupDao = database.artistGroupDao())
         val categoryChecker = CategoryChecker(api, database.albumDao())
+        val appearsOnChecker = AppearsOnChecker(api, database.albumDao())
         val barcodeViewModel = BarcodeViewModel(
             api, database.albumDao(), database.artistDao(), database.artistGroupDao(), discographyViewModel,
             discogs = DiscogsApiFactory.create()
@@ -417,6 +420,7 @@ class MainActivity : ComponentActivity() {
                                 fillGenreDefaults = {
                                     artistGenreViewModel.fillDefaults()
                                     categoryChecker.run()
+                                    appearsOnChecker.run()
                                 },
                                 loadArtistImage = { id -> artistPictures.load(id) },
                                 onArtistSelected = { artist ->

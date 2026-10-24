@@ -305,3 +305,15 @@ val MIGRATION_25_26 = object : Migration(25, 26) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `categoryChecked` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * A Various Artists album the user owns or wants is listed on the page of each artist on its tracklist. The artists are kept
+ * in a table of their own, and every album starts as not read.
+ */
+val MIGRATION_26_27 = object : Migration(26, 27) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `albums` ADD COLUMN `trackArtistsChecked` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `album_track_artists` (`albumId` TEXT NOT NULL, `artistId` TEXT NOT NULL, PRIMARY KEY(`albumId`, `artistId`))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_album_track_artists_artistId` ON `album_track_artists` (`artistId`)")
+    }
+}

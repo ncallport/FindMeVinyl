@@ -65,6 +65,26 @@ interface AlbumDao {
     @Query("DELETE FROM albums WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun deleteCustomAlbum(albumId: String): Int
 
+    /** Owned or wanted albums filed under Various Artists from MusicBrainz whose track artists have not been read yet. */
+    @Query("SELECT id FROM albums WHERE artistId = :various AND trackArtistsChecked = 0 AND (owned = 1 OR wanted = 1) AND id NOT LIKE 'custom/%' ORDER BY id LIMIT :limit")
+    suspend fun getUncheckedTrackArtistAlbumIds(various: String, limit: Int): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrackArtists(rows: List<AlbumTrackArtistEntity>): List<Long>
+
+    @Query("DELETE FROM album_track_artists WHERE albumId = :albumId")
+    suspend fun deleteTrackArtists(albumId: String): Int
+
+    @Query("UPDATE albums SET trackArtistsChecked = 1 WHERE id = :albumId")
+    suspend fun markTrackArtistsChecked(albumId: String): Int
+
+    @Query("SELECT artistId FROM album_track_artists WHERE albumId = :albumId ORDER BY artistId")
+    suspend fun getTrackArtists(albumId: String): List<String>
+
+    /** The owned or wanted albums with any of these artists on their tracklist. */
+    @Query("SELECT DISTINCT albums.* FROM albums INNER JOIN album_track_artists AS t ON t.albumId = albums.id WHERE t.artistId IN (:artistIds) AND (albums.owned = 1 OR albums.wanted = 1)")
+    suspend fun getAppearsOn(artistIds: List<String>): List<AlbumEntity>
+
     /** Every soundtrack album that is owned or wanted, by whoever it is by: the Soundtracks page. */
     @Query("SELECT * FROM albums WHERE category = 'SOUNDTRACK' AND (owned = 1 OR wanted = 1)")
     suspend fun getSoundtrackAlbums(): List<AlbumEntity>

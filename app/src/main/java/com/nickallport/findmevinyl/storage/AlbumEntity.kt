@@ -64,5 +64,10 @@ data class AlbumEntity(
      * Whether `category` has been read from MusicBrainz's types since soundtracks became a category of their own. Albums
      * saved before that are asked about once (see `CategoryChecker`), and every page of a discography saved now says so.
      */
-    @ColumnInfo(defaultValue = "0") val categoryChecked: Boolean = false
+    @ColumnInfo(defaultValue = "0") val categoryChecked: Boolean = false,
+    /**
+     * For an album filed under Various Artists: whether the artists on its tracklist have been read into
+     * `album_track_artists`. Other albums never are.
+     */
+    @ColumnInfo(defaultValue = "0") val trackArtistsChecked: Boolean = false
 )
