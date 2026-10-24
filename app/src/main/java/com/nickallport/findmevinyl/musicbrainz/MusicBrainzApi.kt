@@ -73,6 +73,21 @@ interface MusicBrainzApi {
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseGroupSearchResponse
 
+    /**
+     * One release of a release group with its tracks and who is credited on each, to find the artists on a compilation.
+     * [status] limits it to official releases when given. The `inc` list is sent as it is, because MusicBrainz reads
+     * the plus sign as a space.
+     */
+    @GET("release/")
+    suspend fun getReleaseTrackArtists(
+        @Query("release-group") releaseGroupId: String,
+        @Query("status") status: String? = null,
+        @Query("inc", encoded = true) include: String = "recordings+artist-credits",
+        @Query("limit") limit: Int = 1,
+        @Query("fmt") format: String = "json",
+        @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
+    ): MusicBrainzTrackArtistsResponse
+
     /** One release group, with its type and first release date, which a search result leaves out. */
     @GET("release-group/{id}")
     suspend fun getReleaseGroup(

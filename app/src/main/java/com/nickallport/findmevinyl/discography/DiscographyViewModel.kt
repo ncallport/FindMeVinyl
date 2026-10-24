@@ -256,8 +256,14 @@ class DiscographyViewModel(
         else memberIdsOf(artistId).flatMap { albumDao.getAlbumsForArtist(it) }.distinctBy { it.id }
         // On a page of Various Artists or Soundtracks each row says who its album is by.
         val rowNames = if (SpecialArtists.isSpecial(artistId)) artistNamesOf(albumsOfPage.map { it.artistId }.toSet()) else memberNames
-        val grouped = albumsOfPage
-            .groupBy { categoryFrom(it.category) }
+        // The owned and wanted Various Artists albums an artist (or a member of a group) is on, under the artist's own albums.
+        val appearsOn = if (SpecialArtists.isSpecial(artistId)) emptyList() else {
+            val owners = memberIdsOf(artistId).toSet()
+            albumDao.getAppearsOn(owners.toList()).filter { it.artistId !in owners }
+        }
+        val grouped = (albumsOfPage.map { it to null } + appearsOn.map { it to DiscographyCategory.APPEARS_ON })
+            .groupBy { (album, shownAs) -> shownAs ?: categoryFrom(album.category) }
+            .mapValues { (_, pairs) -> pairs.map { it.first } }
             .mapValues { (category, albums) ->
                 albums
                     // Albums saved before the mapper dropped empty dates still have "", so both mean undated.
@@ -265,7 +271,15 @@ class DiscographyViewModel(
                         compareBy<AlbumEntity, String?>(nullsLast()) { ReleaseDates.sortKey(it.firstReleaseDate) }
                             .thenBy { it.title }
                     )
-                    .map { toUiModel(it, category, now, copies[it.id].orEmpty()).copy(artistName = rowNames[it.artistId]) }
+                    .map {
+                        // An album shown as appearing on the page keeps the formats of its own kind, and says who it is by.
+                        val own = if (category == DiscographyCategory.APPEARS_ON) categoryFrom(it.category) else category
+                        toUiModel(it, own, now, copies[it.id].orEmpty())
+                            .copy(
+                                artistName = rowNames[it.artistId]
+                                    ?: if (category == DiscographyCategory.APPEARS_ON) SpecialArtists.nameOf(it.artistId) else null
+                            )
+                    }
             }
         return DiscographyUiState.Success(grouped)
     }
@@ -461,7 +475,9 @@ class DiscographyViewModel(
             // is nothing new in the pages still to come. That makes reopening an artist one request.
             val nowSaved = loadSaved(artistId)
             // Albums added by hand did not come from MusicBrainz, so they do not count towards its total.
-            val savedCount = nowSaved.groupedAlbums.values.sumOf { albums -> albums.count { !CustomAlbums.isCustom(it.id) } }
+            // Various Artists albums shown on the page are not in the artist's list on MusicBrainz either.
+            val savedCount = nowSaved.groupedAlbums.filterKeys { it != DiscographyCategory.APPEARS_ON }
+                .values.sumOf { albums -> albums.count { !CustomAlbums.isCustom(it.id) } }
 
             val total = response.releaseGroupCount
             val finished = total == null ||

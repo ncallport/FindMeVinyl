@@ -84,7 +84,7 @@ object DiscographyVisibility {
         DiscographyCategory.COMPILATION -> settings.hideCompilations
         DiscographyCategory.SINGLE -> settings.hideSingles
         DiscographyCategory.OTHER -> settings.hideOtherReleases
-        DiscographyCategory.STUDIO_ALBUM, DiscographyCategory.EP, DiscographyCategory.SOUNDTRACK -> false
+        DiscographyCategory.STUDIO_ALBUM, DiscographyCategory.EP, DiscographyCategory.SOUNDTRACK, DiscographyCategory.APPEARS_ON -> false
     }
 
     private fun hiddenFormats(settings: Settings): Set<String> = buildSet {

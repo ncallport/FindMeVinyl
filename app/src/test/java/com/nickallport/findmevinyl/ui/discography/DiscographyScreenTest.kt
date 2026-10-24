@@ -195,6 +195,7 @@ class DiscographyScreenTest {
     @Test
     fun `the categories are in the order studio albums, compilations, soundtracks, live albums, EPs, singles, other`() {
         val grouped = mapOf(
+            DiscographyCategory.APPEARS_ON to listOf(AlbumUiModel("8", "A Various", owned = false, wanted = false)),
             DiscographyCategory.OTHER to listOf(AlbumUiModel("6", "An Other", owned = false, wanted = false)),
             DiscographyCategory.SINGLE to listOf(AlbumUiModel("5", "A Single", owned = false, wanted = false)),
             DiscographyCategory.EP to listOf(AlbumUiModel("4", "An EP", owned = false, wanted = false)),
@@ -206,7 +207,7 @@ class DiscographyScreenTest {
 
         composeTestRule.setContent { DiscographyScreen(groupedAlbums = grouped, onToggleOwned = {}) }
 
-        val headers = listOf("Studio Albums", "Compilations", "Soundtracks", "Live Albums", "EPs", "Singles", "Other Releases")
+        val headers = listOf("Studio Albums", "Compilations", "Soundtracks", "Live Albums", "EPs", "Singles", "Other Releases", "Various Artists Albums")
         headers.zipWithNext().forEach { (before, after) -> assertTrue("$before before $after", top(before) < top(after)) }
     }
 

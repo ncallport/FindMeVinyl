@@ -116,7 +116,8 @@ fun DiscographyRoute(
     val coroutineScope = rememberCoroutineScope()
 
     val loadedSuccess = (loadState as? LoadState.Loaded)?.state as? DiscographyUiState.Success
-    val loadedAlbums = loadedSuccess?.groupedAlbums?.values?.flatten().orEmpty()
+    // Various Artists albums shown under the artist are credited to Various Artists, so the artist's releases say nothing of them.
+    val loadedAlbums = loadedSuccess?.groupedAlbums?.filterKeys { it != DiscographyCategory.APPEARS_ON }?.values?.flatten().orEmpty()
     // Every page has been asked for, or one failed, so the albums are all there is going to be. The
     // albums saved so far are what the screen shows, so they are what gets checked either way.
     val discographySettled = loadedSuccess != null && !loadedSuccess.loadingMore

@@ -43,7 +43,8 @@ private val categoryDisplayOrder = listOf(
     DiscographyCategory.LIVE_ALBUM to "Live Albums",
     DiscographyCategory.EP to "EPs",
     DiscographyCategory.SINGLE to "Singles",
-    DiscographyCategory.OTHER to "Other Releases"
+    DiscographyCategory.OTHER to "Other Releases",
+    DiscographyCategory.APPEARS_ON to "Various Artists Albums"
 )
 
 /**
