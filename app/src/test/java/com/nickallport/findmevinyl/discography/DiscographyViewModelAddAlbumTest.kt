@@ -2,6 +2,7 @@ package com.nickallport.findmevinyl.discography
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.nickallport.findmevinyl.favourites.GroupMember
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
@@ -316,5 +317,90 @@ class DiscographyViewModelAddAlbumTest {
         val id = viewModel.addAlbum("artist-1", "Big Country", live.copy(tracks = listOf("Look Away, Look Away", "\"Quoted\" | pipe")))!!
 
         assertEquals(listOf("Look Away, Look Away", "\"Quoted\" | pipe"), viewModel.loadAlbum(id)!!.tracks)
+    }
+
+    // Choosing which artist of a group an album belongs to.
+
+    private suspend fun cave() {
+        database.artistGroupDao().insertGroup(ArtistGroupEntity("group/1", "Nick Cave, all of it", 0))
+        database.artistGroupDao().insertMembers(
+            listOf(
+                ArtistGroupMemberEntity("cave", "group/1", "Nick Cave", 0),
+                ArtistGroupMemberEntity("seeds", "group/1", "The Bad Seeds", 1),
+                ArtistGroupMemberEntity("party", "group/1", "The Birthday Party", 2)
+            )
+        )
+    }
+
+    @Test
+    fun `the artists of a group are listed in order with their names, and an artist has none`() = runBlocking {
+        cave()
+
+        assertEquals(
+            listOf(GroupMember("cave", "Nick Cave"), GroupMember("seeds", "The Bad Seeds"), GroupMember("party", "The Birthday Party")),
+            viewModel.groupMembers("group/1")
+        )
+        assertEquals(emptyList<GroupMember>(), viewModel.groupMembers("artist-1"))
+    }
+
+    @Test
+    fun `an album added to a group is filed under the member chosen`() = runBlocking {
+        cave()
+
+        val id = viewModel.addAlbum("group/1", "Nick Cave, all of it", live.copy(memberId = "party"))!!
+
+        assertEquals("party", stored(id).artistId)
+        assertEquals(listOf(id), viewModel.loadSaved("group/1").groupedAlbums.values.flatten().map { it.id })
+    }
+
+    @Test
+    fun `a member that is not in the group is not used, and the first member gets the album`() = runBlocking {
+        cave()
+
+        val id = viewModel.addAlbum("group/1", "Nick Cave, all of it", live.copy(memberId = "stranger"))!!
+
+        assertEquals("cave", stored(id).artistId)
+    }
+
+    @Test
+    fun `a member chosen for an artist who is not a group is ignored`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", live.copy(memberId = "party"))!!
+
+        assertEquals("artist-1", stored(id).artistId)
+    }
+
+    @Test
+    fun `the draft of an album in a group says which member it is filed under`() = runBlocking {
+        cave()
+        val id = viewModel.addAlbum("group/1", "Nick Cave, all of it", live.copy(memberId = "seeds"))!!
+
+        assertEquals("seeds", viewModel.loadDraft(id)!!.memberId)
+    }
+
+    @Test
+    fun `changing an album of a group can move it to another member of the group`() = runBlocking {
+        cave()
+        val id = viewModel.addAlbum("group/1", "Nick Cave, all of it", live.copy(memberId = "cave"))!!
+        viewModel.saveCopies(id, listOf(AlbumCopy("LP", null)))
+
+        assertTrue(viewModel.updateAlbum(id, live.copy(title = "Prayers on Fire", memberId = "party"), "group/1"))
+
+        assertEquals("party", stored(id).artistId)
+        assertEquals("Prayers on Fire", stored(id).title)
+        assertTrue(stored(id).owned)
+        assertEquals(listOf(AlbumCopy("LP", null)), viewModel.loadAlbum(id)!!.copies)
+    }
+
+    @Test
+    fun `changing an album never moves it to an artist outside the group`() = runBlocking {
+        cave()
+        val id = viewModel.addAlbum("group/1", "Nick Cave, all of it", live.copy(memberId = "cave"))!!
+
+        assertTrue(viewModel.updateAlbum(id, live.copy(memberId = "stranger"), "group/1"))
+        assertEquals("cave", stored(id).artistId)
+
+        // And with no group to check against, the artist is left as it is.
+        assertTrue(viewModel.updateAlbum(id, live.copy(memberId = "party")))
+        assertEquals("cave", stored(id).artistId)
     }
 }

@@ -38,8 +38,8 @@ private enum class GroupSection(val key: String, val title: String) {
 
 private val categoryDisplayOrder = listOf(
     DiscographyCategory.STUDIO_ALBUM to "Studio Albums",
-    DiscographyCategory.LIVE_ALBUM to "Live Albums",
     DiscographyCategory.COMPILATION to "Compilations",
+    DiscographyCategory.LIVE_ALBUM to "Live Albums",
     DiscographyCategory.EP to "EPs",
     DiscographyCategory.SINGLE to "Singles",
     DiscographyCategory.OTHER to "Other Releases"

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import com.nickallport.findmevinyl.discography.AlbumDraft
 import com.nickallport.findmevinyl.discography.DiscographyCategory
+import com.nickallport.findmevinyl.favourites.GroupMember
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -317,5 +318,64 @@ class AddAlbumScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag("add_album_track_0").performScrollTo().assertTextContains("1. Harvest Home")
+    }
+
+    // Which artist of a group the album belongs to.
+
+    private val members = listOf(GroupMember("cave", "Nick Cave"), GroupMember("seeds", "The Bad Seeds"), GroupMember("party", "The Birthday Party"))
+
+    private fun showGroup(initial: AlbumDraft? = null, editing: Boolean = false, members: List<GroupMember> = this.members) {
+        saved.clear()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AddAlbumScreen(
+                    artistName = "Nick Cave, all of it", editing = editing, initial = initial, showHiddenNote = false,
+                    onSave = { saved.add(it) }, onCancel = {}, members = members
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `a group lists its artists to choose from, the first chosen to begin with`() {
+        showGroup()
+
+        composeTestRule.onNodeWithTag("add_album_member_cave").performScrollTo().assertIsSelected()
+        composeTestRule.onNodeWithTag("add_album_member_seeds").performScrollTo().assertExists()
+        composeTestRule.onNodeWithTag("add_album_member_party").performScrollTo().assertExists()
+    }
+
+    @Test
+    fun `the artist chosen goes with the draft`() {
+        showGroup()
+
+        type("add_album_title", "Prayers on Fire")
+        tap("add_album_member_party")
+        composeTestRule.onNodeWithTag("add_album_member_party").assertIsSelected()
+        tap("add_album_save")
+
+        assertEquals("party", saved.single().memberId)
+    }
+
+    @Test
+    fun `changing an album starts on the artist it is filed under`() {
+        showGroup(initial = AlbumDraft("Henry's Dream", "1992", DiscographyCategory.STUDIO_ALBUM, false, memberId = "seeds"), editing = true)
+
+        composeTestRule.onNodeWithTag("add_album_member_seeds").performScrollTo().assertIsSelected()
+        tap("add_album_save")
+
+        assertEquals("seeds", saved.single().memberId)
+    }
+
+    @Test
+    fun `an artist who is not a group has no choice and no member in the draft`() {
+        show()
+
+        composeTestRule.onNodeWithTag("add_album_member_cave").assertDoesNotExist()
+        type("add_album_title", "Live in a Pub")
+        tap("add_album_save")
+
+        assertEquals(null, saved.single().memberId)
     }
 }

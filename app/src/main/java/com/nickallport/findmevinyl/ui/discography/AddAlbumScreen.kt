@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.discography.AlbumDraft
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.discography.cleaned
+import com.nickallport.findmevinyl.favourites.GroupMember
 
 private val kinds = listOf(
     DiscographyCategory.STUDIO_ALBUM to "Studio album",
@@ -76,12 +77,18 @@ fun AddAlbumScreen(
     onDelete: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     /** Something that went wrong with the last save, shown under the buttons. */
-    error: String? = null
+    error: String? = null,
+    /** For the page of a group of artists, the artists of the group: the album is filed under the one chosen. */
+    members: List<GroupMember> = emptyList()
 ) {
     var title by rememberSaveable { mutableStateOf(initial?.title.orEmpty()) }
     var year by rememberSaveable { mutableStateOf(initial?.year.orEmpty()) }
     var kind by rememberSaveable { mutableStateOf((initial?.category ?: DiscographyCategory.LIVE_ALBUM).name) }
     var bootleg by rememberSaveable { mutableStateOf(initial?.bootleg ?: false) }
+    // The artist of the group the album belongs to: the one it is filed under, or the first to begin with.
+    var memberId by rememberSaveable {
+        mutableStateOf(initial?.memberId?.takeIf { id -> members.any { it.artistId == id } } ?: members.firstOrNull()?.artistId)
+    }
     var description by rememberSaveable { mutableStateOf(initial?.description.orEmpty()) }
     // The tracks, one to a line (a title never has a line break in it), and the title being typed for the next.
     var tracksText by rememberSaveable { mutableStateOf(initial?.tracks.orEmpty().joinToString("\n")) }
@@ -89,7 +96,7 @@ fun AddAlbumScreen(
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
 
     val tracks = if (tracksText.isEmpty()) emptyList() else tracksText.split("\n")
-    val draft = AlbumDraft(title, year, DiscographyCategory.valueOf(kind), bootleg, description, tracks)
+    val draft = AlbumDraft(title, year, DiscographyCategory.valueOf(kind), bootleg, description, tracks, memberId)
     fun setTracks(list: List<String>) {
         tracksText = list.joinToString("\n")
     }
@@ -111,6 +118,23 @@ fun AddAlbumScreen(
             color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.testTag("add_album_artist")
         )
+        if (members.isNotEmpty()) {
+            Text(
+                text = "Which artist is it by?",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                members.forEach { member ->
+                    FilterChip(
+                        selected = memberId == member.artistId,
+                        onClick = { memberId = member.artistId },
+                        label = { Text(member.name) },
+                        modifier = Modifier.testTag("add_album_member_${member.artistId}")
+                    )
+                }
+            }
+        }
         if (!editing) {
             Text(
                 text = "For an album you have that MusicBrainz does not list. It starts as owned, and its page lets you add a cover image and its copies.",

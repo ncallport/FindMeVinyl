@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.discography
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.nickallport.findmevinyl.favourites.GroupMember
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -29,7 +30,8 @@ class AddAlbumRouteTest {
     private fun show(
         editingAlbumId: String? = null,
         loadDraft: suspend (String) -> AlbumDraft? = { earlier },
-        save: suspend (AlbumDraft) -> String? = { saves.add(it); "custom/new" }
+        save: suspend (AlbumDraft) -> String? = { saves.add(it); "custom/new" },
+        loadMembers: suspend () -> List<GroupMember> = { emptyList() }
     ) {
         saves.clear(); done.clear(); deletes = 0; deletedDone = 0
         composeTestRule.setContent {
@@ -37,7 +39,8 @@ class AddAlbumRouteTest {
                 AddAlbumRoute(
                     artistName = "Big Country", editingAlbumId = editingAlbumId, loadDraft = loadDraft, save = save,
                     delete = { deletes++ }, showHiddenNote = false, onOpenSettings = {},
-                    onSaved = { draft, id -> done.add(draft to id) }, onDeleted = { deletedDone++ }, onCancel = {}
+                    onSaved = { draft, id -> done.add(draft to id) }, onDeleted = { deletedDone++ }, onCancel = {},
+                    loadMembers = loadMembers
                 )
             }
         }
@@ -101,5 +104,18 @@ class AddAlbumRouteTest {
 
         assertEquals(1, deletes)
         assertEquals(1, deletedDone)
+    }
+
+    @Test
+    fun `on a group's page the artists are loaded and the one chosen is saved with the album`() {
+        show(loadMembers = { listOf(GroupMember("cave", "Nick Cave"), GroupMember("party", "The Birthday Party")) })
+
+        composeTestRule.onNodeWithTag("add_album_member_cave").performScrollTo().assertExists()
+        composeTestRule.onNodeWithTag("add_album_title").performScrollTo().performTextInput("Prayers on Fire")
+        composeTestRule.onNodeWithTag("add_album_member_party").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("add_album_save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals("party", saves.single().memberId)
     }
 }

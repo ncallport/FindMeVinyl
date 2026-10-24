@@ -38,6 +38,10 @@ interface AlbumDao {
         description: String?, tracks: String?
     ): Int
 
+    /** Files an album added by hand under another artist, which the caller has checked belongs to the same group. */
+    @Query("UPDATE albums SET artistId = :artistId WHERE id = :albumId AND id LIKE 'custom/%'")
+    suspend fun setCustomAlbumArtist(albumId: String, artistId: String): Int
+
     /** Records the cover image file of an album added by hand, or none with null. An album from MusicBrainz takes none. */
     @Query("UPDATE albums SET userCover = :fileName WHERE id = :albumId AND id LIKE 'custom/%'")
     suspend fun setUserCover(albumId: String, fileName: String?): Int
