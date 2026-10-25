@@ -68,7 +68,18 @@ data class BackupAlbum(
     val description: String? = null,
     val tracks: List<String>? = null,
     /** Only for an album added by hand: the name of its cover image, which is in the zip as `covers/<name>`. */
-    val cover: String? = null
+    val cover: String? = null,
+    /** The artists the user chose for tracks, over MusicBrainz's credits. */
+    val trackCredits: List<BackupTrackCredit>? = null
+)
+
+/** The artist chosen for one track: its disc and place on the disc, its title, and the artist (no id for a typed name). */
+data class BackupTrackCredit(
+    val discIndex: Int? = null,
+    val trackIndex: Int? = null,
+    val title: String? = null,
+    val artistId: String? = null,
+    val artistName: String? = null
 )
 
 /** One copy of an album: a format label such as LP, and a note. */

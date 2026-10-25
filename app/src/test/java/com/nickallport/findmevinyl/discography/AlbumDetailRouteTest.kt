@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import com.nickallport.findmevinyl.ui.theme.FindMeVinylTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -65,6 +66,36 @@ class AlbumDetailRouteTest {
 
         composeTestRule.onNodeWithTag("detail_loading").assertDoesNotExist()
         composeTestRule.onNodeWithText("Looking for Someone").assertExists()
+    }
+
+    @Test
+    fun `an artist chosen for a track shows over MusicBrainz's, and is read again after a choice`() {
+        var credits = emptyList<TrackCredit>()
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailRoute(
+                    albumId = "1", title = "Trespass", artistName = "Genesis",
+                    loadDetails = { details }, loadAlbum = { album },
+                    onToggleOwned = { _, _ -> }, onToggleWanted = { _, _ -> },
+                    loadTrackCredits = { credits },
+                    suggestTrackArtists = { emptyList() },
+                    setTrackArtist = { _, d, t, title, artist ->
+                        credits = listOf(TrackCredit(d, t, title, artist?.id, artist!!.name))
+                    }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("track_artists_edit").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("track_row").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("track_artist_search").performTextInput("A friend")
+        composeTestRule.mainClock.advanceTimeBy(1_000)
+        composeTestRule.onNodeWithTag("track_artist_typed").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("track_artist", useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithText("A friend", useUnmergedTree = true).assertExists()
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.backup
 
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
+import com.nickallport.findmevinyl.storage.AlbumTrackCreditEntity
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.room.Room
@@ -610,6 +611,28 @@ class BackupViewModelTest {
     }
 
     private suspend fun copiesOf(id: String = "1", db: AppDatabase = database) = db.albumDao().getCopies(id).map { it.format to it.note }
+
+    private suspend fun credit(artistId: String?, name: String, disc: Int = 0, track: Int = 1, db: AppDatabase = database) =
+        db.albumDao().insertTrackCredits(listOf(AlbumTrackCreditEntity("1", disc, track, "Two", artistId, name)))
+
+    @Test
+    fun `the artists chosen for tracks come back after a restore, and are not replaced`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true))
+        credit("ub40", "UB40")
+        credit(null, "A friend", track = 2)
+        val saved = backup()
+        val fresh = emptyDatabase()
+
+        restore(saved, viewModel(fresh))
+
+        assertEquals(listOf("UB40" to "ub40", "A friend" to null), fresh.albumDao().getTrackCredits("1").map { it.artistName to it.artistId })
+
+        database.albumDao().deleteTrackCredit("1", 0, 1)
+        credit("duran", "Duran Duran", track = 1)
+        restore(saved)
+        assertEquals("Duran Duran", database.albumDao().getTrackCredits("1").first { it.trackIndex == 1 }.artistName)
+        fresh.close()
+    }
 
     @Test
     fun `the backup carries the copies`() = runBlocking {

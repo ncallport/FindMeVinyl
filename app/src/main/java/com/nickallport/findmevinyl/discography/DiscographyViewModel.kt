@@ -5,6 +5,7 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistReleasesResponse
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toDomain
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
+import com.nickallport.findmevinyl.storage.AlbumTrackCreditEntity
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
@@ -351,6 +352,24 @@ class DiscographyViewModel(
         if (album.wanted && wantedOn != null && kept.any { it.format == wantedOn }) {
             albumDao.setWanted(albumId, false)
         }
+    }
+
+    /** The artists the user chose for tracks of the album, over MusicBrainz's credits. */
+    suspend fun trackCredits(albumId: String): List<TrackCredit> =
+        albumDao.getTrackCredits(albumId).map { TrackCredit(it.discIndex, it.trackIndex, it.title, it.artistId, it.artistName) }
+
+    /** Keeps the artist chosen for a track, replacing any chosen before. A blank name keeps nothing. Never touched by a lookup. */
+    suspend fun saveTrackCredit(albumId: String, credit: TrackCredit) {
+        val name = credit.artistName.trim().take(MAX_TRACK_TITLE_LENGTH).trim()
+        if (name.isEmpty()) return
+        albumDao.insertTrackCredits(
+            listOf(AlbumTrackCreditEntity(albumId, credit.discIndex, credit.trackIndex, credit.title, credit.artistId, name))
+        )
+    }
+
+    /** Takes the chosen artist off a track, so MusicBrainz's credit shows again. */
+    suspend fun clearTrackCredit(albumId: String, discIndex: Int, trackIndex: Int) {
+        albumDao.deleteTrackCredit(albumId, discIndex, trackIndex)
     }
 
     /**

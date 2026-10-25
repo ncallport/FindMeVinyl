@@ -317,3 +317,11 @@ val MIGRATION_26_27 = object : Migration(26, 27) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_album_track_artists_artistId` ON `album_track_artists` (`artistId`)")
     }
 }
+
+/** The artist the user chose for a track of an album, kept apart from what MusicBrainz credits. */
+val MIGRATION_27_28 = object : Migration(27, 28) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `album_track_credits` (`albumId` TEXT NOT NULL, `discIndex` INTEGER NOT NULL, `trackIndex` INTEGER NOT NULL, `title` TEXT NOT NULL, `artistId` TEXT, `artistName` TEXT NOT NULL, PRIMARY KEY(`albumId`, `discIndex`, `trackIndex`))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_album_track_credits_artistId` ON `album_track_credits` (`artistId`)")
+    }
+}

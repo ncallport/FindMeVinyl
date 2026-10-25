@@ -69,6 +69,8 @@ import com.nickallport.findmevinyl.discography.DiscographyRoute
 import com.nickallport.findmevinyl.discography.DiscographyViewModel
 import com.nickallport.findmevinyl.favourites.FavouritesViewModel
 import com.nickallport.findmevinyl.artist.ArtistSuggester
+import com.nickallport.findmevinyl.artist.ArtistSuggestions
+import com.nickallport.findmevinyl.discography.TrackCredit
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApiFactory
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.MIGRATION_1_2
@@ -96,6 +98,7 @@ import com.nickallport.findmevinyl.storage.MIGRATION_23_24
 import com.nickallport.findmevinyl.storage.MIGRATION_24_25
 import com.nickallport.findmevinyl.storage.MIGRATION_25_26
 import com.nickallport.findmevinyl.storage.MIGRATION_26_27
+import com.nickallport.findmevinyl.storage.MIGRATION_27_28
 import com.nickallport.findmevinyl.storage.MIGRATION_9_10
 import com.nickallport.findmevinyl.ui.artist.ArtistResultsRoute
 import com.nickallport.findmevinyl.ui.artist.ArtistsScreen
@@ -292,7 +295,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             AppDatabase::class.java,
             "find-me-vinyl-db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28).build()
 
         val favouritesLayoutStore = FavouritesLayoutStore(getSharedPreferences("favourites_layout", MODE_PRIVATE))
         val favouriteShopsViewModel = FavouriteShopsViewModel(database.favouriteShopDao())
@@ -630,6 +633,24 @@ class MainActivity : ComponentActivity() {
                                 },
                                 loadPressing = { albumId, releaseId ->
                                     albumDetailsViewModel.selectPressing(albumId, releaseId)
+                                },
+                                loadTrackCredits = { id -> discographyViewModel.trackCredits(id) },
+                                suggestTrackArtists = if (CustomAlbums.isCustom(screen.albumId)) {
+                                    null
+                                } else {
+                                    { text ->
+                                        ArtistSuggestions.merge(
+                                            ArtistSuggestions.favouritesMatching(text, favouritesViewModel.loadFavourites().filter { !it.isGroup }),
+                                            artistSuggester.suggest(text)
+                                        )
+                                    }
+                                },
+                                setTrackArtist = { albumId, discIndex, trackIndex, trackTitle, artist ->
+                                    if (artist == null) {
+                                        discographyViewModel.clearTrackCredit(albumId, discIndex, trackIndex)
+                                    } else {
+                                        discographyViewModel.saveTrackCredit(albumId, TrackCredit(discIndex, trackIndex, trackTitle, artist.id, artist.name))
+                                    }
                                 },
                                 saveCopies = { albumId, copies -> discographyViewModel.saveCopies(albumId, copies) },
                                 saveWantFormat = { albumId, format -> discographyViewModel.saveWantFormat(albumId, format) },
