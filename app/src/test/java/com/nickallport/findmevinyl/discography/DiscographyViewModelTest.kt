@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.storage.AlbumEntity
+import com.nickallport.findmevinyl.ui.discography.AlbumCopy
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import kotlinx.coroutines.async
@@ -674,6 +675,17 @@ class DiscographyViewModelTest {
         viewModel.toggleOwned("1", currentlyOwned = true, artistId = "some-id", artistName = "Genesis")
 
         assertEquals(false, viewModel.isFavourite("some-id"))
+    }
+
+    @Test
+    fun `taking an album off owned drops its copies, and a want stays`() = runBlocking {
+        database.albumDao().insert(album("1", owned = true, wanted = true))
+        viewModel.saveCopies("1", listOf(AlbumCopy("LP", "green"), AlbumCopy("CD", null)))
+
+        viewModel.toggleOwned("1", currentlyOwned = true, artistId = "some-id", artistName = "Genesis")
+
+        assertEquals(emptyList<Any>(), database.albumDao().getCopies("1"))
+        assertTrue(database.albumDao().getById("1")!!.wanted)
     }
 
     @Test

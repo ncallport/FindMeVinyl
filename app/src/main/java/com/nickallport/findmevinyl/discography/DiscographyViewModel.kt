@@ -586,6 +586,9 @@ class DiscographyViewModel(
         albumDao.setOwned(albumId, !currentlyOwned)
         if (!currentlyOwned) {
             saveFavourite(artistId, artistName)
+        } else {
+            // Copies are what the user owns, so an album no longer owned has none ("Owned on LP" would still show).
+            albumDao.deleteCopiesExcept(albumId, emptyList())
         }
     }
 
