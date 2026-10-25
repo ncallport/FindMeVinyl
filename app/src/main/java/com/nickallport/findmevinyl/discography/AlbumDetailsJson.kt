@@ -6,16 +6,17 @@ import com.google.gson.Gson
  * The stored form of [AlbumDetails]. Reading is forgiving about fields (missing ones are empty, unknown
  * ones are ignored), but a row carries the version of its layout. A row with no version (written before
  * pressings and ratings were kept) or an older one (2: pressings sorted with a bare year before a month
- * of the same year) is out of date, and a row from a newer version of the app is not understood, so all
+ * of the same year; 3: no track artists) is out of date, and a row from a newer version of the app is not understood, so all
  * of them read as missing and the page fetches the details again. Raise the version when what is stored
  * changes in a way old rows cannot be read as. Text that is not details at all gives null too.
  */
 object AlbumDetailsJson {
-    private const val VERSION = 3
+    private const val VERSION = 4
     private val gson = Gson()
 
     // Everything nullable, because Gson puts null in a field the JSON does not have, whatever its Kotlin type.
-    private data class StoredTrack(val number: String? = null, val title: String? = null, val lengthMillis: Long? = null)
+    private data class StoredTrack(val number: String? = null, val title: String? = null, val lengthMillis: Long? = null,
+        val artistName: String? = null, val artistIds: List<String?>? = null)
     private data class StoredDisc(val title: String? = null, val format: String? = null, val tracks: List<StoredTrack?>? = null)
     private data class StoredPressing(
         val releaseId: String? = null,
@@ -69,7 +70,8 @@ object AlbumDetailsJson {
                     title = disc.title,
                     format = disc.format,
                     tracks = disc.tracks.orEmpty().filterNotNull().map {
-                        Track(it.number, it.title?.takeIf { title -> title.isNotBlank() } ?: "Untitled", it.lengthMillis)
+                        Track(it.number, it.title?.takeIf { title -> title.isNotBlank() } ?: "Untitled", it.lengthMillis,
+                            it.artistName?.takeIf { n -> n.isNotBlank() }, it.artistIds.orEmpty().filterNotNull())
                     }
                 )
             },

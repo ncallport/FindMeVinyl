@@ -67,7 +67,7 @@ class MusicBrainzApiReleaseDetailTest {
         api.getReleaseDetail(releaseId = "f0e2a5a8")
 
         assertEquals(
-            "/release/f0e2a5a8?inc=recordings+labels+release-groups+genres&fmt=json",
+            "/release/f0e2a5a8?inc=recordings+artist-credits+labels+release-groups+genres&fmt=json",
             server.takeRequest(2, TimeUnit.SECONDS)?.path
         )
     }

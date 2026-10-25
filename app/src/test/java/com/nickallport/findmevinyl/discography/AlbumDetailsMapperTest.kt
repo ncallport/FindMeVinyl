@@ -1,5 +1,7 @@
 package com.nickallport.findmevinyl.discography
 
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzArtistCreditDto
+import com.nickallport.findmevinyl.musicbrainz.MusicBrainzCreditedArtistDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzGenreDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzLabelDto
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzLabelInfoDto
@@ -43,6 +45,31 @@ class AlbumDetailsMapperTest {
         assertEquals("CAS 1020", details.catalogNumber)
         assertEquals("1970-10-23", details.firstReleaseDate)
         assertEquals("12\" Vinyl", details.format)
+    }
+
+    @Test
+    fun `a track keeps who is credited on it, with the words joining the names`() {
+        val credited = MusicBrainzTrackDto(
+            number = "1", title = "Easy Lover",
+            artistCredit = listOf(
+                MusicBrainzArtistCreditDto("Philip Bailey", MusicBrainzCreditedArtistDto("pb", "Philip Bailey"), " & "),
+                MusicBrainzArtistCreditDto("Phil Collins", MusicBrainzCreditedArtistDto("pc", "Phil Collins"), "")
+            )
+        )
+        val release = full.copy(media = listOf(MusicBrainzMediumDetailDto(position = 1, tracks = listOf(credited))))
+
+        val track = AlbumDetails.from(release).discs.single().tracks.single()
+
+        assertEquals("Philip Bailey & Phil Collins", track.artistName)
+        assertEquals(listOf("pb", "pc"), track.artistIds)
+    }
+
+    @Test
+    fun `a track with no credit has no artist`() {
+        val track = AlbumDetails.from(full).discs.single().tracks.first()
+
+        assertNull(track.artistName)
+        assertEquals(emptyList<String>(), track.artistIds)
     }
 
     @Test

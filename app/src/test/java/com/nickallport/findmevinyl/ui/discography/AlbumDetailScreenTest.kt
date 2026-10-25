@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -156,6 +157,23 @@ class AlbumDetailScreenTest {
         composeTestRule.onNodeWithText("7:04").assertExists()
         composeTestRule.onNodeWithText("A1").assertExists()
         composeTestRule.onAllNodesWithTag("track_row").assertCountEquals(3)
+    }
+
+    @Test
+    fun `a compilation shows who is on each track`() {
+        val tracks = listOf(Track("1", "Easy Lover", null, "Philip Bailey"), Track("2", "Rebel Yell", null, "Billy Idol"))
+        show(state = AlbumDetailState.Loaded(details.copy(discs = listOf(Disc(null, "CD", tracks)))))
+
+        composeTestRule.onAllNodesWithTag("track_artist").assertCountEquals(2)
+        composeTestRule.onNodeWithText("Philip Bailey").assertExists()
+    }
+
+    @Test
+    fun `an album by one artist does not repeat the name on every track`() {
+        val tracks = listOf(Track("1", "One", null, "Genesis"), Track("2", "Two", null, "Genesis"))
+        show(state = AlbumDetailState.Loaded(details.copy(discs = listOf(Disc(null, "CD", tracks)))))
+
+        composeTestRule.onAllNodesWithTag("track_artist").assertCountEquals(0)
     }
 
     @Test

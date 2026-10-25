@@ -2,7 +2,14 @@ package com.nickallport.findmevinyl.discography
 
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseDetailResponse
 
-data class Track(val number: String?, val title: String, val lengthMillis: Long?) {
+/** [artistName] is who is credited on the track as MusicBrainz writes it ("A & B"), null when it does not say; [artistIds] are their MusicBrainz ids. */
+data class Track(
+    val number: String?,
+    val title: String,
+    val lengthMillis: Long?,
+    val artistName: String? = null,
+    val artistIds: List<String> = emptyList()
+) {
     /** "7:04", or "1:01:05" for an hour or more. Null when MusicBrainz does not know the length. */
     fun lengthText(): String? {
         val millis = lengthMillis?.takeIf { it > 0 } ?: return null
@@ -75,7 +82,15 @@ data class AlbumDetails(
                         title = medium.title.clean(),
                         format = medium.format.clean(),
                         tracks = medium.tracks.orEmpty().map {
-                            Track(it.number.clean(), it.title.clean() ?: "Untitled", it.length)
+                            val credit = it.artistCredit.orEmpty().filter { c -> !c.name.isNullOrBlank() || !c.artist?.name.isNullOrBlank() }
+                            Track(
+                                it.number.clean(), it.title.clean() ?: "Untitled", it.length,
+                                artistName = credit.mapIndexed { i, c ->
+                                    (c.name?.takeIf { n -> n.isNotBlank() } ?: c.artist?.name.orEmpty()) +
+                                        if (i < credit.lastIndex) c.joinPhrase.orEmpty() else ""
+                                }.joinToString("").clean(),
+                                artistIds = credit.mapNotNull { c -> c.artist?.id }
+                            )
                         }
                     )
                 }
