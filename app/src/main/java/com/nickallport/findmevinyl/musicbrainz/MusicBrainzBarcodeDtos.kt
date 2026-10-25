@@ -20,7 +20,9 @@ data class MusicBrainzBarcodeReleaseDto(
 
 data class MusicBrainzArtistCreditDto(
     val name: String? = null,
-    val artist: MusicBrainzCreditedArtistDto? = null
+    val artist: MusicBrainzCreditedArtistDto? = null,
+    /** The words between this name and the next, such as " & " or " feat. ". */
+    @SerializedName("joinphrase") val joinPhrase: String? = null
 )
 
 data class MusicBrainzCreditedArtistDto(

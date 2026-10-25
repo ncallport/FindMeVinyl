@@ -32,7 +32,7 @@ interface MusicBrainzApi {
     @GET("release/{id}")
     suspend fun getReleaseDetail(
         @Path("id") releaseId: String,
-        @Query("inc", encoded = true) include: String = "recordings+labels+release-groups+genres",
+        @Query("inc", encoded = true) include: String = "recordings+artist-credits+labels+release-groups+genres",
         @Query("fmt") format: String = "json",
         @Header("User-Agent") userAgent: String = AppUserAgent.VALUE
     ): MusicBrainzReleaseDetailResponse

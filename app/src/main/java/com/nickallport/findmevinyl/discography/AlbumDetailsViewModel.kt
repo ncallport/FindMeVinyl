@@ -54,7 +54,7 @@ class AlbumDetailsViewModel(
             if (album.pressingId == releaseId) return album
             val key = "$albumId/$releaseId"
             val release = pressingsSeen[key] ?: throttle.run {
-                AlbumDetails.from(api.getReleaseDetail(releaseId = releaseId, include = "recordings+labels"))
+                AlbumDetails.from(api.getReleaseDetail(releaseId = releaseId, include = "recordings+artist-credits+labels"))
                     .copy(pressingId = releaseId)
             }.also { pressingsSeen[key] = it }
             album.withPressing(release)

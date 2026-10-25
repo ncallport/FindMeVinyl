@@ -2,7 +2,7 @@ package com.nickallport.findmevinyl.musicbrainz
 
 import com.google.gson.annotations.SerializedName
 
-/** One release with its tracks (`inc=recordings+labels+release-groups+genres`). Everything can be missing. */
+/** One release with its tracks (`inc=recordings+artist-credits+labels+release-groups+genres`). Everything can be missing. */
 data class MusicBrainzReleaseDetailResponse(
     val title: String? = null,
     val date: String? = null,
@@ -44,5 +44,7 @@ data class MusicBrainzTrackDto(
     val number: String? = null,
     val title: String? = null,
     /** The length in milliseconds. MusicBrainz does not always know it. */
-    val length: Long? = null
+    val length: Long? = null,
+    /** Who is credited on the track (`inc=artist-credits`). */
+    @SerializedName("artist-credit") val artistCredit: List<MusicBrainzArtistCreditDto>? = null
 )

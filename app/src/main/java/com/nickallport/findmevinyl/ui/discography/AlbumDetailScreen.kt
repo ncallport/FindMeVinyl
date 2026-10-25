@@ -288,6 +288,8 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
         }
 
         val multipleDiscs = details.discs.size > 1
+        // A name under every track of an album by one artist would only be noise, so names show when the tracks differ.
+        val showTrackArtists = details.discs.flatMap { it.tracks }.mapNotNull { it.artistName }.distinct().size > 1
         details.discs.forEachIndexed { index, disc ->
             TrackSections.of(disc, multipleDiscs, index + 1).forEach { section ->
                 SectionHeader(section)
@@ -305,11 +307,17 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.width(36.dp)
                         )
-                        Text(
-                            text = track.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = track.title, style = MaterialTheme.typography.bodyLarge)
+                            if (showTrackArtists && track.artistName != null) {
+                                Text(
+                                    text = track.artistName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.testTag("track_artist")
+                                )
+                            }
+                        }
                         track.lengthText()?.let {
                             Text(
                                 text = it,

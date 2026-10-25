@@ -13,7 +13,7 @@ class AlbumDetailsJsonTest {
         discs = listOf(
             Disc(
                 title = null, format = "12\" Vinyl",
-                tracks = listOf(Track("A1", "Looking for Someone", 424000), Track("B1", "Stagnation, \"live\" ä", null))
+                tracks = listOf(Track("A1", "Looking for Someone", 424000), Track("B1", "Stagnation, \"live\" ä", null, "Genesis", listOf("g1")))
             )
         ),
         pressings = listOf(
@@ -38,7 +38,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `reads a stored row that has no genres or discs as empty lists`() {
-        val old = """{ "version": 3, "releaseDate": "1970", "label": "Charisma" }"""
+        val old = """{ "version": 4, "releaseDate": "1970", "label": "Charisma" }"""
 
         val read = AlbumDetailsJson.decode(old)!!
 
@@ -64,12 +64,12 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `a row from a newer version of the app also reads as missing`() {
-        assertNull(AlbumDetailsJson.decode("""{ "version": 4, "label": "Charisma" }"""))
+        assertNull(AlbumDetailsJson.decode("""{ "version": 5, "label": "Charisma" }"""))
     }
 
     @Test
     fun `leaves out a stored pressing that has no release id and a rating that makes no sense`() {
-        val odd = """{ "version": 3, "pressings": [ { "country": "GB" }, null, { "releaseId": "r1" } ],
+        val odd = """{ "version": 4, "pressings": [ { "country": "GB" }, null, { "releaseId": "r1" } ],
                        "rating": { "value": 0, "votes": 0 } }"""
 
         val read = AlbumDetailsJson.decode(odd)!!
@@ -80,7 +80,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `reads a disc that has no tracks and a track that has no title`() {
-        val odd = """{ "version": 3, "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
+        val odd = """{ "version": 4, "discs": [ { "format": "CD" }, { "tracks": [ { "number": "1" } ] } ] }"""
 
         val read = AlbumDetailsJson.decode(odd)!!
 
@@ -90,7 +90,7 @@ class AlbumDetailsJsonTest {
 
     @Test
     fun `ignores fields it does not know about`() {
-        val newer = """{ "version": 3, "label": "Charisma", "somethingNew": [1, 2, 3] }"""
+        val newer = """{ "version": 4, "label": "Charisma", "somethingNew": [1, 2, 3] }"""
 
         assertEquals("Charisma", AlbumDetailsJson.decode(newer)?.label)
     }

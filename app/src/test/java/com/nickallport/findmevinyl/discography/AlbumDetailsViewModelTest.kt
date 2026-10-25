@@ -122,7 +122,7 @@ class AlbumDetailsViewModelTest {
             server.takeRequest(2, TimeUnit.SECONDS)?.path
         )
         assertEquals(
-            "/release/vinyl-1971?inc=recordings+labels+release-groups+genres&fmt=json",
+            "/release/vinyl-1971?inc=recordings+artist-credits+labels+release-groups+genres&fmt=json",
             server.takeRequest(2, TimeUnit.SECONDS)?.path
         )
         assertEquals("/release-group/album?inc=ratings&fmt=json", server.takeRequest(2, TimeUnit.SECONDS)?.path)
@@ -324,7 +324,7 @@ class AlbumDetailsViewModelTest {
 
         val details = viewModel.selectPressing("album", "vinyl-1972")!!
 
-        assertEquals("/release/vinyl-1972?inc=recordings+labels&fmt=json", server.takeRequest(2, TimeUnit.SECONDS)?.path)
+        assertEquals("/release/vinyl-1972?inc=recordings+artist-credits+labels&fmt=json", server.takeRequest(2, TimeUnit.SECONDS)?.path)
         assertEquals("vinyl-1972", details.pressingId)
         assertEquals("US", details.country)
         assertEquals("Buddah", details.label)
