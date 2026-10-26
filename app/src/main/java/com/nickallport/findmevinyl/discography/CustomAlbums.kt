@@ -1,5 +1,6 @@
 package com.nickallport.findmevinyl.discography
 
+import com.nickallport.findmevinyl.ui.discography.PickedArtist
 import java.util.UUID
 
 /**
@@ -25,6 +26,8 @@ data class AlbumDraft(
     val description: String = "",
     /** The tracklist the user typed, in order. Optional. */
     val tracks: List<String> = emptyList(),
+    /** The artist of each track, by place in [tracks], null for none. Empty when no track has one. */
+    val trackArtists: List<PickedArtist?> = emptyList(),
     /** For an album of a group of artists, the artist of the group it belongs to. Null for an artist who is not a group. */
     val memberId: String? = null
 )
@@ -74,6 +77,19 @@ object UserTracks {
         }
         return clean(read.filterNotNull())
     }
+
+    /**
+     * The tracks cleaned as [clean] does, each with its artist ([artists] is by place in [titles]), so a track dropped
+     * for being blank takes its artist with it and the others keep theirs. A blank artist name is no artist.
+     */
+    fun cleanWithArtists(titles: List<String>, artists: List<PickedArtist?>): List<Pair<String, PickedArtist?>> =
+        titles.mapIndexed { i, title ->
+            val artist = artists.getOrNull(i)?.let { a ->
+                a.name.trim().take(MAX_TRACK_TITLE_LENGTH).trim().takeIf { it.isNotEmpty() }
+                    ?.let { name -> PickedArtist(a.id?.trim()?.takeIf { it.isNotEmpty() }, name) }
+            }
+            title.trim().take(MAX_TRACK_TITLE_LENGTH).trim() to artist
+        }.filter { it.first.isNotEmpty() }.take(MAX_USER_TRACKS)
 
     fun clean(titles: List<String>): List<String> =
         titles.map { it.trim().take(MAX_TRACK_TITLE_LENGTH).trim() }.filter { it.isNotEmpty() }.take(MAX_USER_TRACKS)

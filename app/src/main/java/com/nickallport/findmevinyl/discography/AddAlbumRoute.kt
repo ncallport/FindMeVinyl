@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.nickallport.findmevinyl.artist.ArtistSuggestion
 import com.nickallport.findmevinyl.favourites.GroupMember
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import com.nickallport.findmevinyl.ui.discography.AddAlbumScreen
@@ -40,7 +41,9 @@ fun AddAlbumRoute(
     /** The artists of the group whose page this is, to choose which one the album is by. Empty for an artist. */
     loadMembers: suspend () -> List<GroupMember> = { emptyList() },
     /** The kind the form starts on for a new album: live, or soundtrack on the Soundtracks page. */
-    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM
+    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM,
+    /** Finds artists for the tracks. Without it the tracks cannot be given an artist. */
+    suggestTrackArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
 ) {
     // Null while an album being changed, or the artists of a group, are loaded.
     var loaded by remember(editingAlbumId) { mutableStateOf(false) }
@@ -70,6 +73,7 @@ fun AddAlbumRoute(
             error = error,
             members = members,
             defaultCategory = defaultCategory,
+            suggestTrackArtists = suggestTrackArtists,
             onSave = { new ->
                 scope.launch {
                     val id = save(new)

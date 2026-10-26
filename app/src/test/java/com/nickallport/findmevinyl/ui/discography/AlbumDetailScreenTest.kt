@@ -491,6 +491,23 @@ class AlbumDetailScreenTest {
     }
 
     @Test
+    fun `an album added by hand shows the artist of the tracks that have one`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme {
+                AlbumDetailScreen(
+                    albumId = "custom/1", title = "Now 4", artistName = "Various Artists",
+                    album = notOwned.copy(owned = true, tracks = listOf("Red Red Wine", "Hand Me Down"), trackArtists = listOf("UB40", null)),
+                    state = AlbumDetailState.AddedByHand, onRetry = {}, onToggleOwned = {}, onToggleWanted = {}, loadCover = { null }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("detail_user_track_artist_0").performScrollTo().assertTextEquals("UB40")
+        composeTestRule.onNodeWithTag("detail_user_track_artist_1").assertDoesNotExist()
+    }
+
+    @Test
     fun `with no description and no tracks nothing of the kind is shown`() {
         composeTestRule.setContent {
             FindMeVinylTheme {

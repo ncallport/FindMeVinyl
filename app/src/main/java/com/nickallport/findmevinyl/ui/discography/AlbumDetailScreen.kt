@@ -217,6 +217,14 @@ fun AlbumDetailScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(top = 4.dp).testTag("detail_user_track_$index")
                         )
+                        album.trackArtists.getOrNull(index)?.let { artist ->
+                            Text(
+                                text = artist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("detail_user_track_artist_$index")
+                            )
+                        }
                     }
                     Spacer(Modifier.height(12.dp))
                 }

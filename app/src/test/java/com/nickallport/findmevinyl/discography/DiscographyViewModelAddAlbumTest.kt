@@ -7,6 +7,7 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzApi
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
 import com.nickallport.findmevinyl.ui.discography.AlbumCopy
+import com.nickallport.findmevinyl.ui.discography.PickedArtist
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.AppDatabase
 import com.nickallport.findmevinyl.storage.ArtistGroupEntity
@@ -402,5 +403,74 @@ class DiscographyViewModelAddAlbumTest {
         // And with no group to check against, the artist is left as it is.
         assertTrue(viewModel.updateAlbum(id, live.copy(memberId = "party")))
         assertEquals("cave", stored(id).artistId)
+    }
+
+    // An artist for each track.
+
+    private val ub40 = PickedArtist("ub40", "UB40")
+    private val withArtists = live.copy(tracks = listOf("Red Red Wine", "Hand Me Down", "Rebel Yell"), trackArtists = listOf(ub40, null, PickedArtist(null, "A friend")))
+
+    @Test
+    fun `the artist of each track is saved, shown and given back to the form`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withArtists)!!
+
+        assertEquals(listOf("UB40", null, "A friend"), viewModel.loadAlbum(id)!!.trackArtists)
+        assertEquals(withArtists, viewModel.loadDraft(id))
+    }
+
+    @Test
+    fun `a blank track is dropped with its artist, so the others keep theirs`() = runBlocking {
+        val draft = live.copy(tracks = listOf("One", "  ", "Two"), trackArtists = listOf(null, ub40, PickedArtist("x", "X")))
+        val id = viewModel.addAlbum("artist-1", "Big Country", draft)!!
+
+        assertEquals(listOf("One", "Two"), viewModel.loadAlbum(id)!!.tracks)
+        assertEquals(listOf(null, "X"), viewModel.loadAlbum(id)!!.trackArtists)
+    }
+
+    @Test
+    fun `an album with no track artists has none to show`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withTracks)!!
+
+        assertEquals(emptyList<String?>(), viewModel.loadAlbum(id)!!.trackArtists)
+    }
+
+    @Test
+    fun `changing the tracks replaces the artists chosen before`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withArtists)!!
+
+        assertTrue(viewModel.updateAlbum(id, live.copy(tracks = listOf("Hand Me Down"), trackArtists = listOf(PickedArtist("pret", "The Pretenders")))))
+
+        assertEquals(listOf("The Pretenders"), viewModel.loadAlbum(id)!!.trackArtists)
+        assertEquals(1, database.albumDao().getTrackCredits(id).size)
+    }
+
+    @Test
+    fun `taking every artist off leaves none behind`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withArtists)!!
+
+        assertTrue(viewModel.updateAlbum(id, live.copy(tracks = withArtists.tracks)))
+
+        assertEquals(emptyList<String?>(), viewModel.loadAlbum(id)!!.trackArtists)
+        assertTrue(database.albumDao().getTrackCredits(id).isEmpty())
+    }
+
+    @Test
+    fun `an artist chosen for a track puts a compilation under Various Artists on that artist's page`() = runBlocking {
+        val id = viewModel.addAlbum(
+            com.nickallport.findmevinyl.favourites.SpecialArtists.SOUNDTRACKS_ID, "Soundtracks",
+            live.copy(tracks = listOf("Red Red Wine"), trackArtists = listOf(ub40))
+        )!!
+
+        val onPage = viewModel.loadSaved("ub40").groupedAlbums[DiscographyCategory.APPEARS_ON].orEmpty()
+        assertEquals(listOf(id), onPage.map { it.id })
+    }
+
+    @Test
+    fun `deleting the album takes its track artists too`() = runBlocking {
+        val id = viewModel.addAlbum("artist-1", "Big Country", withArtists)!!
+
+        assertTrue(viewModel.deleteAlbum(id))
+
+        assertTrue(database.albumDao().getTrackCredits(id).isEmpty())
     }
 }

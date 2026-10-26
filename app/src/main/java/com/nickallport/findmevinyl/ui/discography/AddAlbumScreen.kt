@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.nickallport.findmevinyl.discography.AlbumDraft
 import com.nickallport.findmevinyl.discography.DiscographyCategory
 import com.nickallport.findmevinyl.discography.cleaned
+import com.nickallport.findmevinyl.artist.ArtistSuggestion
 import com.nickallport.findmevinyl.favourites.GroupMember
 
 private val kinds = listOf(
@@ -82,7 +83,9 @@ fun AddAlbumScreen(
     /** For the page of a group of artists, the artists of the group: the album is filed under the one chosen. */
     members: List<GroupMember> = emptyList(),
     /** The kind a new album starts on. */
-    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM
+    defaultCategory: DiscographyCategory = DiscographyCategory.LIVE_ALBUM,
+    /** Finds artists for the track artist chooser. Without it tracks cannot be given an artist. */
+    suggestTrackArtists: (suspend (String) -> List<ArtistSuggestion>)? = null
 ) {
     var title by rememberSaveable { mutableStateOf(initial?.title.orEmpty()) }
     var year by rememberSaveable { mutableStateOf(initial?.year.orEmpty()) }
@@ -95,13 +98,30 @@ fun AddAlbumScreen(
     var description by rememberSaveable { mutableStateOf(initial?.description.orEmpty()) }
     // The tracks, one to a line (a title never has a line break in it), and the title being typed for the next.
     var tracksText by rememberSaveable { mutableStateOf(initial?.tracks.orEmpty().joinToString("\n")) }
+    // The artist of each track, one to a line like the tracks: "id", a tab and the name, or nothing for none.
+    var artistsText by rememberSaveable {
+        mutableStateOf(initial?.trackArtists.orEmpty().joinToString("\n") { encodeArtist(it) })
+    }
     var trackInput by rememberSaveable { mutableStateOf("") }
+    // The track being renamed or given an artist, by place.
+    var renaming by rememberSaveable { mutableStateOf<Int?>(null) }
+    var choosingArtist by rememberSaveable { mutableStateOf<Int?>(null) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
 
     val tracks = if (tracksText.isEmpty()) emptyList() else tracksText.split("\n")
-    val draft = AlbumDraft(title, year, DiscographyCategory.valueOf(kind), bootleg, description, tracks, memberId)
-    fun setTracks(list: List<String>) {
+    val artistLines = artistsText.split("\n")
+    val artists = List(tracks.size) { decodeArtist(artistLines.getOrNull(it)) }
+    val draft = AlbumDraft(
+        title, year, DiscographyCategory.valueOf(kind), bootleg, description, tracks, memberId = memberId,
+        trackArtists = if (artists.all { it == null }) emptyList() else artists
+    )
+    fun setTracks(list: List<String>, withArtists: List<PickedArtist?> = artists) {
         tracksText = list.joinToString("\n")
+        artistsText = withArtists.joinToString("\n") { encodeArtist(it) }
+    }
+    fun moveTrack(index: Int, by: Int) {
+        val order = Reorder.swappedAt(tracks.indices.toList(), index, by) ?: return
+        setTracks(order.map { tracks[it] }, order.map { artists[it] })
     }
     val yearOk = year.isBlank() || AlbumDraft(title.ifBlank { "x" }, year, DiscographyCategory.OTHER, false).cleaned() != null
     val valid = draft.cleaned() != null
@@ -219,21 +239,29 @@ fun AddAlbumScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f).testTag("add_album_track_$index")
                 )
+                TextButton(onClick = { renaming = index }, modifier = Modifier.testTag("add_album_track_rename_$index")) { Text("Edit") }
                 MoveButtons(
                     name = track,
                     upTag = "add_album_track_up_$index",
                     downTag = "add_album_track_down_$index",
                     canMoveUp = index > 0,
                     canMoveDown = index < tracks.lastIndex,
-                    onMoveUp = { Reorder.swappedAt(tracks, index, -1)?.let(::setTracks) },
-                    onMoveDown = { Reorder.swappedAt(tracks, index, 1)?.let(::setTracks) }
+                    onMoveUp = { moveTrack(index, -1) },
+                    onMoveDown = { moveTrack(index, 1) }
                 )
                 IconButton(
-                    onClick = { setTracks(tracks.filterIndexed { i, _ -> i != index }) },
+                    onClick = { setTracks(tracks.filterIndexed { i, _ -> i != index }, artists.filterIndexed { i, _ -> i != index }) },
                     modifier = Modifier.testTag("add_album_track_remove_$index").size(40.dp)
                 ) {
                     Icon(Glyphs.Delete, contentDescription = "Remove $track", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            if (suggestTrackArtists != null || artists[index] != null) {
+                TextButton(
+                    onClick = { choosingArtist = index },
+                    enabled = suggestTrackArtists != null,
+                    modifier = Modifier.testTag("add_album_track_artist_$index")
+                ) { Text(artists[index]?.let { "Artist: ${it.name}" } ?: "Choose the artist") }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -283,6 +311,55 @@ fun AddAlbumScreen(
         }
     }
 
+    renaming?.takeIf { it in tracks.indices }?.let { index ->
+        var text by rememberSaveable(index) { mutableStateOf(tracks[index]) }
+        val clean = text.replace("\n", " ").trim()
+        AlertDialog(
+            onDismissRequest = { renaming = null },
+            title = { Text("Track ${index + 1}") },
+            text = {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.replace("\n", " ").take(MAX_TRACK_TITLE_LENGTH) },
+                    label = { Text("Title") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("add_album_track_rename_input")
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        setTracks(tracks.mapIndexed { i, old -> if (i == index) clean else old })
+                        renaming = null
+                    },
+                    enabled = clean.isNotEmpty(),
+                    modifier = Modifier.testTag("add_album_track_rename_save")
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = null }, modifier = Modifier.testTag("add_album_track_rename_cancel")) { Text("Cancel") }
+            }
+        )
+    }
+
+    choosingArtist?.takeIf { it in tracks.indices && suggestTrackArtists != null }?.let { index ->
+        TrackArtistDialog(
+            trackTitle = tracks[index],
+            suggest = suggestTrackArtists!!,
+            onPick = { picked ->
+                setTracks(tracks, artists.mapIndexed { i, old -> if (i == index) picked else old })
+                choosingArtist = null
+            },
+            onCancel = { choosingArtist = null },
+            onReset = if (artists[index] != null) {
+                {
+                    setTracks(tracks, artists.mapIndexed { i, old -> if (i == index) null else old })
+                    choosingArtist = null
+                }
+            } else null
+        )
+    }
+
     if (confirmingDelete) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
@@ -302,4 +379,14 @@ fun AddAlbumScreen(
             }
         )
     }
+}
+
+private fun encodeArtist(artist: PickedArtist?): String =
+    artist?.let { "${it.id.orEmpty().replace('\t', ' ').replace('\n', ' ')}\t${it.name.replace('\t', ' ').replace('\n', ' ')}" }.orEmpty()
+
+private fun decodeArtist(line: String?): PickedArtist? {
+    if (line.isNullOrEmpty()) return null
+    val name = line.substringAfter('\t', "").trim()
+    if (name.isEmpty()) return null
+    return PickedArtist(line.substringBefore('\t').trim().ifEmpty { null }, name)
 }
