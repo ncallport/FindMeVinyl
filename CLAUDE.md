@@ -6,7 +6,7 @@ A personal Android app (Kotlin, Jetpack Compose) for finding record shops, brows
 
 - Work test first. For each new behaviour: write the failing test, run it and check it fails for the right reason, write the least code that passes, then run the whole suite.
 - Keep steps small. Say briefly what changed and why.
-- Run `.\gradlew testDebugUnitTest` after every change (PowerShell on Windows). Roughly 230 tests pass today, and all of them must still pass before moving on.
+- Run `.\gradlew testDebugUnitTest` after every change (PowerShell on Windows). Every test must pass before moving on. The suite has more than two thousand tests and takes a few minutes.
 - Run one class with `.\gradlew testDebugUnitTest --tests "com.nickallport.findmevinyl.shops.OpeningHoursTest"`.
 - Test reports are in `app/build/reports/tests/testDebugUnitTest/index.html`.
 - Ask before adding a dependency or changing a version. Several versions below were chosen to fix real problems.
