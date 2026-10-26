@@ -81,8 +81,27 @@ interface AlbumDao {
     @Query("SELECT artistId FROM album_track_artists WHERE albumId = :albumId ORDER BY artistId")
     suspend fun getTrackArtists(albumId: String): List<String>
 
-    /** The owned or wanted albums with any of these artists on their tracklist. */
-    @Query("SELECT DISTINCT albums.* FROM albums INNER JOIN album_track_artists AS t ON t.albumId = albums.id WHERE t.artistId IN (:artistIds) AND (albums.owned = 1 OR albums.wanted = 1)")
+    @Query("SELECT * FROM album_track_credits WHERE albumId = :albumId ORDER BY discIndex, trackIndex")
+    suspend fun getTrackCredits(albumId: String): List<AlbumTrackCreditEntity>
+
+    @Query("SELECT * FROM album_track_credits ORDER BY albumId, discIndex, trackIndex")
+    suspend fun getAllTrackCredits(): List<AlbumTrackCreditEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrackCredits(rows: List<AlbumTrackCreditEntity>): List<Long>
+
+    @Query("DELETE FROM album_track_credits WHERE albumId = :albumId AND discIndex = :discIndex AND trackIndex = :trackIndex")
+    suspend fun deleteTrackCredit(albumId: String, discIndex: Int, trackIndex: Int): Int
+
+    /**
+     * The owned or wanted albums with any of these artists on their tracklist, as MusicBrainz credits it or as the user
+     * chose the artist of a track.
+     */
+    @Query(
+        "SELECT * FROM albums WHERE (owned = 1 OR wanted = 1) AND (" +
+            "id IN (SELECT albumId FROM album_track_artists WHERE artistId IN (:artistIds)) OR " +
+            "id IN (SELECT albumId FROM album_track_credits WHERE artistId IN (:artistIds)))"
+    )
     suspend fun getAppearsOn(artistIds: List<String>): List<AlbumEntity>
 
     /** Every soundtrack album that is owned or wanted, by whoever it is by: the Soundtracks page. */

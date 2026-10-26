@@ -10,7 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.nickallport.findmevinyl.artist.ArtistSuggestion
 import com.nickallport.findmevinyl.ui.discography.AlbumDetailScreen
+import com.nickallport.findmevinyl.ui.discography.PickedArtist
 import com.nickallport.findmevinyl.ui.discography.AlbumDetailState
 import com.nickallport.findmevinyl.ui.discography.AlbumUiModel
 import kotlinx.coroutines.launch
@@ -48,7 +50,13 @@ fun AlbumDetailRoute(
     /** Asks the user for a cover image and keeps it, saying whether it did. Only given for an album added by hand. */
     chooseCover: (suspend (albumId: String) -> Boolean)? = null,
     /** Takes the cover image away. */
-    removeCover: (suspend (albumId: String) -> Unit)? = null
+    removeCover: (suspend (albumId: String) -> Unit)? = null,
+    /** The artists the user chose for tracks, shown over MusicBrainz's credits. */
+    loadTrackCredits: suspend (albumId: String) -> List<TrackCredit> = { emptyList() },
+    /** Finds artists for the track artist chooser. Without it the tracks' artists cannot be changed. */
+    suggestTrackArtists: (suspend (String) -> List<ArtistSuggestion>)? = null,
+    /** Keeps the artist chosen for a track (disc, place on it, title), or with null takes it off. Credits are read again after it. */
+    setTrackArtist: suspend (albumId: String, discIndex: Int, trackIndex: Int, title: String, artist: PickedArtist?) -> Unit = { _, _, _, _, _ -> }
 ) {
     var state by remember(albumId) { mutableStateOf<AlbumDetailState>(AlbumDetailState.Loading) }
     var album by remember(albumId) { mutableStateOf<AlbumUiModel?>(null) }
@@ -74,6 +82,11 @@ fun AlbumDetailRoute(
         album = loadAlbum(albumId)
     }
 
+    var credits by remember(albumId) { mutableStateOf<List<TrackCredit>>(emptyList()) }
+    LaunchedEffect(albumId) {
+        credits = loadTrackCredits(albumId)
+    }
+
     // The page opens on the pressing the user chose as theirs, if it is one of those listed and not the first.
     // It is tried once for each load, so a pressing the user then looks at is not switched back, and a pressing
     // that cannot be loaded leaves the first one showing without a complaint.
@@ -89,12 +102,18 @@ fun AlbumDetailRoute(
         switchingTo = null
     }
 
+    // The artists the user chose go over MusicBrainz's on whichever pressing is showing.
+    val loaded = state as? AlbumDetailState.Loaded
+    val shownState = loaded?.copy(
+        details = TrackCredits.apply(loaded.details, credits), switchingTo = switchingTo, switchFailed = switchFailed
+    ) ?: state
+
     AlbumDetailScreen(
         albumId = albumId,
         title = title,
         artistName = artistName,
         album = album,
-        state = (state as? AlbumDetailState.Loaded)?.copy(switchingTo = switchingTo, switchFailed = switchFailed) ?: state,
+        state = shownState,
         onRetry = { attempt++ },
         onSelectPressing = { releaseId ->
             if (switchingTo == null) {
@@ -125,6 +144,13 @@ fun AlbumDetailRoute(
             coroutineScope.launch {
                 saveCopies(albumId, copies)
                 album = loadAlbum(albumId)
+            }
+        },
+        suggestTrackArtists = suggestTrackArtists,
+        onSetTrackArtist = { discIndex, trackIndex, trackTitle, artist ->
+            coroutineScope.launch {
+                setTrackArtist(albumId, discIndex, trackIndex, trackTitle, artist)
+                credits = loadTrackCredits(albumId)
             }
         },
         onOpenArtist = onOpenArtist,

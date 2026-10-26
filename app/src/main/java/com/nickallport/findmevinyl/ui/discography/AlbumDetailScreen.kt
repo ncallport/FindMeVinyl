@@ -27,6 +27,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import com.nickallport.findmevinyl.discography.Track
+import com.nickallport.findmevinyl.artist.ArtistSuggestion
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,7 +98,11 @@ fun AlbumDetailScreen(
     /** Asks the user to choose a cover image, for an album added by hand. Without it there is no button. */
     onChooseCover: (() -> Unit)? = null,
     /** Takes the chosen cover image away. */
-    onRemoveCover: (() -> Unit)? = null
+    onRemoveCover: (() -> Unit)? = null,
+    /** Finds artists for the track artist chooser. Without it the tracklist cannot be edited. */
+    suggestTrackArtists: (suspend (String) -> List<ArtistSuggestion>)? = null,
+    /** Chooses the artist of a track (disc and place on it, and its title), or puts MusicBrainz's credit back with null. */
+    onSetTrackArtist: (discIndex: Int, trackIndex: Int, title: String, artist: PickedArtist?) -> Unit = { _, _, _, _ -> }
 ) {
     Column(
         modifier = modifier
@@ -223,14 +234,26 @@ fun AlbumDetailScreen(
                     Text("Try again")
                 }
             }
-            is AlbumDetailState.Loaded -> LoadedDetails(state, onSelectPressing, myPressingId = album?.takeIf { it.owned }?.myPressingId)
+            is AlbumDetailState.Loaded -> LoadedDetails(
+                state, onSelectPressing, myPressingId = album?.takeIf { it.owned }?.myPressingId,
+                suggestTrackArtists = suggestTrackArtists, onSetTrackArtist = onSetTrackArtist
+            )
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (String) -> Unit, myPressingId: String? = null) {
+private fun LoadedDetails(
+    state: AlbumDetailState.Loaded,
+    onSelectPressing: (String) -> Unit,
+    myPressingId: String? = null,
+    suggestTrackArtists: (suspend (String) -> List<ArtistSuggestion>)? = null,
+    onSetTrackArtist: (Int, Int, String, PickedArtist?) -> Unit = { _, _, _, _ -> }
+) {
+    var editingArtists by rememberSaveable { mutableStateOf(false) }
+    // The track being given an artist: its disc, place on the disc and the track.
+    var picking by remember { mutableStateOf<Triple<Int, Int, Track>?>(null) }
     val details = state.details
     if (!details.hasContent) {
         Text(
@@ -289,15 +312,22 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
 
         val multipleDiscs = details.discs.size > 1
         // A name under every track of an album by one artist would only be noise, so names show when the tracks differ.
-        val showTrackArtists = details.discs.flatMap { it.tracks }.mapNotNull { it.artistName }.distinct().size > 1
+        val showTrackArtists = editingArtists || details.discs.flatMap { it.tracks }.mapNotNull { it.artistName }.distinct().size > 1
+        if (suggestTrackArtists != null && details.discs.any { it.tracks.isNotEmpty() }) {
+            TextButton(onClick = { editingArtists = !editingArtists }, modifier = Modifier.testTag("track_artists_edit")) {
+                Text(if (editingArtists) "Done editing artists" else "Edit track artists")
+            }
+        }
         details.discs.forEachIndexed { index, disc ->
             TrackSections.of(disc, multipleDiscs, index + 1).forEach { section ->
                 SectionHeader(section)
                 section.tracks.forEach { track ->
+                    val place = disc.tracks.indexOfFirst { it === track }.coerceAtLeast(0)
                     Row(
                         modifier = Modifier
                             .testTag("track_row")
                             .fillMaxWidth()
+                            .then(if (editingArtists) Modifier.clickable { picking = Triple(index, place, track) } else Modifier)
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -309,9 +339,9 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = track.title, style = MaterialTheme.typography.bodyLarge)
-                            if (showTrackArtists && track.artistName != null) {
+                            if (showTrackArtists && (track.artistName != null || editingArtists)) {
                                 Text(
-                                    text = track.artistName,
+                                    text = track.artistName ?: "Tap to choose the artist",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.testTag("track_artist")
@@ -329,6 +359,26 @@ private fun LoadedDetails(state: AlbumDetailState.Loaded, onSelectPressing: (Str
                     }
                 }
             }
+        }
+
+        picking?.let { (discIndex, trackIndex, track) ->
+            TrackArtistDialog(
+                trackTitle = track.title,
+                suggest = suggestTrackArtists ?: { emptyList() },
+                onPick = { artist ->
+                    onSetTrackArtist(discIndex, trackIndex, track.title, artist)
+                    picking = null
+                },
+                onCancel = { picking = null },
+                onReset = if (track.artistName != null) {
+                    {
+                        onSetTrackArtist(discIndex, trackIndex, track.title, null)
+                        picking = null
+                    }
+                } else {
+                    null
+                }
+            )
         }
 
         // With one pressing there is nothing to choose between.

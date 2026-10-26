@@ -8,9 +8,9 @@ import androidx.room.RoomDatabase
         AlbumEntity::class, ArtistEntity::class, ArtistImageEntity::class, AlbumDetailsEntity::class,
         PublicHolidaysEntity::class, ArtistUserPhotoEntity::class, FavouriteShopEntity::class,
         ArtistGroupEntity::class, ArtistGroupMemberEntity::class, ArtistGenresEntity::class, AlbumCopyEntity::class,
-        AlbumTrackArtistEntity::class
+        AlbumTrackArtistEntity::class, AlbumTrackCreditEntity::class
     ],
-    version = 27
+    version = 28
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao

@@ -6,6 +6,9 @@ import com.nickallport.findmevinyl.discography.MAX_ALBUM_TITLE_LENGTH
 import com.nickallport.findmevinyl.discography.CustomAlbums
 import com.nickallport.findmevinyl.discography.MAX_COPIES
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
+import com.nickallport.findmevinyl.storage.AlbumTrackCreditEntity
+import com.nickallport.findmevinyl.discography.MAX_USER_TRACKS
+import com.nickallport.findmevinyl.discography.MAX_TRACK_TITLE_LENGTH
 import com.nickallport.findmevinyl.discography.FormatNotes
 import com.nickallport.findmevinyl.genre.GenreNames
 import com.nickallport.findmevinyl.storage.ArtistGroupMemberEntity
@@ -73,6 +76,7 @@ class BackupViewModel(
         val artists = database.artistDao().getAllFavourites().sortedWith(compareBy({ it.position }, { it.name }))
         val albums = database.albumDao().getOwnedOrWanted().sortedBy { it.id }
         val copiesOf = database.albumDao().getAllCopies().groupBy { it.albumId }
+        val creditsOf = database.albumDao().getAllTrackCredits().groupBy { it.albumId }
         // The cover images of albums added by hand, by file name, for the ones whose file is there.
         val coverBytes = albums.mapNotNull { album ->
             album.userCover?.takeIf { CustomAlbums.isCustom(album.id) }?.let { name -> coverStore?.read(name)?.let { name to it } }
@@ -97,7 +101,8 @@ class BackupViewModel(
                     it.statuses.takeIf { _ -> CustomAlbums.isCustom(it.id) },
                     it.userDescription.takeIf { _ -> CustomAlbums.isCustom(it.id) },
                     UserTracks.decode(it.userTracks).takeIf { _ -> CustomAlbums.isCustom(it.id) },
-                    it.userCover?.takeIf { name -> name in coverBytes }
+                    it.userCover?.takeIf { name -> name in coverBytes },
+                    creditsOf[it.id].orEmpty().map { c -> BackupTrackCredit(c.discIndex, c.trackIndex, c.title, c.artistId, c.artistName) }
                 )
             },
             photos = photos.map { (record, _) -> BackupPhoto(record.artistId, record.fileName) },
@@ -310,6 +315,18 @@ class BackupViewModel(
                     albumDao.setMyPressing(id, pressingId, pressingText)
                     changed = true
                 }
+            }
+            // The artists chosen for tracks, when the album has none on the phone: restoring only adds.
+            val credits = album.trackCredits.orEmpty().mapNotNull { c ->
+                val name = c.artistName?.trim()?.take(MAX_TRACK_TITLE_LENGTH)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                val title = c.title?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val disc = c.discIndex?.takeIf { it >= 0 } ?: return@mapNotNull null
+                val track = c.trackIndex?.takeIf { it >= 0 } ?: return@mapNotNull null
+                AlbumTrackCreditEntity(id, disc, track, title, c.artistId?.trim()?.takeIf { it.isNotEmpty() }, name)
+            }.distinctBy { it.discIndex to it.trackIndex }.take(MAX_USER_TRACKS * 2)
+            if (credits.isNotEmpty() && albumDao.getTrackCredits(id).isEmpty()) {
+                albumDao.insertTrackCredits(credits)
+                changed = true
             }
             // The cover image of an album added by hand, when it has none yet. The file gets a name made here.
             if (addedByHand && coverStore != null) {
