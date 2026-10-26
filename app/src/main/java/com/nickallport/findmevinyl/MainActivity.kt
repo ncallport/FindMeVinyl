@@ -347,6 +347,13 @@ class MainActivity : ComponentActivity() {
         val albumDetailsViewModel = AlbumDetailsViewModel(api, database.albumDetailsDao())
         val publicHolidayCalendar = PublicHolidayCalendar(NagerApiFactory.create(), database.publicHolidaysDao())
         val favouritesViewModel = FavouritesViewModel(database.artistDao(), database.artistGroupDao(), database.albumDao())
+        // Artists for a track: the favourites that match, then MusicBrainz's.
+        val trackArtistSuggester: suspend (String) -> List<com.nickallport.findmevinyl.artist.ArtistSuggestion> = { text ->
+            ArtistSuggestions.merge(
+                ArtistSuggestions.favouritesMatching(text, favouritesViewModel.loadFavourites().filter { !it.isGroup }),
+                artistSuggester.suggest(text)
+            )
+        }
         val artistGenreViewModel = ArtistGenreViewModel(api, database.artistGenresDao(), database.artistDao(), database.artistGroupDao())
         val artistGroupViewModel = ArtistGroupViewModel(
             database.artistDao(), database.artistGroupDao(),
@@ -559,6 +566,7 @@ class MainActivity : ComponentActivity() {
                                 editingAlbumId = editing,
                                 loadDraft = { id -> discographyViewModel.loadDraft(id) },
                                 loadMembers = { discographyViewModel.groupMembers(screen.artistId) },
+                                suggestTrackArtists = trackArtistSuggester,
                                 defaultCategory = if (screen.artistId == SpecialArtists.SOUNDTRACKS_ID) DiscographyCategory.SOUNDTRACK
                                 else DiscographyCategory.LIVE_ALBUM,
                                 save = { draft ->
@@ -635,16 +643,7 @@ class MainActivity : ComponentActivity() {
                                     albumDetailsViewModel.selectPressing(albumId, releaseId)
                                 },
                                 loadTrackCredits = { id -> discographyViewModel.trackCredits(id) },
-                                suggestTrackArtists = if (CustomAlbums.isCustom(screen.albumId)) {
-                                    null
-                                } else {
-                                    { text ->
-                                        ArtistSuggestions.merge(
-                                            ArtistSuggestions.favouritesMatching(text, favouritesViewModel.loadFavourites().filter { !it.isGroup }),
-                                            artistSuggester.suggest(text)
-                                        )
-                                    }
-                                },
+                                suggestTrackArtists = if (CustomAlbums.isCustom(screen.albumId)) null else trackArtistSuggester,
                                 setTrackArtist = { albumId, discIndex, trackIndex, trackTitle, artist ->
                                     if (artist == null) {
                                         discographyViewModel.clearTrackCredit(albumId, discIndex, trackIndex)

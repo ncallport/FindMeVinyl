@@ -54,7 +54,9 @@ data class AlbumUiModel(
     val description: String? = null,
     /** The file of the cover image the user chose, which changes when the cover does. */
     val cover: String? = null,
-    val tracks: List<String> = emptyList()
+    val tracks: List<String> = emptyList(),
+    /** The artist of each track of [tracks], by place, for an album added by hand. Empty when none has one. */
+    val trackArtists: List<String?> = emptyList()
 ) {
     /**
      * Every format the album is known to be on: MusicBrainz's and the user's, once each, in the usual order.

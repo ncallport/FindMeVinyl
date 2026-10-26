@@ -90,6 +90,13 @@ interface AlbumDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTrackCredits(rows: List<AlbumTrackCreditEntity>): List<Long>
 
+    /** Takes the chosen artists off the tracks of an album added by hand (disc 0) that are not among [keep]. */
+    @Query("DELETE FROM album_track_credits WHERE albumId = :albumId AND discIndex = 0 AND trackIndex NOT IN (:keep)")
+    suspend fun deleteTrackCreditsExcept(albumId: String, keep: List<Int>): Int
+
+    @Query("DELETE FROM album_track_credits WHERE albumId = :albumId")
+    suspend fun deleteTrackCredits(albumId: String): Int
+
     @Query("DELETE FROM album_track_credits WHERE albumId = :albumId AND discIndex = :discIndex AND trackIndex = :trackIndex")
     suspend fun deleteTrackCredit(albumId: String, discIndex: Int, trackIndex: Int): Int
 

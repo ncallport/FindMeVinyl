@@ -6,6 +6,7 @@ import com.nickallport.findmevinyl.musicbrainz.MusicBrainzReleaseGroupMapper.toD
 import com.nickallport.findmevinyl.musicbrainz.MusicBrainzThrottle
 import com.nickallport.findmevinyl.storage.AlbumCopyEntity
 import com.nickallport.findmevinyl.storage.AlbumTrackCreditEntity
+import com.nickallport.findmevinyl.ui.discography.PickedArtist
 import com.nickallport.findmevinyl.storage.AlbumDao
 import com.nickallport.findmevinyl.storage.AlbumEntity
 import com.nickallport.findmevinyl.storage.ArtistDao
@@ -301,7 +302,33 @@ class DiscographyViewModel(
 
     /** One saved album as the screens show it, or null when it is not saved. */
     suspend fun loadAlbum(albumId: String): AlbumUiModel? =
-        albumDao.getById(albumId)?.let { toUiModel(it, categoryFrom(it.category), clock(), albumDao.getCopies(albumId)) }
+        albumDao.getById(albumId)?.let {
+            toUiModel(it, categoryFrom(it.category), clock(), albumDao.getCopies(albumId)).let { model ->
+                if (CustomAlbums.isCustom(albumId)) model.copy(trackArtists = userTrackArtists(albumId, model.tracks).map { a -> a?.name }) else model
+            }
+        }
+
+    /** The artists the user chose for the tracks of an album added by hand, by place in [titles]; empty when there are none. */
+    private suspend fun userTrackArtists(albumId: String, titles: List<String>): List<PickedArtist?> {
+        val byPlace = albumDao.getTrackCredits(albumId).filter { it.discIndex == 0 }.associateBy { it.trackIndex }
+        val artists = titles.mapIndexed { i, title ->
+            byPlace[i]?.takeIf { it.title == title }?.let { PickedArtist(it.artistId, it.artistName) }
+        }
+        return if (artists.all { it == null }) emptyList() else artists
+    }
+
+    /** Keeps the artists of the tracks of an album added by hand, replacing those kept before. Written before the old go. */
+    private suspend fun saveUserTrackArtists(albumId: String, tracks: List<Pair<String, PickedArtist?>>) {
+        val rows = tracks.mapIndexedNotNull { i, (title, artist) ->
+            artist?.let { AlbumTrackCreditEntity(albumId, 0, i, title, it.id, it.name) }
+        }
+        if (rows.isEmpty()) {
+            albumDao.deleteTrackCredits(albumId)
+            return
+        }
+        albumDao.insertTrackCredits(rows)
+        albumDao.deleteTrackCreditsExcept(albumId, rows.map { it.trackIndex })
+    }
 
     private fun toUiModel(album: AlbumEntity, category: DiscographyCategory, now: Long, copies: List<AlbumCopyEntity>) = AlbumUiModel(
         id = album.id,
@@ -529,6 +556,7 @@ class DiscographyViewModel(
                 userDescription = UserTracks.cleanDescription(draft.description), userTracks = UserTracks.encode(draft.tracks)
             )
         )
+        saveUserTrackArtists(id, UserTracks.cleanWithArtists(draft.tracks, draft.trackArtists))
         saveFavourite(artistId, artistName)
         return id
     }
@@ -542,13 +570,15 @@ class DiscographyViewModel(
     suspend fun loadDraft(albumId: String): AlbumDraft? {
         if (!CustomAlbums.isCustom(albumId)) return null
         val album = albumDao.getById(albumId) ?: return null
+        var artists = emptyList<PickedArtist?>()
         return AlbumDraft(
             title = album.title,
             year = album.firstReleaseDate.orEmpty(),
             category = categoryFrom(album.category),
             bootleg = album.statuses == ReleaseStatuses.BOOTLEG,
             description = album.userDescription.orEmpty(),
-            tracks = UserTracks.decode(album.userTracks),
+            tracks = UserTracks.decode(album.userTracks).also { titles -> artists = userTrackArtists(albumId, titles) },
+            trackArtists = artists,
             // Only an album of a group says which of its artists it is filed under.
             memberId = album.artistId.takeIf { groupDao?.groupIdOf(it) != null }
         )
@@ -565,6 +595,7 @@ class DiscographyViewModel(
             albumId, clean.first, clean.second, draft.category.name, statusOf(draft),
             UserTracks.cleanDescription(draft.description), UserTracks.encode(draft.tracks)
         ) > 0
+        if (changed) saveUserTrackArtists(albumId, UserTracks.cleanWithArtists(draft.tracks, draft.trackArtists))
         val member = draft.memberId
         if (changed && member != null && artistId != null && member in memberIdsOf(artistId)) {
             albumDao.setCustomAlbumArtist(albumId, member)
@@ -577,6 +608,7 @@ class DiscographyViewModel(
         if (!CustomAlbums.isCustom(albumId)) return false
         if (albumDao.deleteCustomAlbum(albumId) == 0) return false
         albumDao.deleteCopiesExcept(albumId, emptyList())
+        albumDao.deleteTrackCredits(albumId)
         return true
     }
 
