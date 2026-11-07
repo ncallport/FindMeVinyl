@@ -10,10 +10,9 @@ import androidx.compose.foundation.layout.padding
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
 import com.nickallport.findmevinyl.settings.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,7 +60,6 @@ private sealed class LoadState {
  * filter works on what is known about each album, so every format lookup is recorded here as it
  * comes back, and the chips, the counts and the list follow.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiscographyRoute(
     artistId: String,
@@ -265,25 +263,25 @@ fun DiscographyRoute(
                                 FormatCheckNote(state = formatCheck, onRetry = { formatCheckAttempt++ })
                                 if (hiddenCount > 0) {
                                     val noun = if (hiddenCount == 1) "album" else "albums"
-                                    FlowRow(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        verticalArrangement = Arrangement.Center
+                                    // One line: the note, then Show (or Hide) and Settings as links in the primary colour.
+                                    val noteStyle = MaterialTheme.typography.bodySmall
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
                                             text = (if (showingHidden) "Showing " else "") + "$hiddenCount $noun hidden by your settings",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = noteStyle,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.testTag("hidden_albums_note").padding(end = 4.dp)
+                                            modifier = Modifier.testTag("hidden_albums_note")
                                         )
-                                        TextButton(
-                                            onClick = { showHidden = !showingHidden },
-                                            modifier = Modifier.testTag("hidden_albums_toggle")
-                                        ) { Text(if (showingHidden) "Hide" else "Show") }
+                                        NoteLink(
+                                            text = if (showingHidden) "Hide" else "Show",
+                                            tag = "hidden_albums_toggle",
+                                            onClick = { showHidden = !showingHidden }
+                                        )
                                         if (onOpenSettings != null) {
-                                            TextButton(
-                                                onClick = onOpenSettings,
-                                                modifier = Modifier.testTag("hidden_albums_settings")
-                                            ) { Text("Settings") }
+                                            NoteLink(text = "Settings", tag = "hidden_albums_settings", onClick = onOpenSettings)
                                         }
                                     }
                                 }
@@ -337,6 +335,19 @@ fun DiscographyRoute(
             }
         }
     }
+}
+
+/** A link beside the hidden albums note, after a bar: text in the primary colour that does something when tapped. */
+@Composable
+private fun NoteLink(text: String, tag: String, onClick: () -> Unit) {
+    val style = MaterialTheme.typography.bodySmall
+    Text(" | ", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(
+        text = text,
+        style = style,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.testTag(tag).clickable(onClick = onClick).padding(vertical = 6.dp)
+    )
 }
 
 private fun DiscographyUiState.Success.mapAlbums(change: (AlbumUiModel) -> AlbumUiModel) =
