@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.padding
 import com.nickallport.findmevinyl.ui.brand.RecordSpinner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.TextButton
 import com.nickallport.findmevinyl.settings.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,8 +48,8 @@ private sealed class LoadState {
  * only, with no request to MusicBrainz. Taps on Owned, Want and Save use it, so they show at once.
  *
  * The [settings] say what to leave out ([DiscographyVisibility]), which is done on what is shown, so
- * changing a setting needs no new load. A note says how many albums were left out, and goes to the
- * settings. The format chips and their counts are for the albums that are shown.
+ * changing a setting needs no new load. A note says how many albums were left out, with a Show button
+ * that brings them into the list (so one can be marked owned) and a Settings button. The format chips and their counts are for the albums that are shown.
  *
  * With [checkAllFormats], the formats of all the albums are checked once, by itself, when the whole
  * discography has loaded and some albums have no formats stored or old ones. A line under the chips
@@ -58,6 +61,7 @@ private sealed class LoadState {
  * filter works on what is known about each album, so every format lookup is recorded here as it
  * comes back, and the chips, the counts and the list follow.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiscographyRoute(
     artistId: String,
@@ -101,6 +105,8 @@ fun DiscographyRoute(
     // Counts the taps on Try again. Each one starts the load again.
     var attempt by remember { mutableStateOf(0) }
     var selectedFormat by rememberSaveable { mutableStateOf<String?>(null) }
+    // The albums the settings hide are shown for now. Not kept: the next visit starts with them hidden.
+    var showHidden by rememberSaveable(artistId) { mutableStateOf(false) }
     // Kept over a rotation as the text the store uses.
     var groupingText by rememberSaveable(artistId) { mutableStateOf(GroupingText.write(startWithGrouping)) }
     val grouping = GroupingText.read(groupingText)
@@ -234,7 +240,12 @@ fun DiscographyRoute(
                         is DiscographyUiState.Success -> {
                             // Every album, for what a tap or a lookup is about, and what the settings leave.
                             val allAlbums = uiState.groupedAlbums.values.flatten()
-                            val visibility = DiscographyVisibility.apply(uiState.groupedAlbums, settings)
+                            val hiddenCount = DiscographyVisibility.apply(uiState.groupedAlbums, settings).hiddenCount
+                            // Showing the hidden albums lets one be marked owned, which then keeps it on the page.
+                            val showingHidden = showHidden && hiddenCount > 0
+                            val visibility = DiscographyVisibility.apply(
+                                uiState.groupedAlbums, if (showingHidden) Settings.ShowEverything else settings
+                            )
                             val visibleAlbums = visibility.shown.values.flatten()
                             val chosenFormat = selectedFormat
                             val shownAlbums = FormatFilter.apply(visibility.shown, chosenFormat)
@@ -252,17 +263,29 @@ fun DiscographyRoute(
                                     onSelect = { selectedFormat = it }
                                 )
                                 FormatCheckNote(state = formatCheck, onRetry = { formatCheckAttempt++ })
-                                if (visibility.hiddenCount > 0) {
-                                    val noun = if (visibility.hiddenCount == 1) "album" else "albums"
-                                    Text(
-                                        text = "${visibility.hiddenCount} $noun hidden by your settings",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .testTag("hidden_albums_note")
-                                            .then(if (onOpenSettings != null) Modifier.clickable { onOpenSettings() } else Modifier)
-                                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    )
+                                if (hiddenCount > 0) {
+                                    val noun = if (hiddenCount == 1) "album" else "albums"
+                                    FlowRow(
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = (if (showingHidden) "Showing " else "") + "$hiddenCount $noun hidden by your settings",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.testTag("hidden_albums_note").padding(end = 4.dp)
+                                        )
+                                        TextButton(
+                                            onClick = { showHidden = !showingHidden },
+                                            modifier = Modifier.testTag("hidden_albums_toggle")
+                                        ) { Text(if (showingHidden) "Hide" else "Show") }
+                                        if (onOpenSettings != null) {
+                                            TextButton(
+                                                onClick = onOpenSettings,
+                                                modifier = Modifier.testTag("hidden_albums_settings")
+                                            ) { Text("Settings") }
+                                        }
+                                    }
                                 }
                                 if (chosenFormat != null && shownAlbums.isEmpty()) {
                                     Text(

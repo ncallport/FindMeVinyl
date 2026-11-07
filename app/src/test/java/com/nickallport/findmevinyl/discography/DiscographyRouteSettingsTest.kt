@@ -82,14 +82,67 @@ class DiscographyRouteSettingsTest {
     }
 
     @Test
-    fun `says how many albums were left out, and tapping it goes to the settings`() {
+    fun `says how many albums were left out, and the Settings button goes to the settings`() {
         var opened = 0
         show(Settings.ShowEverything.copy(hideLiveAlbums = true, hideDigital = true), onOpenSettings = { opened++ })
 
         composeTestRule.onNodeWithText("2 albums hidden by your settings").assertExists()
-        composeTestRule.onNodeWithTag("hidden_albums_note").performClick()
+        composeTestRule.onNodeWithTag("hidden_albums_settings").performClick()
 
         assertEquals(1, opened)
+    }
+
+    @Test
+    fun `the Settings button is not there when there is nowhere to go`() {
+        show(Settings.ShowEverything.copy(hideDigital = true), onOpenSettings = null)
+
+        composeTestRule.onNodeWithTag("hidden_albums_settings").assertDoesNotExist()
+    }
+
+    @Test
+    fun `Show brings the hidden albums into the list, and Hide puts them away again`() {
+        show(Settings.ShowEverything.copy(hideLiveAlbums = true, hideDigital = true))
+        composeTestRule.onNodeWithText("Album S2").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Album L1").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("hidden_albums_toggle").performClick()
+
+        composeTestRule.onNodeWithText("Album S2").assertExists()
+        composeTestRule.onNodeWithText("Album L1").assertExists()
+        composeTestRule.onNodeWithText("Showing 2 albums hidden by your settings").assertExists()
+
+        composeTestRule.onNodeWithTag("hidden_albums_toggle").performClick()
+
+        composeTestRule.onNodeWithText("Album S2").assertDoesNotExist()
+        composeTestRule.onNodeWithText("2 albums hidden by your settings").assertExists()
+    }
+
+    @Test
+    fun `a hidden album that is shown can be marked owned`() {
+        val digitalOnly = DiscographyUiState.Success(
+            mapOf(DiscographyCategory.STUDIO_ALBUM to listOf(album("H1", listOf("Digital"))))
+        )
+        val toggled = mutableListOf<String>()
+        composeTestRule.setContent {
+            DiscographyRoute(
+                artistId = "a", artistName = "Sleep", load = { flowOf(digitalOnly) },
+                onToggleOwned = { id, _ -> toggled.add(id) }, settings = Settings.ShowEverything.copy(hideDigital = true)
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("hidden_albums_toggle").performClick()
+        composeTestRule.onNodeWithTag("owned_toggle").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("H1"), toggled)
+    }
+
+    @Test
+    fun `with nothing hidden there is nothing to show`() {
+        show(Settings.ShowEverything)
+
+        composeTestRule.onNodeWithTag("hidden_albums_toggle").assertDoesNotExist()
     }
 
     @Test
