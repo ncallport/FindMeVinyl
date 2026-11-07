@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -77,7 +80,9 @@ fun FavouritesScreen(
     /** Show pictures only, as a grid, instead of the list with names and counts. */
     grid: Boolean = false,
     /** Various Artists and Soundtracks, shown under the artists. They open like an artist does. */
-    specials: List<FavouriteArtistUiModel> = emptyList()
+    specials: List<FavouriteArtistUiModel> = emptyList(),
+    /** The list goes back to the top whenever this changes (the text of the filter), or it would keep a place that is no longer there. */
+    scrollToTopOn: Any? = null
 ) {
     if (artists.isEmpty() && specials.isEmpty()) {
         Text(
@@ -86,11 +91,18 @@ fun FavouritesScreen(
         )
     } else {
         var picturesShown by remember { mutableIntStateOf(0) }
+        val listState = rememberLazyListState()
+        val gridState = rememberLazyGridState()
+        LaunchedEffect(scrollToTopOn) {
+            listState.scrollToItem(0)
+            gridState.scrollToItem(0)
+        }
 
         Column(modifier = modifier) {
             val onShownChange: (Boolean) -> Unit = { shown -> picturesShown += if (shown) 1 else -1 }
             if (grid) {
                 LazyVerticalGrid(
+                    state = gridState,
                     columns = GridCells.Adaptive(minSize = 76.dp),
                     contentPadding = PaddingValues(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -111,7 +123,7 @@ fun FavouritesScreen(
                     }
                 }
             } else {
-                LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                LazyColumn(state = listState, modifier = Modifier.weight(1f, fill = false)) {
                     if (artists.isEmpty()) item(key = "no-favourites") { NoFavouritesYet() }
                     items(artists, key = { it.id }) { artist ->
                         ArtistBlock(artist, loadArtistImage, onArtistSelected, onShownChange)
