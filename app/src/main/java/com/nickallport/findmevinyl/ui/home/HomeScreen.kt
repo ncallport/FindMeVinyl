@@ -28,14 +28,16 @@ import androidx.compose.ui.unit.sp
 import com.nickallport.findmevinyl.ui.brand.FindMeVinylLogo
 import com.nickallport.findmevinyl.ui.brand.Glyphs
 
-/** The front screen: the logo, then three big buttons. There is no menu, Back does the rest. */
+/** The front screen: the logo, then the big buttons. There is no menu, Back does the rest. */
 @Composable
 fun HomeScreen(
     onArtists: () -> Unit,
     onWants: () -> Unit,
     onShops: () -> Unit,
     modifier: Modifier = Modifier,
-    onSettings: (() -> Unit)? = null
+    onSettings: (() -> Unit)? = null,
+    /** Opens the Owned list. Without it there is no OWNED button. */
+    onOwned: (() -> Unit)? = null
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -50,6 +52,10 @@ fun HomeScreen(
         FindMeVinylLogo(modifier = Modifier.padding(horizontal = 16.dp))
         Spacer(modifier = Modifier.height(24.dp))
         HomeButton("ARTISTS", Glyphs.Person, colors.primary, colors.onPrimary, "home_artists", onArtists)
+        if (onOwned != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            HomeButton("OWNED", Glyphs.Record, colors.primaryContainer, colors.onPrimaryContainer, "home_owned", onOwned)
+        }
         Spacer(modifier = Modifier.height(16.dp))
         HomeButton("WANTS", Glyphs.Heart, colors.secondary, colors.onSecondary, "home_wants", onWants)
         Spacer(modifier = Modifier.height(16.dp))

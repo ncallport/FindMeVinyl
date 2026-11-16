@@ -107,6 +107,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import android.content.Intent
 import com.nickallport.findmevinyl.ui.wantlist.WantListRoute
 import com.nickallport.findmevinyl.wantlist.WantListViewModel
+import com.nickallport.findmevinyl.owned.OwnedListViewModel
+import com.nickallport.findmevinyl.ui.owned.OwnedListRoute
 import com.nickallport.findmevinyl.photon.PlaceSuggester
 import com.nickallport.findmevinyl.shops.ShopApiFactory
 import com.nickallport.findmevinyl.shops.ShopSearchViewModel
@@ -360,6 +362,7 @@ class MainActivity : ComponentActivity() {
             inTransaction = { block -> database.withTransaction { block() } }
         )
         val wantListViewModel = WantListViewModel(database.albumDao())
+        val ownedListViewModel = OwnedListViewModel(database.albumDao())
         val placeSuggester = PlaceSuggester(ShopApiFactory.createPhoton())
         val shopSearchViewModel = ShopSearchViewModel(
             ShopApiFactory.createNominatim(),
@@ -413,6 +416,7 @@ class MainActivity : ComponentActivity() {
                         is Screen.Home -> {
                             HomeScreen(
                                 onArtists = { currentScreen = Screen.Search },
+                                onOwned = { currentScreen = Screen.OwnedList },
                                 onWants = { currentScreen = Screen.WantList },
                                 onShops = { currentScreen = Screen.Shops },
                                 onSettings = { currentScreen = Screen.Settings }
@@ -676,6 +680,17 @@ class MainActivity : ComponentActivity() {
                                 onShareText = { text -> shareText(text) }
                             )
                         }
+                        is Screen.OwnedList -> {
+                            OwnedListRoute(
+                                load = { ownedListViewModel.load() },
+                                exportText = { ownedListViewModel.exportText() },
+                                onShareText = { text -> shareText(text, "Share your collection") },
+                                onOpenAlbum = { album ->
+                                    currentScreen = Screen.AlbumDetail(album.albumId, album.title, album.artistId, album.artistName, screen)
+                                },
+                                loadCover = { id -> if (CustomAlbums.isCustom(id)) albumCoverViewModel.loadCover(id) else CoverArtLoader.shared.load(id) }
+                            )
+                        }
                         is Screen.Settings -> {
                             SettingsRoute(
                                 settings = settings,
@@ -774,12 +789,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun shareText(text: String) {
+    private fun shareText(text: String, title: String = "Share your want list") {
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        val chooser = Intent.createChooser(sendIntent, "Share your want list").apply {
+        val chooser = Intent.createChooser(sendIntent, title).apply {
             // The app takes shared text now, to add a shop, but a want list is for other people.
             putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(this@MainActivity, MainActivity::class.java)))
         }

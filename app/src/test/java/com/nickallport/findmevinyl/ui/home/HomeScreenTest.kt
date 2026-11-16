@@ -49,6 +49,28 @@ class HomeScreenTest {
     }
 
     @Test
+    fun `the OWNED button is there when the Owned list can be opened, and goes to it`() {
+        var opened = 0
+        composeTestRule.setContent {
+            FindMeVinylTheme { HomeScreen(onArtists = {}, onWants = {}, onShops = {}, onOwned = { opened++ }) }
+        }
+
+        composeTestRule.onNodeWithText("OWNED").assertExists()
+        composeTestRule.onNodeWithTag("home_owned").performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `there is no OWNED button without a way to open the list`() {
+        composeTestRule.setContent {
+            FindMeVinylTheme { HomeScreen(onArtists = {}, onWants = {}, onShops = {}) }
+        }
+
+        composeTestRule.onNodeWithTag("home_owned").assertDoesNotExist()
+    }
+
+    @Test
     fun `works in dark mode too`() {
         composeTestRule.setContent {
             FindMeVinylTheme(darkTheme = true) { HomeScreen(onArtists = {}, onWants = {}, onShops = {}) }
