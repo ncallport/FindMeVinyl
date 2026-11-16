@@ -1,6 +1,7 @@
 package com.nickallport.findmevinyl.ui.brand
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -15,6 +16,19 @@ object Glyphs {
                 fill = SolidColor(Color.Black)
             )
         }.build()
+
+    /** A record with a hole in the middle, for the Owned list. */
+    val Record: ImageVector by lazy {
+        ImageVector.Builder("record", 24.dp, 24.dp, 24f, 24f).apply {
+            addPath(
+                pathData = PathParser().parsePathString(
+                    "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,15.5c-1.93,0 -3.5,-1.57 -3.5,-3.5s1.57,-3.5 3.5,-3.5 3.5,1.57 3.5,3.5 -1.57,3.5 -3.5,3.5z"
+                ).toNodes(),
+                fill = SolidColor(Color.Black),
+                pathFillType = PathFillType.EvenOdd
+            )
+        }.build()
+    }
 
     /** A person, for artists. */
     val Person: ImageVector by lazy {

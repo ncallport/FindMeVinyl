@@ -213,6 +213,30 @@ interface AlbumDao {
         """
     )
     suspend fun getWantedAlbums(): List<WantedAlbumRow>
+
+    /**
+     * Every album the user owns, with the name of its artist: the name it has in its group when the artist is in one (as
+     * on the want list), else the favourite's, "Various Artists" for that artist, and "Unknown artist" for an owned album
+     * whose artist is no longer kept.
+     */
+    @Query(
+        """
+        SELECT albums.id AS albumId,
+               albums.artistId AS artistId,
+               COALESCE(
+                   artist_group_members.name,
+                   favourite_artists.name,
+                   CASE WHEN albums.artistId = '89ad4ac3-39f7-470e-963a-56509c546377' THEN 'Various Artists' ELSE 'Unknown artist' END
+               ) AS artistName,
+               albums.title AS albumTitle,
+               albums.firstReleaseDate AS firstReleaseDate
+        FROM albums
+        LEFT JOIN artist_group_members ON albums.artistId = artist_group_members.artistId
+        LEFT JOIN favourite_artists ON albums.artistId = favourite_artists.id
+        WHERE albums.owned = 1
+        """
+    )
+    suspend fun getOwnedAlbums(): List<OwnedAlbumRow>
 }
 
 /** The number of albums of an artist that are owned and that are wanted. */

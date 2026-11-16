@@ -17,7 +17,7 @@ class ScreenSaverTest {
 
     @Test
     fun simpleScreensRoundTrip() {
-        listOf(Screen.Search, Screen.WantList, Screen.Shops).forEach {
+        listOf(Screen.Search, Screen.WantList, Screen.OwnedList, Screen.Shops).forEach {
             assertEquals(it, roundTrip(it))
         }
     }
@@ -53,13 +53,21 @@ class ScreenSaverTest {
     }
 
     @Test
+    fun anAlbumOpenedFromTheOwnedListKeepsGoingBackToIt() {
+        val album = Screen.AlbumDetail("id", "Title", "artist", "Artist", Screen.OwnedList)
+
+        assertEquals(album, roundTrip(album))
+        assertEquals(Screen.OwnedList, album.backTarget())
+    }
+
+    @Test
     fun backFromTheFrontScreenLeavesTheApp() {
         assertEquals(null, Screen.Home.backTarget())
     }
 
     @Test
     fun backFromAnyPageGoesToTheFrontScreen() {
-        listOf(Screen.Search, Screen.WantList, Screen.Shops).forEach {
+        listOf(Screen.Search, Screen.WantList, Screen.OwnedList, Screen.Shops).forEach {
             assertEquals(Screen.Home, it.backTarget())
         }
     }

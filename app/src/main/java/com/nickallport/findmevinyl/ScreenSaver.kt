@@ -11,6 +11,8 @@ internal sealed class Screen {
     /** The results of an artist search. */
     data class ArtistResults(val query: String) : Screen()
     object WantList : Screen()
+    /** The complete Owned list, with Give Me Five. */
+    object OwnedList : Screen()
     object Shops : Screen()
     /** What to hide, as the user chooses. Reached from the front screen. */
     object Settings : Screen()
@@ -89,6 +91,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         is Screen.Search -> listOf("search")
         is Screen.ArtistResults -> listOf("results", value.query)
         is Screen.WantList -> listOf("wantlist")
+        is Screen.OwnedList -> listOf("ownedlist")
         is Screen.Shops -> listOf("shops")
         is Screen.Settings -> listOf("settings")
         is Screen.Barcode -> listOf("barcode")
@@ -111,6 +114,7 @@ internal object ScreenSaver : Saver<Screen, List<String>> {
         "search" -> Screen.Search
         "results" -> value.getOrNull(1)?.let { Screen.ArtistResults(it) }
         "wantlist" -> Screen.WantList
+        "ownedlist" -> Screen.OwnedList
         "shops" -> Screen.Shops
         "settings" -> Screen.Settings
         "barcode" -> Screen.Barcode
