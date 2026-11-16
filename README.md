@@ -7,12 +7,13 @@ An Android app for record collectors. It finds record shops near you, shows an a
 It is a hobby project. It has no accounts, no adverts and no server of its own. Everything you choose stays on the phone, and the music data comes from free public sources listed below.
 
 <p>
-  <img src="docs/screenshots/home.png" width="190" alt="The front screen with the logo and the Artists, Wants and Shops buttons">
+  <img src="docs/screenshots/home.png" width="190" alt="The front screen with the logo and the Artists, Owned, Wants and Shops buttons">
   <img src="docs/screenshots/artists.png" width="190" alt="The Artists page: a search field, a link to add an album by barcode, and the favourite artists A to Z, each with how many albums you own and want, above the Various Artists and Soundtracks blocks">
   <img src="docs/screenshots/discography.png" width="190" alt="An artist's discography: owned albums at the top with the copies you own, one to a line, and a want for another format">
   <img src="docs/screenshots/album.png" width="190" alt="An album page with the cover, Owned and Want buttons, the copies you own with a note each, and the pressing details">
 </p>
 <p>
+  <img src="docs/screenshots/owned.png" width="190" alt="The Owned page, one list of every album you own with the copies under each, with the Give Me Five window open over it showing five records picked at random, each with its cover, and Close and Refresh buttons">
   <img src="docs/screenshots/wants.png" width="190" alt="The Wants page scrolled to where the top ten in colour give way to the next ten, faded: one block for each album you want, with the artist, the format wanted and buttons to move it">
   <img src="docs/screenshots/shops.png" width="190" alt="The Shops page: record shops near a position, with whether each is open now and a button to show its hours">
   <img src="docs/screenshots/settings.png" width="190" alt="The Settings page with switches for what to hide">
